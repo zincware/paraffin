@@ -16,7 +16,7 @@ app = dash.Dash(__name__)
 # Layout of the Dash app
 app.layout = html.Div(
     [
-        html.H1("Dynamic Plotly Graph Example"),
+        html.H1("DVC Pipeline Dashboard"),
         dcc.Graph(id="live-update-graph"),
         dcc.Interval(
             id="interval-component",
