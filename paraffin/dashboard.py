@@ -1,9 +1,14 @@
+import logging
+
 import dash
 import plotly.graph_objs as go
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
 from .cli import finished, graph, positions, submitted
+
+log = logging.getLogger("werkzeug")
+log.setLevel(logging.ERROR)
 
 # Initialize the Dash app
 app = dash.Dash(__name__)
@@ -40,7 +45,7 @@ def update_graph(n):
                     x=[x0, x1, None],
                     y=[y0, y1, None],
                     mode="lines",
-                    line=dict(width=1, color="gray"),
+                    line={"width": 1, "color": "gray"},
                     hoverinfo="none",
                 )
             )
@@ -61,7 +66,7 @@ def update_graph(n):
                     text=[node],
                     mode="markers+text",
                     textposition="top center",
-                    marker=dict(size=10, color=color),
+                    marker={"size": 10, "color": color},
                     hoverinfo="text",
                 )
             )
@@ -71,9 +76,9 @@ def update_graph(n):
             "data": edge_trace + node_trace,
             "layout": go.Layout(
                 showlegend=False,
-                margin=dict(b=0, l=0, r=0, t=0),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                margin={"b": 0, "l": 0, "r": 0, "t": 0},
+                xaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+                yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
                 height=600,
             ),
         }

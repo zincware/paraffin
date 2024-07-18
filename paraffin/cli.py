@@ -11,21 +11,33 @@ import dvc.stage
 import networkx as nx
 import typer
 
-
 log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
 stages: List[dvc.stage.PipelineStage] = []
 finished: set[str] = set()
-submitted: set[Future] = set()
+submitted: dict[str, Future] = {}
 graph: nx.DiGraph = nx.DiGraph()
 positions: dict = {}
 
 
+def get_tree_layout(graph):
+    try:
+        positions = nx.drawing.nx_agraph.graphviz_layout(graph, prog="dot")
+    except ImportError:
+        log.critical(
+            "Graphviz is not available. Falling back to spring layout."
+            "See https://pygraphviz.github.io/documentation/stable/install.html"
+            "for installation instructions."
+        )
+        positions = nx.spring_layout(graph)
+    return positions
+
+
 def run_stage(stage_name: str, max_retries: int) -> str:
     """Run the DVC repro command for a given stage and retry if an error occurs."""
-    command = ["dvc", "repro", "--single-item", stage_name, "--quiet"]
+    command = ["dvc", "repro", "--single-item", stage_name]
     for attempt in range(max_retries):
         log.debug(f"Attempting {stage_name}, attempt {attempt + 1} of {max_retries}...")
         process = subprocess.Popen(command, stderr=subprocess.PIPE, text=True)
@@ -78,9 +90,13 @@ def execute_graph(max_workers: int, targets: List[str], max_retries: int):
         # add to the existing graph
         global graph
         graph.add_nodes_from(repo.index.graph.nodes)
-        positions.update(nx.spring_layout(graph))
+        graph.add_edges_from(repo.index.graph.edges)
+
+        positions.update(get_tree_layout(graph))
+
         # reverse the graph
         graph = graph.reverse()
+
         # construct a subgraph of the targets and their dependencies
         if targets:
             selected_stages = [
@@ -103,13 +119,12 @@ def execute_graph(max_workers: int, targets: List[str], max_retries: int):
                         pred.addressing in finished
                         for pred in graph.predecessors(stage)
                     ):
-                        submitted.add(
-                            executor.submit(run_stage, stage.addressing, max_retries)
+                        submitted[stage.addressing] = executor.submit(
+                            run_stage, stage.addressing, max_retries
                         )
 
-                for future in as_completed(submitted):
+                for future in as_completed(submitted.values()):
                     finished.add(future.result())
-    print("Finished all stages!")
 
 
 @app.command()
@@ -117,7 +132,7 @@ def main(
     max_workers: Optional[int] = None,
     targets: List[str] = typer.Argument(None),
     max_retries: int = 3,
-    dashboard: bool = True,
+    dashboard: bool = False,
 ):
     if max_workers is None:
         max_workers = os.cpu_count()
@@ -126,7 +141,13 @@ def main(
     if not dashboard:
         execute_graph(max_workers, targets, max_retries)
     else:
-        from .dashboard import app as dashboard_app
+        try:
+            from .dashboard import app as dashboard_app
+        except ImportError:
+            typer.echo(
+                "Dash is not installed. Please install it with `pip install dash` (see https://dash.plotly.com/installation)"
+            )
+            raise typer.Exit(1)
 
         execution_thread = threading.Thread(
             target=execute_graph, args=(max_workers, targets, max_retries)
