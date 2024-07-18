@@ -1,10 +1,13 @@
 [tool.poetry]
 name = "paraffin"
-version = "0.1.0"
+version = "0.1.1"
 description = "Parallel execution of DVC stages"
 authors = ["Fabian Zills <fzills@icp.uni-stuttgart.de>"]
 license = "Apache-2.0"
 readme = "README.md"
+
+[tool.poetry.urls]
+repository = "https://github.com/zincware/paraffin"
 
 [tool.poetry.dependencies]
 python = "^3.10"
