@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
 from typing import List, Optional
 
@@ -15,10 +16,40 @@ app = typer.Typer()
 
 
 def run_stage(stage_name: str) -> str:
-    # We use `single-item` for performance reasons
-    # all previous stages are already computed
-    dvc.cli.main(["repro", "--single-item", stage_name])
-    return stage_name
+    """Run the DVC repro command for a given stage and retry if an error occurs."""
+    command = ["dvc", "repro", "--single-item", stage_name]
+    max_retries = 3
+    for attempt in range(max_retries):
+        log.debug(f"Attempting {stage_name}, attempt {attempt + 1} of {max_retries}...")
+        process = subprocess.Popen(command, stderr=subprocess.PIPE, text=True)
+        failed = False
+
+        # Read stderr line by line in real time
+        while True:
+            stderr_line = process.stderr.readline()
+
+            if stderr_line:
+                log.critical(f"[STDERR] {stderr_line.strip()}")
+                failed = True
+
+            # Check if the process has finished
+            if process.poll() is not None:
+                break
+
+        # Get the final stderr output
+        _, stderr = process.communicate()
+
+        # Check for errors
+        if not failed:
+            return stage_name
+
+        log.critical(
+            f"Retrying {stage_name} due to error. Attempt {attempt + 1}/{max_retries}."
+        )
+
+    raise RuntimeError(
+        f"Failed to run stage {stage_name} after {max_retries} attempts: '{stderr}'"
+    )
 
 
 def get_predecessor_subgraph(
