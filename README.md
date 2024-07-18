@@ -15,10 +15,10 @@ pip install paraffin
 ```
 
 ## Usage
-To use Paraffin, simply run:
+To use Paraffin, you can run the following to run up to 4 DVC stages in parallel:
 
 ```bash
-paraffin <stage names>
+paraffin -n 4 <stage names>
 ```
 If you have `pip install dash` you can also access the dashboard by running 
 ```bash
