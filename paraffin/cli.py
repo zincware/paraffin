@@ -1,6 +1,7 @@
 import logging
+import os
 from concurrent.futures import Future, ProcessPoolExecutor, as_completed
-from typing import List
+from typing import List, Optional
 
 import dvc.cli
 import dvc.repo
@@ -37,7 +38,10 @@ def get_predecessor_subgraph(
 
 
 @app.command()
-def main(max_workers: int = 4, targets: List[str] = typer.Argument(None)):
+def main(max_workers: Optional[int] = None, targets: List[str] = typer.Argument(None)):
+    if max_workers is None:
+        max_workers = os.cpu_count()
+        typer.echo(f"Using {max_workers} workers")
     with dvc.repo.Repo() as repo:
         graph: nx.DiGraph = repo.index.graph
         # reverse the graph
