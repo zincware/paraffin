@@ -10,7 +10,8 @@ provides an effective workaround. For more details, refer to the DVC
 documentation on
 [parallel stage execution](https://dvc.org/doc/command-reference/repro#parallel-stage-execution).
 
-> \[!WARNING\] Although DVC supports running multiple `dvc repro` commands
+> [!WARNING]
+> Although DVC supports running multiple `dvc repro` commands
 > simultaneously, spawning many workers that finish at the same time may lead to
 > DVC lock issues and unexpected failures.
 
@@ -43,6 +44,7 @@ For more information, run:
 paraffin --help
 ```
 
-> \[!TIP\] If you are building Python-based workflows with DVC, consider trying
+> [!TIP]
+> If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
 > Pythonic way to define workflows.
