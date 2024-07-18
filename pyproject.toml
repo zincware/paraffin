@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "paraffin"
-version = "0.1.1"
+version = "0.1.2"
 description = "Parallel execution of DVC stages"
 authors = ["Fabian Zills <fzills@icp.uni-stuttgart.de>"]
 license = "Apache-2.0"
@@ -21,6 +21,7 @@ paraffin = 'paraffin.cli:app'
 ruff = "^0.5.2"
 ZnTrack = "^0.7.3"
 pre-commit = "^3.7.1"
+dash = "^2.17.1"
 
 [build-system]
 requires = ["poetry-core"]
