@@ -29,7 +29,7 @@ def run_stage(stage_name: str) -> str:
             stderr_line = process.stderr.readline()
 
             if stderr_line:
-                log.critical(f"[STDERR] {stderr_line.strip()}")
+                log.critical(stderr_line.strip())
                 failed = True
 
             # Check if the process has finished
@@ -48,7 +48,7 @@ def run_stage(stage_name: str) -> str:
         )
 
     raise RuntimeError(
-        f"Failed to run stage {stage_name} after {max_retries} attempts: '{stderr}'"
+        f"Failed to run stage {stage_name} after {max_retries} attempts."
     )
 
 
