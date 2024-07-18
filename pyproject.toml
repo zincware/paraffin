@@ -17,7 +17,14 @@ paraffin = 'paraffin.cli:app'
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.5.2"
 ZnTrack = "^0.7.3"
+pre-commit = "^3.7.1"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff.lint]
+select = ["E", "F", "N", "C", "I"]
+extend-ignore = [
+    "D213", "D203", "N802", "N801"
+]
