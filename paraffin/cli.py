@@ -1,3 +1,4 @@
+import fnmatch
 import logging
 import os
 import subprocess
@@ -10,7 +11,6 @@ import dvc.repo
 import dvc.stage
 import networkx as nx
 import typer
-import fnmatch
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +90,12 @@ def get_predecessor_subgraph(
 
 
 def execute_graph(
-    max_workers: int, targets: List[str], max_retries: int, quiet: bool, force: bool, glob: bool = False
+    max_workers: int,
+    targets: List[str],
+    max_retries: int,
+    quiet: bool,
+    force: bool,
+    glob: bool = False,
 ):
     with dvc.repo.Repo() as repo:
         # graph: nx.DiGraph = repo.index.graph
@@ -114,7 +119,9 @@ def execute_graph(
                 selected_stages = [
                     stage
                     for stage in graph.nodes
-                    if any(fnmatch.fnmatch(stage.addressing, target) for target in targets)
+                    if any(
+                        fnmatch.fnmatch(stage.addressing, target) for target in targets
+                    )
                 ]
                 log.debug(f"Selected stages: {selected_stages} from {targets}")
 
@@ -166,8 +173,12 @@ def main(
         False, "--force", "-f", help="Force execution even if DVC stages are up to date"
     ),
     targets: List[str] = typer.Argument(None, help="List of DVC targets to run"),
-    glob: bool = typer.Option(False, help="Allows targets containing shell-style wildcards"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
+    glob: bool = typer.Option(
+        False, help="Allows targets containing shell-style wildcards"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging"
+    ),
 ):
     """Run DVC stages in parallel."""
     if verbose:
@@ -189,7 +200,8 @@ def main(
             raise typer.Exit(1)
 
         execution_thread = threading.Thread(
-            target=execute_graph, args=(max_workers, targets, max_retries, quiet, force, glob)
+            target=execute_graph,
+            args=(max_workers, targets, max_retries, quiet, force, glob),
         )
         execution_thread.start()
         dashboard_app.run_server()
