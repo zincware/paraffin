@@ -10,6 +10,7 @@ import dvc.repo
 import dvc.stage
 import networkx as nx
 import typer
+import fnmatch
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def get_predecessor_subgraph(
 
 
 def execute_graph(
-    max_workers: int, targets: List[str], max_retries: int, quiet: bool, force: bool
+    max_workers: int, targets: List[str], max_retries: int, quiet: bool, force: bool, glob: bool = False
 ):
     with dvc.repo.Repo() as repo:
         # graph: nx.DiGraph = repo.index.graph
@@ -105,11 +106,20 @@ def execute_graph(
 
         # construct a subgraph of the targets and their dependencies
         if targets:
-            selected_stages = [
-                stage for stage in graph.nodes if stage.addressing in targets
-            ]
+            if not glob:
+                selected_stages = [
+                    stage for stage in graph.nodes if stage.addressing in targets
+                ]
+            else:
+                selected_stages = [
+                    stage
+                    for stage in graph.nodes
+                    if any(fnmatch.fnmatch(stage.addressing, target) for target in targets)
+                ]
+                log.debug(f"Selected stages: {selected_stages} from {targets}")
+
             graph = get_predecessor_subgraph(graph, selected_stages)
-        log.debug("Graph:", graph)
+        log.debug(f"Graph: {graph}")
         stages.extend(list(reversed(list(nx.topological_sort(graph)))))
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -156,14 +166,19 @@ def main(
         False, "--force", "-f", help="Force execution even if DVC stages are up to date"
     ),
     targets: List[str] = typer.Argument(None, help="List of DVC targets to run"),
+    glob: bool = typer.Option(False, help="Allows targets containing shell-style wildcards"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
 ):
     """Run DVC stages in parallel."""
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
     if max_workers is None:
         max_workers = os.cpu_count()
         typer.echo(f"Using {max_workers} workers")
 
     if not dashboard:
-        execute_graph(max_workers, targets, max_retries, quiet, force)
+        execute_graph(max_workers, targets, max_retries, quiet, force, glob)
     else:
         try:
             from .dashboard import app as dashboard_app
@@ -174,7 +189,7 @@ def main(
             raise typer.Exit(1)
 
         execution_thread = threading.Thread(
-            target=execute_graph, args=(max_workers, targets, max_retries, quiet, force)
+            target=execute_graph, args=(max_workers, targets, max_retries, quiet, force, glob)
         )
         execution_thread.start()
         dashboard_app.run_server()
