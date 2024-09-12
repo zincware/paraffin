@@ -11,6 +11,8 @@ import dvc.repo
 import dvc.stage
 import networkx as nx
 import typer
+from dvc.lock import LockError
+from dvc.stage.cache import RunCacheNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -38,39 +40,33 @@ def get_tree_layout(graph):
 
 def run_stage(stage_name: str, max_retries: int, quiet: bool, force: bool) -> str:
     """Run the DVC repro command for a given stage and retry if an error occurs."""
-    command = ["dvc", "repro", "--single-item", stage_name]
-    if quiet:
-        command.append("--quiet")
-    if force:
-        command.append("--force")
-    for attempt in range(max_retries):
-        log.debug(f"Attempting {stage_name}, attempt {attempt + 1} of {max_retries}...")
-        process = subprocess.Popen(command, stderr=subprocess.PIPE, text=True)
-        failed = False
-
-        # Read stderr line by line in real time
-        while True:
-            stderr_line = process.stderr.readline()
-
-            if stderr_line:
-                log.critical(stderr_line.strip())
-                failed = True
-
-            # Check if the process has finished
-            if process.poll() is not None:
-                break
-
-        # Check for errors
-        if not failed:
+    with dvc.repo.Repo() as repo:
+        stages = repo.stage.collect(stage_name)
+        if len(stages) != 1:
+            raise RuntimeError(f"Stage {stage_name} not found.")
+        stage = stages[0]
+        if stage.already_cached():
+            print(f"Stage '{stage_name}' didn't change, skipping")
             return stage_name
-
-        log.critical(
-            f"Retrying {stage_name} due to error. Attempt {attempt + 1}/{max_retries}."
-        )
-
-    raise RuntimeError(
-        f"Failed to run stage {stage_name} after {max_retries} attempts."
-    )
+        # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
+        try:
+            with repo.lock:
+                stage.repo.stage_cache.restore(stage)
+        except (RunCacheNotFoundError, FileNotFoundError):
+            print(f"Running stage '{stage_name}':")
+            print(f"> {stage.cmd}")
+            subprocess.check_call(stage.cmd, shell=True)
+            for _ in range(max_retries):
+                try:
+                    with repo.lock:
+                        stage.save()
+                        stage.commit()
+                        stage.dump(update_pipeline=False)
+                    break
+                except LockError:
+                    print(f"Failed to commit stage '{stage_name}', retrying...")
+                    continue
+    return stage_name
 
 
 def get_predecessor_subgraph(
@@ -129,6 +125,8 @@ def execute_graph(
         log.debug(f"Graph: {graph}")
         stages.extend(list(reversed(list(nx.topological_sort(graph)))))
 
+        print(f"Running {len(stages)} stages using {max_workers} workers.")
+
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             while len(finished) < len(stages):
                 for stage in stages:
@@ -136,17 +134,9 @@ def execute_graph(
                         continue
                     if stage.addressing in submitted:
                         continue
-                    # check if the stage is finished
-                    if stage.already_cached() and not force:
-                        finished.add(stage.addressing)
-                        continue
-                    if all(
-                        pred.addressing in finished
-                        for pred in graph.predecessors(stage)
-                    ):
-                        submitted[stage.addressing] = executor.submit(
-                            run_stage, stage.addressing, max_retries, quiet, force
-                        )
+                    submitted[stage.addressing] = executor.submit(
+                        run_stage, stage.addressing, max_retries, quiet, force
+                    )
 
                 # iterare over the submitted stages and check if they are finished
                 for stage in list(submitted):
@@ -186,7 +176,6 @@ def main(
 
     if max_workers is None:
         max_workers = os.cpu_count()
-        typer.echo(f"Using {max_workers} workers")
 
     if not dashboard:
         execute_graph(max_workers, targets, max_retries, quiet, force, glob)
