@@ -80,6 +80,6 @@ def proj01(proj_path) -> zntrack.Project:
 
     proj.build()
 
-    assert len(proj) == 14
+    assert len(proj.graph) == 14
 
     return proj

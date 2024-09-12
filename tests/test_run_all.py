@@ -27,7 +27,7 @@ def test_check_finished(proj01):
 def test_run_all(proj01):
     result = runner.invoke(app)
     assert result.exit_code == 0
-    assert f"Running {len(proj01)} stages" in result.stdout
+    assert f"Running {len(proj01.graph)} stages" in result.stdout
 
     assert check_finished()
 
