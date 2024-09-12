@@ -1,7 +1,8 @@
+import contextlib
 import fnmatch
 import logging
 import os
-import subprocess
+import pathlib
 import threading
 from concurrent.futures import Future, ProcessPoolExecutor
 from typing import List, Optional
@@ -25,6 +26,22 @@ graph: nx.DiGraph = nx.DiGraph()
 positions: dict = {}
 
 
+def update_gitignore():
+    if not pathlib.Path(".gitignore").exists():
+        with open(".gitignore", "w") as f:
+            f.write(".parrafin_*\n")
+        return
+    with open(".gitignore", "r") as f:
+        if ".parrafin_*" in f.read():
+            return
+    with open(".gitignore", "a") as f:
+        f.write(".parrafin_*\n")
+
+
+def get_paraffin_stage_file(addressing: str) -> pathlib.Path:
+    return pathlib.Path(f".parrafin_{addressing}")
+
+
 def get_tree_layout(graph):
     try:
         positions = nx.drawing.nx_agraph.graphviz_layout(graph, prog="dot")
@@ -38,35 +55,42 @@ def get_tree_layout(graph):
     return positions
 
 
-def run_stage(stage_name: str, max_retries: int, quiet: bool, force: bool) -> str:
-    """Run the DVC repro command for a given stage and retry if an error occurs."""
+def run_stage(stage_name: str, max_retries: int) -> bool:
+    # get the stage from the DVC repo
     with dvc.repo.Repo() as repo:
-        stages = repo.stage.collect(stage_name)
-        if len(stages) != 1:
-            raise RuntimeError(f"Stage {stage_name} not found.")
-        stage = stages[0]
-        if stage.already_cached():
-            print(f"Stage '{stage_name}' didn't change, skipping")
-            return stage_name
-        # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
-        try:
+        for _ in range(max_retries):
+            with contextlib.suppress(LockError):
+                with repo.lock:
+                    stages = list(repo.stage.collect(stage_name))
+                    if len(stages) != 1:
+                        raise RuntimeError(f"Stage {stage_name} not found.")
+                    stage = stages[0]
+                    if stage.already_cached():
+                        print(f"Stage '{stage_name}' didn't change, skipping")
+                        return True
+                    # try to restore the stage from the cache
+                    # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
+                    with contextlib.suppress(RunCacheNotFoundError, FileNotFoundError):
+                        stage.repo.stage_cache.restore(stage)
+                        return True
+                break
+                # no LockError was raised and no return was
+                # executed ->  the stage was not found in the cache
+
+    print(f"Running stage '{stage_name}':")
+    print(f"> {stage.cmd}")
+
+    for _ in range(max_retries):
+        with contextlib.suppress(LockError):
             with repo.lock:
-                stage.repo.stage_cache.restore(stage)
-        except (RunCacheNotFoundError, FileNotFoundError):
-            print(f"Running stage '{stage_name}':")
-            print(f"> {stage.cmd}")
-            subprocess.check_call(stage.cmd, shell=True)
-            for _ in range(max_retries):
-                try:
-                    with repo.lock:
-                        stage.save()
-                        stage.commit()
-                        stage.dump(update_pipeline=False)
-                    break
-                except LockError:
-                    print(f"Failed to commit stage '{stage_name}', retrying...")
-                    continue
-    return stage_name
+                stage.save()
+                stage.commit()
+                stage.dump(update_pipeline=False)
+            return True
+    else:
+        raise RuntimeError(
+            f"Failed to commit stage '{stage_name}' after {max_retries} retries."
+        )
 
 
 def get_predecessor_subgraph(
@@ -89,8 +113,6 @@ def execute_graph(
     max_workers: int,
     targets: List[str],
     max_retries: int,
-    quiet: bool,
-    force: bool,
     glob: bool = False,
 ):
     with dvc.repo.Repo() as repo:
@@ -126,23 +148,46 @@ def execute_graph(
         stages.extend(list(reversed(list(nx.topological_sort(graph)))))
 
         print(f"Running {len(stages)} stages using {max_workers} workers.")
+        try:
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                while len(finished) < len(stages):
+                    # TODO: consider using proper workers / queues like celery with file system broker ?
 
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            while len(finished) < len(stages):
-                for stage in stages:
-                    if stage.addressing in finished:
-                        continue
-                    if stage.addressing in submitted:
-                        continue
-                    submitted[stage.addressing] = executor.submit(
-                        run_stage, stage.addressing, max_retries, quiet, force
-                    )
+                    for stage in stages:
+                        # shuffling the stages might lead to better performance with multiple workers
+                        if (
+                            len(submitted) >= max_workers
+                        ):  # do not queue more jobs than workers
+                            break
+                        if stage.addressing in finished:
+                            continue
+                        # if stage.addressing in submitted:
+                        if get_paraffin_stage_file(stage.addressing).exists():
+                            continue
+                        # if a run finished in another paraffin process, if will be added
+                        #  but automatically loaded from the DVC cache and added to the finished set
+                        if not all(
+                            pred.addressing in finished
+                            for pred in graph.predecessors(stage)
+                        ):
+                            continue
+                        get_paraffin_stage_file(stage.addressing).touch()
+                        submitted[stage.addressing] = executor.submit(
+                            run_stage, stage.addressing, max_retries
+                        )
 
-                # iterare over the submitted stages and check if they are finished
-                for stage in list(submitted):
-                    future = submitted[stage]
-                    if future.done():
-                        finished.add(future.result())
+                    # iterare over the submitted stages and check if they are finished
+                    for stage_addressing in list(submitted.keys()):
+                        future = submitted[stage_addressing]
+                        if future.done():
+                            # check if an exception was raised
+                            _ = future.result()
+                            finished.add(stage_addressing)
+                            del submitted[stage_addressing]
+                            get_paraffin_stage_file(stage_addressing).unlink()
+        finally:
+            for stage_addressing in list(submitted.keys()):
+                get_paraffin_stage_file(stage_addressing).unlink(missing_ok=True)
 
     print("Finished running all stages.")
 
@@ -153,14 +198,10 @@ def main(
         None, "--max-workers", "-n", help="Maximum number of workers to run in parallel"
     ),
     max_retries: int = typer.Option(
-        1, "--max-retries", "-r", help="Maximum number of retries for failed stages"
+        10, "--max-retries", "-r", help="Maximum number of retries to commit a stage"
     ),
     dashboard: bool = typer.Option(
         False, "--dashboard", "-d", help="Enable the dashboard for monitoring"
-    ),
-    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress output"),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force execution even if DVC stages are up to date"
     ),
     targets: List[str] = typer.Argument(None, help="List of DVC targets to run"),
     glob: bool = typer.Option(
@@ -171,6 +212,8 @@ def main(
     ),
 ):
     """Run DVC stages in parallel."""
+    update_gitignore()
+
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -178,7 +221,7 @@ def main(
         max_workers = os.cpu_count()
 
     if not dashboard:
-        execute_graph(max_workers, targets, max_retries, quiet, force, glob)
+        execute_graph(max_workers, targets, max_retries, glob)
     else:
         try:
             from .dashboard import app as dashboard_app
@@ -190,7 +233,7 @@ def main(
 
         execution_thread = threading.Thread(
             target=execute_graph,
-            args=(max_workers, targets, max_retries, quiet, force, glob),
+            args=(max_workers, targets, max_retries, glob),
         )
         execution_thread.start()
         dashboard_app.run_server()
