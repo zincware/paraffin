@@ -44,8 +44,10 @@ paraffin --help
 ```
 
 ## Labels
-You can run `paraffin` in multiple processes (e.g. on different hardware with a shared file system).
-To specify where a `stage` should run, you can assign labels to each worker.
+
+You can run `paraffin` in multiple processes (e.g. on different hardware with a
+shared file system). To specify where a `stage` should run, you can assign
+labels to each worker.
 
 ```
 paraffin --labels GPU # on a GPU node
@@ -65,7 +67,8 @@ labels:
         - intel
 ```
 
-All `stages` that are not part of the `paraffin.yaml` will choose any of the available workers.
+All `stages` that are not part of the `paraffin.yaml` will choose any of the
+available workers.
 
 > \[!TIP\] If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
