@@ -3,6 +3,7 @@ import fnmatch
 import logging
 import os
 import pathlib
+import subprocess
 import threading
 from concurrent.futures import Future, ProcessPoolExecutor
 from typing import List, Optional
@@ -79,6 +80,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
 
     print(f"Running stage '{stage_name}':")
     print(f"> {stage.cmd}")
+    subprocess.check_call(stage.cmd, shell=True)
 
     for _ in range(max_retries):
         with contextlib.suppress(LockError):
