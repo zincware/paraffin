@@ -49,7 +49,7 @@ def get_tree_layout(graph):
         log.critical(
             "Graphviz is not available. Falling back to spring layout."
             "See https://pygraphviz.github.io/documentation/stable/install.html"
-            "for installation instructions."
+            " for installation instructions."
         )
         positions = nx.spring_layout(graph)
     return positions
