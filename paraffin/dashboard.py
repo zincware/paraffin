@@ -5,7 +5,7 @@ import plotly.graph_objs as go
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
-from .cli import finished, graph, positions, submitted
+from paraffin.cli import finished, graph, positions, submitted
 
 log = logging.getLogger("werkzeug")
 log.setLevel(logging.ERROR)

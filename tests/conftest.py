@@ -1,0 +1,85 @@
+import os
+import pathlib
+import shutil
+
+import dvc.cli
+import git
+import pytest
+import zntrack.examples
+
+
+@pytest.fixture
+def proj_path(tmp_path, request) -> pathlib.Path:
+    """temporary directory for testing DVC calls
+
+    Parameters
+    ----------
+    tmp_path
+    request: https://docs.pytest.org/en/6.2.x/reference.html#std-fixture-request
+
+    Returns
+    -------
+    path to temporary directory
+
+    """
+    shutil.copy(request.module.__file__, tmp_path)
+    os.chdir(tmp_path)
+    git.Repo.init()
+    dvc.cli.main(["init"])
+
+    return tmp_path
+
+
+@pytest.fixture
+def proj01(proj_path) -> zntrack.Project:
+    """Project with two independent groups of nodes for testing.
+
+    ```mermaid
+    flowchart TD
+        node1["A_SumNodeAttributes"]
+        node2["A_X_AddNodeNumbers"]
+        node3["A_X_ParamsToOuts"]
+        node4["A_X_ParamsToOuts_1"]
+        node5["A_Y_AddNodeNumbers"]
+        node6["A_Y_ParamsToOuts"]
+        node7["A_Y_ParamsToOuts_1"]
+        node2-->node1
+        node3-->node2
+        node4-->node2
+        node5-->node1
+        node6-->node5
+        node7-->node5
+        node8["B_SumNodeAttributes"]
+        node9["B_X_AddNodeNumbers"]
+        node10["B_X_ParamsToOuts"]
+        node11["B_X_ParamsToOuts_1"]
+        node12["B_Y_AddNodeNumbers"]
+        node13["B_Y_ParamsToOuts"]
+        node14["B_Y_ParamsToOuts_1"]
+        node9-->node8
+        node10-->node9
+        node11-->node9
+        node12-->node8
+        node13-->node12
+        node14-->node12
+    ```
+    """
+    PARAM = 1
+
+    with zntrack.Project() as proj:
+        for x in ["A", "B"]:
+            results = []
+            for y in ["X", "Y"]:
+                with proj.group(x, y):
+                    n1 = zntrack.examples.ParamsToOuts(params=PARAM)
+                    n2 = zntrack.examples.ParamsToOuts(params=PARAM)
+                    res = zntrack.examples.AddNodeNumbers(numbers=[n1, n2])
+                    results.append(res.sum)
+            with proj.group(x):
+                zntrack.examples.SumNodeAttributes(inputs=results, shift=0)
+
+    proj.build()
+
+    assert len(proj) == 14
+
+    return proj

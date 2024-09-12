@@ -61,7 +61,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
     with dvc.repo.Repo() as repo:
         for _ in range(max_retries):
             with contextlib.suppress(LockError):
-                with repo.lock:
+                with dvc.repo.lock_repo(repo):
                     stages = list(repo.stage.collect(stage_name))
                     if len(stages) != 1:
                         raise RuntimeError(f"Stage {stage_name} not found.")
@@ -84,7 +84,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
 
     for _ in range(max_retries):
         with contextlib.suppress(LockError):
-            with repo.lock:
+            with dvc.repo.lock_repo(repo):
                 stage.save()
                 stage.commit()
                 stage.dump(update_pipeline=False)
@@ -118,36 +118,42 @@ def execute_graph(
     glob: bool = False,
 ):
     with dvc.repo.Repo() as repo:
-        # graph: nx.DiGraph = repo.index.graph
-        # add to the existing graph
-        global graph
-        graph.add_nodes_from(repo.index.graph.nodes)
-        graph.add_edges_from(repo.index.graph.edges)
+        with dvc.repo.lock_repo(repo):
+            # graph: nx.DiGraph = repo.index.graph
+            # add to the existing graph
+            global graph
+            graph.add_nodes_from(repo.index.graph.nodes)
+            graph.add_edges_from(repo.index.graph.edges)
 
-        positions.update(get_tree_layout(graph))
+            positions.update(get_tree_layout(graph))
 
-        # reverse the graph
-        graph = graph.reverse()
+            # reverse the graph
+            graph = graph.reverse()
 
-        # construct a subgraph of the targets and their dependencies
-        if targets:
-            if not glob:
-                selected_stages = [
-                    stage for stage in graph.nodes if stage.addressing in targets
-                ]
-            else:
-                selected_stages = [
-                    stage
-                    for stage in graph.nodes
-                    if any(
-                        fnmatch.fnmatch(stage.addressing, target) for target in targets
-                    )
-                ]
-                log.debug(f"Selected stages: {selected_stages} from {targets}")
+            # construct a subgraph of the targets and their dependencies
+            if targets:
+                if not glob:
+                    selected_stages = [
+                        stage for stage in graph.nodes if stage.addressing in targets
+                    ]
+                else:
+                    selected_stages = [
+                        stage
+                        for stage in graph.nodes
+                        if any(
+                            fnmatch.fnmatch(stage.addressing, target)
+                            for target in targets
+                        )
+                    ]
+                    log.debug(f"Selected stages: {selected_stages} from {targets}")
 
-            graph = get_predecessor_subgraph(graph, selected_stages)
-        log.debug(f"Graph: {graph}")
-        stages.extend(list(reversed(list(nx.topological_sort(graph)))))
+                graph = get_predecessor_subgraph(graph, selected_stages)
+            log.debug(f"Graph: {graph}")
+            stages.extend(list(reversed(list(nx.topological_sort(graph)))))
+            for stage in stages:
+                if stage.already_cached():
+                    finished.add(stage.addressing)
+                    print(f"{stage.addressing} {stage.already_cached() = } ")
 
         print(f"Running {len(stages)} stages using {max_workers} workers.")
         try:
@@ -214,6 +220,17 @@ def main(
     ),
 ):
     """Run DVC stages in parallel."""
+    # we need the globals for the dashboard >_<
+    global graph, stages, finished, submitted, positions
+
+    if not all(len(x) == 0 for x in [finished, submitted, positions, stages, graph]):
+        graph = nx.DiGraph()
+        stages.clear()
+        finished.clear()
+        submitted.clear()
+        positions.clear()
+        typer.echo("Found existing global variables, resetting.", err=True)
+
     update_gitignore()
 
     if verbose:
