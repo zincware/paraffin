@@ -63,32 +63,36 @@ def test_check_finished(proj01):
     assert not check_finished()
 
 
-def test_run_all(proj01):
+def test_run_all(proj01, caplog):
     result = runner.invoke(app)
     assert result.exit_code == 0
-    assert f"Running {len(proj01)} stages" in result.stdout
+    assert f"Running {len(proj01)} stages" in caplog.text
 
     assert check_finished()
 
 
-def test_run_selection(proj01):
+def test_run_selection(proj01, caplog):
     result = runner.invoke(app, ["A_X_ParamsToOuts"])
     assert result.exit_code == 0
-    assert "Running 1 stages" in result.stdout
+    assert "Running 1 stages" in caplog.text
+    caplog.clear()
 
     assert check_finished(["A_X_ParamsToOuts"])
     assert not check_finished(["A_Y_ParamsToOuts"])
 
     result = runner.invoke(app, ["A_Y_ParamsToOuts"])
     assert result.exit_code == 0
-    assert "Running 1 stages" in result.stdout
+    assert "Running 1 stages" in caplog.text
+    caplog.clear()
 
     assert check_finished(["A_Y_ParamsToOuts"])
     assert not check_finished()
 
     result = runner.invoke(app, ["B_X_AddNodeNumbers", "B_Y_AddNodeNumbers"])
     assert result.exit_code == 0
-    assert "Running 6 stages" in result.stdout
+    assert "Running 6 stages" in caplog.text
+    caplog.clear()
+
     assert not check_finished()
     assert check_finished(
         [
@@ -102,21 +106,23 @@ def test_run_selection(proj01):
     )
 
 
-def test_run_selection_glob(proj01):
+def test_run_selection_glob(proj01, caplog):
     result = runner.invoke(app, ["A_X_*"])
     assert result.exit_code == 0
-    assert "Running 0 stages" in result.stdout
+    assert "Running 0 stages" in caplog.text
+    caplog.clear()
 
     result = runner.invoke(app, ["--glob", "A_X_*"])
     assert result.exit_code == 0
-    assert "Running 3 stages" in result.stdout
+    assert "Running 3 stages" in caplog.text
+    caplog.clear()
 
     assert check_finished(
         ["A_X_ParamsToOuts", "A_X_ParamsToOuts_1", "A_X_AddNodeNumbers"]
     )
 
 
-def test_run_datafile(proj02):
+def test_run_datafile(proj02, caplog):
     result = runner.invoke(app, ["--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 1 stages" in result.stdout
