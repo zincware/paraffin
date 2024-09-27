@@ -1,6 +1,5 @@
 import pathlib
 import subprocess
-import warnings
 
 import dvc.cli
 import pytest
