@@ -17,7 +17,20 @@ import typer
 from dvc.lock import LockError
 from dvc.stage.cache import RunCacheNotFoundError
 
+import logging
+
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
+
+# Attach a logging handler to print info to stdout
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+
+# Set a format for the handler
+formatter = logging.Formatter('%(asctime)s %(message)s')
+handler.setFormatter(formatter)
+
+log.addHandler(handler)
 
 app = typer.Typer()
 
@@ -68,7 +81,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
                         raise RuntimeError(f"Stage {stage_name} not found.")
                     stage = stages[0]
                     if stage.already_cached():
-                        warnings.warn(f"Stage '{stage_name}' didn't change, skipping")
+                        log.info(f"Stage '{stage_name}' didn't change, skipping")
                         return True
                     # try to restore the stage from the cache
                     # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
@@ -79,8 +92,8 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
                 # no LockError was raised and no return was
                 # executed ->  the stage was not found in the cache
 
-    warnings.warn(f"Running stage '{stage_name}':")
-    print(f"> {stage.cmd}")
+    log.info(f"Running stage '{stage_name}':")
+    log.info(f"> {stage.cmd}")
     subprocess.check_call(stage.cmd, shell=True)
 
     for _ in range(max_retries):
@@ -159,8 +172,7 @@ def execute_graph(
                 #     finished.add(stage.addressing)
                 #     warnings.warn(f"{stage.addressing} {stage.already_cached() = } ")
 
-        print(f"Running {len(stages)} stages using {max_workers} workers.")
-        warnings.warn(f"Running {[stage.addressing for stage in stages]}")
+        log.info(f"Running {len(stages)} stages using {max_workers} workers.")
         try:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 while len(finished) < len(stages):
@@ -193,7 +205,6 @@ def execute_graph(
                     for stage_addressing in list(submitted.keys()):
                         future = submitted[stage_addressing]
                         if future.done():
-                            warnings.warn(f"Stage {stage_addressing} finished.")
                             # check if an exception was raised
                             _ = future.result()
                             finished.add(stage_addressing)
@@ -203,7 +214,7 @@ def execute_graph(
             for stage_addressing in list(submitted.keys()):
                 get_paraffin_stage_file(stage_addressing).unlink(missing_ok=True)
 
-    print("Finished running all stages.")
+    log.info("Finished running all stages.")
 
 
 @app.command()
