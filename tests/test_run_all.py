@@ -1,6 +1,7 @@
 import subprocess
 
 from typer.testing import CliRunner
+import zntrack.examples
 
 from paraffin.cli import app
 import dvc.cli
@@ -15,9 +16,11 @@ runner = CliRunner()
 
 class ReadFile(zntrack.Node):
     path: pathlib.Path = zntrack.deps_path()
+    data: float = zntrack.outs()
 
     def run(self):
-        pass
+        with open(self.path) as f:
+            self.data = sum(map(float, f.read().split(",")))
 
 @pytest.fixture
 def proj02(proj_path) -> zntrack.Project:
@@ -27,10 +30,12 @@ def proj02(proj_path) -> zntrack.Project:
         data_path = pathlib.Path("data")
         data_path.mkdir()
         data_file = data_path / "data.csv"
-        data_file.write_text("1,2,3\n4,5,6\n")
-        ReadFile(path=data_file, name="a")
-        ReadFile(path=data_file, name="b_1")
-        ReadFile(path=data_file, name="b_2")
+        data_file.write_text("1,2,3")
+        a_1 = ReadFile(path=data_file, name="a_1")
+        b_1 = ReadFile(path=data_file, name="b_1")
+
+        a_2 = zntrack.examples.AddNodeAttributes(a=a_1.data, b=a_1.data, name="a_2")
+        b_2 = zntrack.examples.AddNodeAttributes(a=b_1.data, b=b_1.data, name="b_2")
 
     proj.build()
     dvc.cli.main(["add", "data/data.csv"])
@@ -109,13 +114,16 @@ def test_run_selection_glob(proj01):
 
 
 def test_run_datafile(proj02):
-    result = runner.invoke(app, ["a"])
+    result = runner.invoke(app, ["--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 1 stages" in result.stdout
     assert check_finished(
-        ["a"]
+        ["a_1", "a_2"]
     )
 
     result = runner.invoke(app, ["--glob", "b*"])
     assert result.exit_code == 0
     assert check_finished(["b_1", "b_2"])
+
+    assert zntrack.from_rev("a_2").c == 12
+    assert zntrack.from_rev("b_2").c == 12
