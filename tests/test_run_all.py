@@ -48,10 +48,7 @@ def check_finished(names: list[str] | None = None) -> bool:
     for name in names or []:
         cmd.append(name)
     result = subprocess.run(cmd, capture_output=True, check=True)
-    if not result.stdout.decode().strip() == "Data and pipelines are up to date.":
-        warnings.warn(result.stdout.decode())
-        return False
-    return True
+    return result.stdout.decode().strip() == "Data and pipelines are up to date."
 
 
 def test_check_finished(proj01):
@@ -125,11 +122,14 @@ def test_run_selection_glob(proj01, caplog):
 def test_run_datafile(proj02, caplog):
     result = runner.invoke(app, ["--glob", "a*"])
     assert result.exit_code == 0
-    # assert "Running 1 stages" in result.stdout
+    assert "Running 2 stages" in caplog.text
+    caplog.clear()
     assert check_finished(["a_1", "a_2"])
 
     result = runner.invoke(app, ["--glob", "b*"])
     assert result.exit_code == 0
+    assert "Running 2 stages" in caplog.text
+    caplog.clear()
     assert check_finished(["b_1", "b_2"])
 
     assert zntrack.from_rev("a_2").c == 12
@@ -141,6 +141,8 @@ def test_run_datafile(proj02, caplog):
     data_file.write_text("4,5,6")
 
     result = runner.invoke(app, ["--glob", "a*"])
+    assert "Running 2 stages" in caplog.text
+    caplog.clear()
     assert result.exit_code == 0
     assert check_finished(["a_1", "a_2"])
     assert not check_finished(["b_1", "b_2"])
@@ -149,6 +151,8 @@ def test_run_datafile(proj02, caplog):
     assert zntrack.from_rev("b_2").c == 12
 
     result = runner.invoke(app, ["--glob", "b*"])
+    assert "Running 2 stages" in caplog.text
+    caplog.clear()
     assert check_finished(["b_1", "b_2"])
     assert result.exit_code == 0
     assert zntrack.from_rev("b_1").data == 15

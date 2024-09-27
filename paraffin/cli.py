@@ -169,13 +169,14 @@ def execute_graph(
                 #     finished.add(stage.addressing)
                 #     warnings.warn(f"{stage.addressing} {stage.already_cached() = } ")
 
-        log.info(f"Running {len(stages)} stages using {max_workers} workers.")
+        pipeline_stages = [x for x in stages if x.addressing not in finished]
+        log.info(f"Running {len(pipeline_stages)} stages using {max_workers} workers.")
         try:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 while len(finished) < len(stages):
                     # TODO: consider using proper workers / queues like celery with file system broker ?
 
-                    for stage in stages:
+                    for stage in pipeline_stages:
                         # shuffling the stages might lead to better performance with multiple workers
                         if (
                             len(submitted) >= max_workers
