@@ -17,6 +17,17 @@ from dvc.lock import LockError
 from dvc.stage.cache import RunCacheNotFoundError
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
+
+# Attach a logging handler to print info to stdout
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+
+# Set a format for the handler
+formatter = logging.Formatter("%(asctime)s %(message)s")
+handler.setFormatter(formatter)
+
+log.addHandler(handler)
 
 app = typer.Typer()
 
@@ -61,13 +72,13 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
     with dvc.repo.Repo() as repo:
         for _ in range(max_retries):
             with contextlib.suppress(LockError):
-                with repo.lock:
+                with dvc.repo.lock_repo(repo):
                     stages = list(repo.stage.collect(stage_name))
                     if len(stages) != 1:
                         raise RuntimeError(f"Stage {stage_name} not found.")
                     stage = stages[0]
                     if stage.already_cached():
-                        print(f"Stage '{stage_name}' didn't change, skipping")
+                        log.info(f"Stage '{stage_name}' didn't change, skipping")
                         return True
                     # try to restore the stage from the cache
                     # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
@@ -78,13 +89,13 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
                 # no LockError was raised and no return was
                 # executed ->  the stage was not found in the cache
 
-    print(f"Running stage '{stage_name}':")
-    print(f"> {stage.cmd}")
+    log.info(f"Running stage '{stage_name}':")
+    log.info(f"> {stage.cmd}")
     subprocess.check_call(stage.cmd, shell=True)
 
     for _ in range(max_retries):
         with contextlib.suppress(LockError):
-            with repo.lock:
+            with dvc.repo.lock_repo(repo):
                 stage.save()
                 stage.commit()
                 stage.dump(update_pipeline=False)
@@ -118,44 +129,54 @@ def execute_graph(
     glob: bool = False,
 ):
     with dvc.repo.Repo() as repo:
-        # graph: nx.DiGraph = repo.index.graph
-        # add to the existing graph
-        global graph
-        graph.add_nodes_from(repo.index.graph.nodes)
-        graph.add_edges_from(repo.index.graph.edges)
+        with dvc.repo.lock_repo(repo):
+            # graph: nx.DiGraph = repo.index.graph
+            # add to the existing graph
+            global graph
+            graph.add_nodes_from(repo.index.graph.nodes)
+            graph.add_edges_from(repo.index.graph.edges)
 
-        positions.update(get_tree_layout(graph))
+            positions.update(get_tree_layout(graph))
 
-        # reverse the graph
-        graph = graph.reverse()
+            # reverse the graph
+            graph = graph.reverse()
 
-        # construct a subgraph of the targets and their dependencies
-        if targets:
-            if not glob:
-                selected_stages = [
-                    stage for stage in graph.nodes if stage.addressing in targets
-                ]
-            else:
-                selected_stages = [
-                    stage
-                    for stage in graph.nodes
-                    if any(
-                        fnmatch.fnmatch(stage.addressing, target) for target in targets
-                    )
-                ]
-                log.debug(f"Selected stages: {selected_stages} from {targets}")
+            # construct a subgraph of the targets and their dependencies
+            if targets:
+                if not glob:
+                    selected_stages = [
+                        stage for stage in graph.nodes if stage.addressing in targets
+                    ]
+                else:
+                    selected_stages = [
+                        stage
+                        for stage in graph.nodes
+                        if any(
+                            fnmatch.fnmatch(stage.addressing, target)
+                            for target in targets
+                        )
+                    ]
+                    log.debug(f"Selected stages: {selected_stages} from {targets}")
 
-            graph = get_predecessor_subgraph(graph, selected_stages)
-        log.debug(f"Graph: {graph}")
-        stages.extend(list(reversed(list(nx.topological_sort(graph)))))
+                graph = get_predecessor_subgraph(graph, selected_stages)
+            log.debug(f"Graph: {graph}")
+            stages.extend(list(reversed(list(nx.topological_sort(graph)))))
+            for stage in stages:
+                if stage.cmd is None:
+                    # skip non-PipeLineStages
+                    finished.add(stage.addressing)
+                # if stage.already_cached(): # this is not correct! If there are changed deps, this is true altough it should be false!
+                #     finished.add(stage.addressing)
+                #     warnings.warn(f"{stage.addressing} {stage.already_cached() = } ")
 
-        print(f"Running {len(stages)} stages using {max_workers} workers.")
+        pipeline_stages = [x for x in stages if x.addressing not in finished]
+        log.info(f"Running {len(pipeline_stages)} stages using {max_workers} workers.")
         try:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 while len(finished) < len(stages):
                     # TODO: consider using proper workers / queues like celery with file system broker ?
 
-                    for stage in stages:
+                    for stage in pipeline_stages:
                         # shuffling the stages might lead to better performance with multiple workers
                         if (
                             len(submitted) >= max_workers
@@ -191,7 +212,7 @@ def execute_graph(
             for stage_addressing in list(submitted.keys()):
                 get_paraffin_stage_file(stage_addressing).unlink(missing_ok=True)
 
-    print("Finished running all stages.")
+    log.info("Finished running all stages.")
 
 
 @app.command()
@@ -214,6 +235,17 @@ def main(
     ),
 ):
     """Run DVC stages in parallel."""
+    # we need the globals for the dashboard >_<
+    global graph, stages, finished, submitted, positions
+
+    if not all(len(x) == 0 for x in [finished, submitted, positions, stages, graph]):
+        graph = nx.DiGraph()
+        stages.clear()
+        finished.clear()
+        submitted.clear()
+        positions.clear()
+        typer.echo("Found existing global variables, resetting.", err=True)
+
     update_gitignore()
 
     if verbose:
