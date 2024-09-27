@@ -5,7 +5,6 @@ import os
 import pathlib
 import subprocess
 import threading
-import warnings
 from concurrent.futures import Future, ProcessPoolExecutor
 from typing import List, Optional
 
@@ -17,8 +16,6 @@ import typer
 from dvc.lock import LockError
 from dvc.stage.cache import RunCacheNotFoundError
 
-import logging
-
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
 
@@ -27,7 +24,7 @@ handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
 
 # Set a format for the handler
-formatter = logging.Formatter('%(asctime)s %(message)s')
+formatter = logging.Formatter("%(asctime)s %(message)s")
 handler.setFormatter(formatter)
 
 log.addHandler(handler)
