@@ -1,12 +1,12 @@
 import pathlib
 import subprocess
+import warnings
 
 import dvc.cli
 import pytest
 import zntrack
 import zntrack.examples
 from typer.testing import CliRunner
-import warnings
 
 from paraffin.cli import app
 
@@ -128,7 +128,7 @@ def test_run_datafile(proj02):
 
     assert zntrack.from_rev("a_2").c == 12
     assert zntrack.from_rev("b_2").c == 12
-    
+
     # modify data file and run to check changed outputs
     data_file = pathlib.Path("data/data.csv")
     data_file.unlink()
@@ -141,8 +141,6 @@ def test_run_datafile(proj02):
 
     assert zntrack.from_rev("a_2").c == 30
     assert zntrack.from_rev("b_2").c == 12
-
-
 
     result = runner.invoke(app, ["--glob", "b*"])
     assert check_finished(["b_1", "b_2"])

@@ -5,9 +5,9 @@ import os
 import pathlib
 import subprocess
 import threading
+import warnings
 from concurrent.futures import Future, ProcessPoolExecutor
 from typing import List, Optional
-import warnings
 
 import dvc.cli
 import dvc.repo
