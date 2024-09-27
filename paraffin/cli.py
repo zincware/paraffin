@@ -7,6 +7,7 @@ import subprocess
 import threading
 from concurrent.futures import Future, ProcessPoolExecutor
 from typing import List, Optional
+import warnings
 
 import dvc.cli
 import dvc.repo
@@ -67,7 +68,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
                         raise RuntimeError(f"Stage {stage_name} not found.")
                     stage = stages[0]
                     if stage.already_cached():
-                        print(f"Stage '{stage_name}' didn't change, skipping")
+                        warnings.warn(f"Stage '{stage_name}' didn't change, skipping")
                         return True
                     # try to restore the stage from the cache
                     # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
@@ -78,7 +79,7 @@ def run_stage(stage_name: str, max_retries: int) -> bool:
                 # no LockError was raised and no return was
                 # executed ->  the stage was not found in the cache
 
-    print(f"Running stage '{stage_name}':")
+    warnings.warn(f"Running stage '{stage_name}':")
     print(f"> {stage.cmd}")
     subprocess.check_call(stage.cmd, shell=True)
 
@@ -151,11 +152,15 @@ def execute_graph(
             log.debug(f"Graph: {graph}")
             stages.extend(list(reversed(list(nx.topological_sort(graph)))))
             for stage in stages:
-                if stage.already_cached():
+                if stage.cmd is None:
+                    # skip non-PipeLineStages
                     finished.add(stage.addressing)
-                    print(f"{stage.addressing} {stage.already_cached() = } ")
+                # if stage.already_cached(): # this is not correct! If there are changed deps, this is true altough it should be false!
+                #     finished.add(stage.addressing)
+                #     warnings.warn(f"{stage.addressing} {stage.already_cached() = } ")
 
         print(f"Running {len(stages)} stages using {max_workers} workers.")
+        warnings.warn(f"Running {[stage.addressing for stage in stages]}")
         try:
             with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 while len(finished) < len(stages):
@@ -188,6 +193,7 @@ def execute_graph(
                     for stage_addressing in list(submitted.keys()):
                         future = submitted[stage_addressing]
                         if future.done():
+                            warnings.warn(f"Stage {stage_addressing} finished.")
                             # check if an exception was raised
                             _ = future.result()
                             finished.add(stage_addressing)

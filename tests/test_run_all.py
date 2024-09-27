@@ -6,6 +6,7 @@ import pytest
 import zntrack
 import zntrack.examples
 from typer.testing import CliRunner
+import warnings
 
 from paraffin.cli import app
 
@@ -47,7 +48,10 @@ def check_finished(names: list[str] | None = None) -> bool:
     for name in names or []:
         cmd.append(name)
     result = subprocess.run(cmd, capture_output=True, check=True)
-    return result.stdout.decode().strip() == "Data and pipelines are up to date."
+    if not result.stdout.decode().strip() == "Data and pipelines are up to date.":
+        warnings.warn(result.stdout.decode())
+        return False
+    return True
 
 
 def test_check_finished(proj01):
@@ -124,3 +128,24 @@ def test_run_datafile(proj02):
 
     assert zntrack.from_rev("a_2").c == 12
     assert zntrack.from_rev("b_2").c == 12
+    
+    # modify data file and run to check changed outputs
+    data_file = pathlib.Path("data/data.csv")
+    data_file.unlink()
+    data_file.write_text("4,5,6")
+
+    result = runner.invoke(app, ["--glob", "a*"])
+    assert result.exit_code == 0
+    assert check_finished(["a_1", "a_2"])
+    assert not check_finished(["b_1", "b_2"])
+
+    assert zntrack.from_rev("a_2").c == 30
+    assert zntrack.from_rev("b_2").c == 12
+
+
+
+    result = runner.invoke(app, ["--glob", "b*"])
+    assert check_finished(["b_1", "b_2"])
+    assert result.exit_code == 0
+    assert zntrack.from_rev("b_1").data == 15
+    assert zntrack.from_rev("b_2").c == 30
