@@ -3,8 +3,39 @@ import subprocess
 from typer.testing import CliRunner
 
 from paraffin.cli import app
+import dvc.cli
+import pathlib
+import pytest
+import zntrack
 
 runner = CliRunner()
+
+
+
+
+class ReadFile(zntrack.Node):
+    path: pathlib.Path = zntrack.deps_path()
+
+    def run(self):
+        pass
+
+@pytest.fixture
+def proj02(proj_path) -> zntrack.Project:
+    """Project with two independent groups of nodes for testing."""
+
+    with zntrack.Project() as proj:
+        data_path = pathlib.Path("data")
+        data_path.mkdir()
+        data_file = data_path / "data.csv"
+        data_file.write_text("1,2,3\n4,5,6\n")
+        ReadFile(path=data_file, name="a")
+        ReadFile(path=data_file, name="b_1")
+        ReadFile(path=data_file, name="b_2")
+
+    proj.build()
+    dvc.cli.main(["add", "data/data.csv"])
+
+    return proj
 
 
 def check_finished(names: list[str] | None = None) -> bool:
@@ -75,3 +106,16 @@ def test_run_selection_glob(proj01):
     assert check_finished(
         ["A_X_ParamsToOuts", "A_X_ParamsToOuts_1", "A_X_AddNodeNumbers"]
     )
+
+
+def test_run_datafile(proj02):
+    result = runner.invoke(app, ["a"])
+    assert result.exit_code == 0
+    # assert "Running 1 stages" in result.stdout
+    assert check_finished(
+        ["a"]
+    )
+
+    result = runner.invoke(app, ["--glob", "b*"])
+    assert result.exit_code == 0
+    assert check_finished(["b_1", "b_2"])

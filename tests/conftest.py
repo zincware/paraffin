@@ -8,6 +8,8 @@ import pytest
 import zntrack.examples
 
 
+
+
 @pytest.fixture
 def proj_path(tmp_path, request) -> pathlib.Path:
     """temporary directory for testing DVC calls
@@ -36,6 +38,7 @@ def proj01(proj_path) -> zntrack.Project:
 
     ```mermaid
     flowchart TD
+        node0["data/data.csv"]
         node1["A_SumNodeAttributes"]
         node2["A_X_AddNodeNumbers"]
         node3["A_X_ParamsToOuts"]
@@ -83,3 +86,7 @@ def proj01(proj_path) -> zntrack.Project:
     assert len(proj) == 14
 
     return proj
+
+
+
+
