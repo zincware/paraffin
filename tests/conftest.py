@@ -8,8 +8,6 @@ import pytest
 import zntrack.examples
 
 
-
-
 @pytest.fixture
 def proj_path(tmp_path, request) -> pathlib.Path:
     """temporary directory for testing DVC calls
@@ -86,7 +84,3 @@ def proj01(proj_path) -> zntrack.Project:
     assert len(proj) == 14
 
     return proj
-
-
-
-

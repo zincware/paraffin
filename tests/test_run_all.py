@@ -1,17 +1,15 @@
+import pathlib
 import subprocess
 
-from typer.testing import CliRunner
-import zntrack.examples
-
-from paraffin.cli import app
 import dvc.cli
-import pathlib
 import pytest
 import zntrack
+import zntrack.examples
+from typer.testing import CliRunner
+
+from paraffin.cli import app
 
 runner = CliRunner()
-
-
 
 
 class ReadFile(zntrack.Node):
@@ -21,6 +19,7 @@ class ReadFile(zntrack.Node):
     def run(self):
         with open(self.path) as f:
             self.data = sum(map(float, f.read().split(",")))
+
 
 @pytest.fixture
 def proj02(proj_path) -> zntrack.Project:
@@ -117,9 +116,7 @@ def test_run_datafile(proj02):
     result = runner.invoke(app, ["--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 1 stages" in result.stdout
-    assert check_finished(
-        ["a_1", "a_2"]
-    )
+    assert check_finished(["a_1", "a_2"])
 
     result = runner.invoke(app, ["--glob", "b*"])
     assert result.exit_code == 0
