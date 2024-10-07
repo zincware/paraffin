@@ -10,8 +10,8 @@ provides an effective workaround. For more details, refer to the DVC
 documentation on
 [parallel stage execution](https://dvc.org/doc/command-reference/repro#parallel-stage-execution).
 
-> [!WARNING]
-> `paraffin` is still very experimental. Do not use it for production workflows.
+> \[!WARNING\] `paraffin` is still very experimental. Do not use it for
+> production workflows.
 
 ## Installation
 
@@ -69,7 +69,6 @@ labels:
 All `stages` that are not part of the `paraffin.yaml` will choose any of the
 available workers.
 
-> [!TIP]
-> If you are building Python-based workflows with DVC, consider trying
+> \[!TIP\] If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
 > Pythonic way to define workflows.
