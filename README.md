@@ -23,11 +23,12 @@ pip install paraffin
 
 ## Usage
 
-To use Paraffin, you can run the following to run up to 4 DVC stages in
-parallel:
+To use Paraffin, you can run the following to queue up the execution of these DVC stages.
 
 ```bash
-paraffin -n 4 <stage names>
+paraffin <stage name> <stage name> ... <stage name>
+# run max 4 jobs in parallel
+celery -A paraffin.worker worker --loglevel=WARNING --concurrency=4
 ```
 
 If you have `pip install dash` you can also access the dashboard by running
