@@ -10,8 +10,8 @@ provides an effective workaround. For more details, refer to the DVC
 documentation on
 [parallel stage execution](https://dvc.org/doc/command-reference/repro#parallel-stage-execution).
 
-> [!WARNING]
-> `paraffin` is still very experimental. Do not use it for production workflows.
+> \[!WARNING\] `paraffin` is still very experimental. Do not use it for
+> production workflows.
 
 ## Installation
 
@@ -23,11 +23,13 @@ pip install paraffin
 
 ## Usage
 
-To use Paraffin, you can run the following to run up to 4 DVC stages in
-parallel:
+To use Paraffin, you can run the following to queue up the execution of these
+DVC stages.
 
 ```bash
-paraffin -n 4 <stage names>
+paraffin <stage name> <stage name> ... <stage name>
+# run max 4 jobs in parallel
+celery -A paraffin.worker worker --loglevel=WARNING --concurrency=4
 ```
 
 If you have `pip install dash` you can also access the dashboard by running
@@ -69,7 +71,6 @@ labels:
 All `stages` that are not part of the `paraffin.yaml` will choose any of the
 available workers.
 
-> [!TIP]
-> If you are building Python-based workflows with DVC, consider trying
+> \[!TIP\] If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
 > Pythonic way to define workflows.
