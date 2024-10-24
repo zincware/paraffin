@@ -1,12 +1,11 @@
-import pathlib
-from celery import Celery
-import subprocess
 import logging
+import pathlib
+import subprocess
+
+from celery import Celery
 
 log = logging.getLogger(__name__)
 # set the andler.terminator = ""
-
-
 
 
 def make_celery() -> Celery:
@@ -20,14 +19,14 @@ def make_celery() -> Celery:
 
     app = Celery(
         __name__,
-        broker_url='filesystem://',
-        result_backend= f"db+sqlite:///{results_db.as_posix()}",
+        broker_url="filesystem://",
+        result_backend=f"db+sqlite:///{results_db.as_posix()}",
         broker_transport_options={
             "data_folder_in": data_folder.as_posix(),
             "data_folder_out": data_folder.as_posix(),
             "data_folder_processed": data_folder.as_posix(),
             "control_folder": control_folder.as_posix(),
-        }
+        },
     )
 
     return app
@@ -35,13 +34,17 @@ def make_celery() -> Celery:
 
 app = make_celery()
 
-@app.task(bind=True, default_retry_delay=5) # retry in 5 seconds
+
+@app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
 def repro(self, *args, name: str):
     try:
         lock_error = False
 
         popen = subprocess.Popen(
-            ["dvc", "repro", "--single-item", name], stdout=subprocess.PIPE, universal_newlines=True, stderr=subprocess.PIPE
+            ["dvc", "repro", "--single-item", name],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+            stderr=subprocess.PIPE,
         )
         for stdout_line in iter(popen.stdout.readline, ""):
             # logging.info(stdout_line)
@@ -53,13 +56,13 @@ def repro(self, *args, name: str):
             print(stderr_line, end="")
             if "ERROR: Unable to acquire lock" in stderr_line:
                 lock_error = True
-                
+
         popen.stderr.close()
 
     except subprocess.CalledProcessError as exc:
         if lock_error:
             raise self.retry(exc=exc, max_retries=5)
-        else :
+        else:
             # something else went wrong and we fail!
             raise exc
     return True

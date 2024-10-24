@@ -1,24 +1,15 @@
-import contextlib
-import fnmatch
 import logging
-import os
-import pathlib
-import subprocess
-import threading
-from concurrent.futures import Future, ProcessPoolExecutor
-from typing import List, Optional
 import typing as t
+from concurrent.futures import Future
+from typing import List
 
-from celery import chain, group, chord
-
+import dvc.api
 import dvc.cli
 import dvc.repo
 import dvc.stage
-import dvc.api
 import networkx as nx
 import typer
-from dvc.lock import LockError
-from dvc.stage.cache import RunCacheNotFoundError
+from celery import chord, group
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
@@ -43,15 +34,16 @@ positions: dict = {}
 
 import networkx as nx
 
+
 def get_subgraph_with_predecessors(G, X, reverse=False):
     # Initialize a set to store nodes that will be in the subgraph
     nodes_to_include = set(X)
-    
+
     # For each node in X, find all its predecessors
     for node in X:
         predecessors = nx.ancestors(G, node)
         nodes_to_include.update(predecessors)
-    
+
     # Create the subgraph with the selected nodes
     if reverse:
         return G.subgraph(nodes_to_include).reverse(copy=True)
@@ -74,10 +66,10 @@ def main(names: t.Optional[list[str]] = None):
     task_dict = {}
     for node in subgraph.nodes:
         task_dict[node.name] = repro.s(name=node.name)
-    
+
     endpoints = []
     chords = {}
-    
+
     for node in nx.topological_sort(subgraph):
         if len(list(subgraph.successors(node))) == 0:
             # if there are no successors, then add the node to the endpoints
@@ -101,6 +93,7 @@ def main(names: t.Optional[list[str]] = None):
 
     group(endpoints).apply_async()
 
+
 # @app.command()
 # def main(
 #     max_workers: Optional[int] = typer.Option(
@@ -121,7 +114,6 @@ def main(names: t.Optional[list[str]] = None):
 #     ),
 # ):
 #     """Run DVC stages in parallel."""
-    
 
 
 if __name__ == "__main__":
