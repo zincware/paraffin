@@ -11,7 +11,7 @@ def submit_node_graph(
     subgraph: nx.DiGraph,
     shutdown_after_finished: bool = False,
     custom_queues: t.Optional[dict] = None,
-): # noqa C901
+):  # noqa C901
     task_dict = {}
     custom_queues = custom_queues or {}
     for node in subgraph.nodes:
