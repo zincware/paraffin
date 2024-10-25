@@ -43,10 +43,12 @@ def get_stage_graph(names, glob=False):
 
 
 def get_custom_queue():
-    with pathlib.Path("paraffin.yaml").open() as f:
-        config = yaml.safe_load(f)
+    try:
+        with pathlib.Path("paraffin.yaml").open() as f:
+            config = yaml.safe_load(f)
 
-    return config.get("queue", {})
-
-
+            return config.get("queue", {})
+        
+    except FileNotFoundError:
+        return {}
 # TODO: what about lists, shutdown, ?
