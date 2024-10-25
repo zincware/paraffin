@@ -2,6 +2,8 @@ import fnmatch
 
 import dvc.api
 import networkx as nx
+import pathlib
+import yaml
 
 
 def get_subgraph_with_predecessors(G, X, reverse=False):
@@ -38,3 +40,10 @@ def get_stage_graph(names, glob=False):
     subgraph = nx.subgraph_view(subgraph, filter_node=lambda x: hasattr(x, "name"))
 
     return subgraph
+
+def get_custom_queue():
+    with pathlib.Path("paraffin.yaml").open() as f:
+        config = yaml.safe_load(f)
+    
+    return config.get("queue", {})
+# TODO: what about lists, shutdown, ?

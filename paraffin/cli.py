@@ -3,7 +3,7 @@ import typing as t
 import typer
 
 from paraffin.submit import submit_node_graph
-from paraffin.utils import get_stage_graph
+from paraffin.utils import get_stage_graph, get_custom_queue
 
 app = typer.Typer()
 
@@ -25,7 +25,8 @@ def main(
     from paraffin.worker import app as celery_app
 
     subgraph = get_stage_graph(names=names, glob=glob)
-    submit_node_graph(subgraph, shutdown_after_finished=shutdown_after_finished)
+    custom_queues = get_custom_queue()
+    submit_node_graph(subgraph, shutdown_after_finished=shutdown_after_finished, custom_queues=custom_queues)
 
     typer.echo(f"Submitted all (n = {len(subgraph)})  tasks.")
     if concurrency > 0:

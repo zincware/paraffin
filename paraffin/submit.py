@@ -1,13 +1,18 @@
 import networkx as nx
 from celery import chord, group
-
+import typing as t
 from paraffin.worker import repro, shutdown_worker
+import fnmatch
 
 
-def submit_node_graph(subgraph: nx.DiGraph, shutdown_after_finished: bool = False):
+def submit_node_graph(subgraph: nx.DiGraph, shutdown_after_finished: bool = False, custom_queues: t.Optional[dict] = None):
     task_dict = {}
+    custom_queues = custom_queues or {}
     for node in subgraph.nodes:
-        task_dict[node.name] = repro.s(name=node.name)
+        if (matched_pattern := next((pattern for pattern in custom_queues if fnmatch.fnmatch(node.name, pattern)), None)):
+            task_dict[node.name] = repro.s(name=node.name).set(queue=custom_queues[matched_pattern])
+        else:
+            task_dict[node.name] = repro.s(name=node.name)
 
     endpoints = []
     chords = {}
