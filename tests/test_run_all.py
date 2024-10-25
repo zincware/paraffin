@@ -15,8 +15,8 @@ runner = CliRunner()
 
 @pytest.fixture(scope="session", autouse=True)
 def set_env():
-    os.environ["PARAFFIN_CONCURRENCY"] = "1"
-    os.environ["PARAFFIN_SHUTDOWN_AFTER_FINISHED"] = "true"
+    from paraffin.worker import app
+    app.conf.task_always_eager = True
 
 
 class ReadFile(zntrack.Node):
