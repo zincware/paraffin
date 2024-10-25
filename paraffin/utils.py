@@ -48,7 +48,9 @@ def get_custom_queue():
             config = yaml.safe_load(f)
 
             return config.get("queue", {})
-        
+
     except FileNotFoundError:
         return {}
+
+
 # TODO: what about lists, shutdown, ?
