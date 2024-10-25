@@ -2,11 +2,10 @@ import pathlib
 from celery import Celery
 import subprocess
 import logging
+import time
 
 log = logging.getLogger(__name__)
 # set the andler.terminator = ""
-
-
 
 
 def make_celery() -> Celery:
@@ -20,14 +19,14 @@ def make_celery() -> Celery:
 
     app = Celery(
         __name__,
-        broker_url='filesystem://',
-        result_backend= f"db+sqlite:///{results_db.as_posix()}",
+        broker_url="filesystem://",
+        result_backend=f"db+sqlite:///{results_db.as_posix()}",
         broker_transport_options={
             "data_folder_in": data_folder.as_posix(),
             "data_folder_out": data_folder.as_posix(),
             "data_folder_processed": data_folder.as_posix(),
             "control_folder": control_folder.as_posix(),
-        }
+        },
     )
 
     return app
@@ -35,31 +34,50 @@ def make_celery() -> Celery:
 
 app = make_celery()
 
-@app.task(bind=True, default_retry_delay=5) # retry in 5 seconds
+
+@app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
 def repro(self, *args, name: str):
-    try:
-        lock_error = False
+    popen = subprocess.Popen(
+        ["dvc", "repro", "--single-item", name],
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        stderr=subprocess.PIPE,
+    )
+    for stdout_line in iter(popen.stdout.readline, ""):
+        # logging.info(stdout_line)
+        print(stdout_line, end="")
+    popen.stdout.close()
 
-        popen = subprocess.Popen(
-            ["dvc", "repro", "--single-item", name], stdout=subprocess.PIPE, universal_newlines=True, stderr=subprocess.PIPE
-        )
-        for stdout_line in iter(popen.stdout.readline, ""):
-            # logging.info(stdout_line)
-            print(stdout_line, end="")
-        popen.stdout.close()
-
-        for stderr_line in iter(popen.stderr.readline, ""):
-            # logging.error(stderr_line)
-            print(stderr_line, end="")
-            if "ERROR: Unable to acquire lock" in stderr_line:
-                lock_error = True
-                
-        popen.stderr.close()
-
-    except subprocess.CalledProcessError as exc:
-        if lock_error:
-            raise self.retry(exc=exc, max_retries=5)
-        else :
-            # something else went wrong and we fail!
-            raise exc
+    for stderr_line in iter(popen.stderr.readline, ""):
+        # logging.error(stderr_line)
+        print(stderr_line, end="")
+        if "ERROR: Unable to acquire lock" in stderr_line:
+            log.error(f"Retrying {name} due to lock error")
+            raise self.retry(max_retries=5)
+        if (
+            f"ERROR: failed to reproduce '{name}': Unable to acquire lock"
+            in stderr_line
+        ):
+            # unable to commit lock, keep retrying
+            for _ in range(5):
+                try:
+                    log.error(f"Commiting {name} again due to lock error")
+                    subprocess.check_call(
+                        ["dvc", "commit", name, "--force"],
+                        stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                    )
+                    break
+                except subprocess.CalledProcessError:
+                    time.sleep(1)
+            else:
+                raise RuntimeError(f"Unable to commit lock for {name}")
+    popen.stderr.close()
     return True
+
+
+# Shutdown task
+@app.task(bind=True)
+def shutdown_worker(self, *args, **kwargs):
+    app.control.revoke(self.request.id)  # prevent this task from being executed again
+    app.control.shutdown()
