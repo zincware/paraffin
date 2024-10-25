@@ -10,8 +10,8 @@ provides an effective workaround. For more details, refer to the DVC
 documentation on
 [parallel stage execution](https://dvc.org/doc/command-reference/repro#parallel-stage-execution).
 
-> [!WARNING]
-> `paraffin` is still very experimental. Do not use it for production workflows.
+> \[!WARNING\] `paraffin` is still very experimental. Do not use it for
+> production workflows.
 
 ## Installation
 
