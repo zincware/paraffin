@@ -1,4 +1,3 @@
-import os
 import pathlib
 import subprocess
 
@@ -16,6 +15,7 @@ runner = CliRunner()
 @pytest.fixture(scope="session", autouse=True)
 def set_env():
     from paraffin.worker import app
+
     app.conf.task_always_eager = True
 
 
