@@ -40,8 +40,8 @@ def proj02(proj_path) -> zntrack.Project:
         a_1 = ReadFile(path=data_file, name="a_1")
         b_1 = ReadFile(path=data_file, name="b_1")
 
-        a_2 = zntrack.examples.AddNodeAttributes(a=a_1.data, b=a_1.data, name="a_2")
-        b_2 = zntrack.examples.AddNodeAttributes(a=b_1.data, b=b_1.data, name="b_2")
+        _ = zntrack.examples.AddNodeAttributes(a=a_1.data, b=a_1.data, name="a_2")
+        _ = zntrack.examples.AddNodeAttributes(a=b_1.data, b=b_1.data, name="b_2")
 
     proj.build()
     dvc.cli.main(["add", "data/data.csv"])

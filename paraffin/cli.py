@@ -44,5 +44,6 @@ def main(
         )
     else:
         typer.echo(
-            "Start your celery worker using `celery -A paraffin.worker worker` and specify concurrency with `--concurrency`."
+            "Start your celery worker using `celery -A paraffin.worker worker`"
+            " and specify concurrency with `--concurrency`."
         )

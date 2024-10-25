@@ -6,8 +6,6 @@ import time
 from celery import Celery
 
 log = logging.getLogger(__name__)
-# set the andler.terminator = ""
-
 
 def make_celery() -> Celery:
     data_folder = pathlib.Path(".paraffin", "data")
@@ -62,7 +60,7 @@ def repro(self, *args, name: str):
             # unable to commit lock, keep retrying
             for _ in range(5):
                 try:
-                    log.error(f"Commiting {name} again due to lock error")
+                    log.error(f"Committing {name} again due to lock error")
                     subprocess.check_call(
                         ["dvc", "commit", name, "--force"],
                         stderr=subprocess.PIPE,

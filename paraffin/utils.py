@@ -6,19 +6,19 @@ import networkx as nx
 import yaml
 
 
-def get_subgraph_with_predecessors(G, X, reverse=False):
+def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     # Initialize a set to store nodes that will be in the subgraph
-    nodes_to_include = set(X)
+    nodes_to_include = set(nodes)
 
     # For each node in X, find all its predecessors
-    for node in X:
-        predecessors = nx.ancestors(G, node)
+    for node in nodes:
+        predecessors = nx.ancestors(graph, node)
         nodes_to_include.update(predecessors)
 
     # Create the subgraph with the selected nodes
     if reverse:
-        return G.subgraph(nodes_to_include).reverse(copy=True)
-    return G.subgraph(nodes_to_include).copy()
+        return graph.subgraph(nodes_to_include).reverse(copy=True)
+    return graph.subgraph(nodes_to_include).copy()
 
 
 def get_stage_graph(names, glob=False):
