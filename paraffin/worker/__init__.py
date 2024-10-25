@@ -7,6 +7,7 @@ from celery import Celery
 
 log = logging.getLogger(__name__)
 
+
 def make_celery() -> Celery:
     data_folder = pathlib.Path(".paraffin", "data")
     control_folder = pathlib.Path(".paraffin", "control")
