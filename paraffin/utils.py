@@ -1,8 +1,8 @@
 import fnmatch
+import pathlib
 
 import dvc.api
 import networkx as nx
-import pathlib
 import yaml
 
 
@@ -41,9 +41,12 @@ def get_stage_graph(names, glob=False):
 
     return subgraph
 
+
 def get_custom_queue():
     with pathlib.Path("paraffin.yaml").open() as f:
         config = yaml.safe_load(f)
-    
+
     return config.get("queue", {})
+
+
 # TODO: what about lists, shutdown, ?
