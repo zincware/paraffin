@@ -1,6 +1,6 @@
+import os
 import pathlib
 import subprocess
-import os
 
 import dvc.cli
 import pytest
@@ -12,10 +12,12 @@ from paraffin.cli import app
 
 runner = CliRunner()
 
+
 @pytest.fixture(scope="session", autouse=True)
 def set_env():
     os.environ["PARAFFIN_CONCURRENCY"] = "1"
     os.environ["PARAFFIN_SHUTDOWN_AFTER_FINISHED"] = "true"
+
 
 class ReadFile(zntrack.Node):
     path: pathlib.Path = zntrack.deps_path()

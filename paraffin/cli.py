@@ -1,25 +1,17 @@
-import contextlib
 import fnmatch
 import logging
-import os
-import pathlib
-import subprocess
-import threading
-from concurrent.futures import Future, ProcessPoolExecutor
-from typing import List, Optional
 import typing as t
-import tqdm
+from concurrent.futures import Future
+from typing import List
 
-from celery import chain, group, chord
-
+import dvc.api
 import dvc.cli
 import dvc.repo
 import dvc.stage
-import dvc.api
 import networkx as nx
+import tqdm
 import typer
-from dvc.lock import LockError
-from dvc.stage.cache import RunCacheNotFoundError
+from celery import chord, group
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
@@ -63,12 +55,19 @@ def get_subgraph_with_predecessors(G, X, reverse=False):
 @app.command()
 def main(
     names: t.Optional[list[str]] = typer.Argument(None),
-    concurrency: int = typer.Option(0, "--concurrency", "-c", envvar="PARAFFIN_CONCURRENCY"),
+    concurrency: int = typer.Option(
+        0, "--concurrency", "-c", envvar="PARAFFIN_CONCURRENCY"
+    ),
     glob: bool = False,
-    shutdown_after_finished: bool = typer.Option(False, "--shutdown-after-finished", "-s", envvar="PARAFFIN_SHUTDOWN_AFTER_FINISHED")
+    shutdown_after_finished: bool = typer.Option(
+        False,
+        "--shutdown-after-finished",
+        "-s",
+        envvar="PARAFFIN_SHUTDOWN_AFTER_FINISHED",
+    ),
 ):
-    from paraffin.worker import repro, shutdown_worker
     from paraffin.worker import app as celery_app
+    from paraffin.worker import repro, shutdown_worker
 
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
@@ -76,10 +75,12 @@ def main(
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
     if names is not None:
         if glob:
-            nodes = [x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)]
+            nodes = [
+                x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
+            ]
         else:
             nodes = [x for x in nodes if x.name in names]
-        
+
     subgraph = get_subgraph_with_predecessors(graph, nodes)
 
     # remove all nodes that do not have a name

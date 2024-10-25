@@ -1,8 +1,9 @@
-import pathlib
-from celery import Celery
-import subprocess
 import logging
+import pathlib
+import subprocess
 import time
+
+from celery import Celery
 
 log = logging.getLogger(__name__)
 # set the andler.terminator = ""
