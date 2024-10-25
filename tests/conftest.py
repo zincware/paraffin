@@ -65,7 +65,7 @@ def proj01(proj_path) -> zntrack.Project:
         node14-->node12
     ```
     """
-    PARAM = 1 # noqa N806
+    PARAM = 1  # noqa N806
 
     with zntrack.Project() as proj:
         for x in ["A", "B"]:
