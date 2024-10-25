@@ -1,6 +1,8 @@
-import networkx as nx
 import fnmatch
+
 import dvc.api
+import networkx as nx
+
 
 def get_subgraph_with_predecessors(G, X, reverse=False):
     # Initialize a set to store nodes that will be in the subgraph

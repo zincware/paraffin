@@ -1,6 +1,7 @@
 import networkx as nx
-from paraffin.worker import repro, shutdown_worker
 from celery import chord, group
+
+from paraffin.worker import repro, shutdown_worker
 
 
 def submit_node_graph(subgraph: nx.DiGraph, shutdown_after_finished: bool = False):

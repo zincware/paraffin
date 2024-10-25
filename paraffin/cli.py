@@ -1,25 +1,11 @@
-import fnmatch
-import logging
 import typing as t
-from concurrent.futures import Future
-from typing import List
 
-import dvc.api
-import dvc.cli
-import dvc.repo
-import dvc.stage
-import networkx as nx
-import tqdm
 import typer
 
-
-from paraffin.utils import get_stage_graph
 from paraffin.submit import submit_node_graph
+from paraffin.utils import get_stage_graph
 
 app = typer.Typer()
-
-
-import networkx as nx
 
 
 @app.command()
@@ -37,7 +23,6 @@ def main(
     ),
 ):
     from paraffin.worker import app as celery_app
-    
 
     subgraph = get_stage_graph(names=names, glob=glob)
     submit_node_graph(subgraph, shutdown_after_finished=shutdown_after_finished)
