@@ -169,4 +169,3 @@ def test_run_one_two_many(proj02):
     result = runner.invoke(app)
     assert result.exit_code == 0
     assert check_finished()
-

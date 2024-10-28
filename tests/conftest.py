@@ -87,7 +87,6 @@ def proj01(proj_path) -> zntrack.Project:
 
 
 def proj02(proj_path) -> zntrack.Project:
-    
     PARAM = 1  # noqa N806
     project = zntrack.Project()
 
@@ -96,7 +95,7 @@ def proj02(proj_path) -> zntrack.Project:
     for idx in range(3):
         with project.group("A", str(idx)) as group:
             _ = zntrack.examples.AddNodeNumbers(numbers=[n])
-    
+
     project.build()
 
     assert len(project) == 4

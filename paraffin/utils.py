@@ -7,6 +7,7 @@ import yaml
 
 from paraffin.abc import HirachicalStages
 
+
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     # Initialize a set to store nodes that will be in the subgraph
     nodes_to_include = set(nodes)
@@ -72,6 +73,7 @@ def dag_to_levels(graph) -> HirachicalStages:
                         # this part has already been added
                         break
     return levels
+
 
 def levels_to_mermaid(levels: HirachicalStages) -> str:
     # Initialize Mermaid syntax

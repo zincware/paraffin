@@ -28,7 +28,7 @@ def make_celery() -> Celery:
             "control_folder": control_folder.as_posix(),
         },
     )
-    
+
     # app = Celery(
     #     __name__,
     #     broker="redis://localhost:6379/0",

@@ -1,10 +1,15 @@
 import typing as t
 
+import networkx as nx
 import typer
 
 from paraffin.submit import submit_node_graph
-import networkx as nx
-from paraffin.utils import get_custom_queue, get_stage_graph, levels_to_mermaid, dag_to_levels
+from paraffin.utils import (
+    dag_to_levels,
+    get_custom_queue,
+    get_stage_graph,
+    levels_to_mermaid,
+)
 
 app = typer.Typer()
 
@@ -25,7 +30,6 @@ def main(
     show_mermaid: bool = typer.Option(True),
 ):
     from paraffin.worker import app as celery_app
-    from paraffin.worker import make_celery
 
     subgraph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
