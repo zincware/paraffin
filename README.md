@@ -92,6 +92,7 @@ celery -A paraffin.worker worker -Q AQueue,celery
 All `stages` not assigned to a queue in `paraffin.yaml` will default to the `celery` queue.
 
 
-> \[!TIP\] If you are building Python-based workflows with DVC, consider trying
+> [!TIP]
+> If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
 > Pythonic way to define workflows.
