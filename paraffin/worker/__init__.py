@@ -9,13 +9,18 @@ log = logging.getLogger(__name__)
 
 
 def make_celery() -> Celery:
-    data_folder = pathlib.Path(".paraffin", "data")
-    control_folder = pathlib.Path(".paraffin", "data")
-    results_db = pathlib.Path(".paraffin", "results.db")
+    paraffin_folder = pathlib.Path(".paraffin")
+    data_folder = paraffin_folder / "data"
+    control_folder = paraffin_folder / "data"
+    results_db = paraffin_folder / "results.db"
+    gitignore = paraffin_folder / ".gitignore"
 
     data_folder.mkdir(parents=True, exist_ok=True)
     control_folder.mkdir(parents=True, exist_ok=True)
     results_db.parent.mkdir(parents=True, exist_ok=True)
+
+    if not gitignore.exists():
+        gitignore.write_text("data\nresults.db\n")
 
     app = Celery(
         __name__,
