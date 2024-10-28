@@ -75,19 +75,20 @@ def dag_to_levels(graph) -> HirachicalStages:
     return levels
 
 
-def levels_to_mermaid(levels: HirachicalStages) -> str:
+def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
     # Initialize Mermaid syntax
     mermaid_syntax = "flowchart TD\n"
 
-    # Add each level as a subgraph
-    for level, nodes in levels.items():
-        mermaid_syntax += f"\tsubgraph Level{level + 1}\n"
-        for node in nodes:
-            mermaid_syntax += f"\t\t{node.name}\n"
-        mermaid_syntax += "\tend\n"
+    for idx, levels in enumerate(all_levels):
+        # Add each level as a subgraph
+        for level, nodes in levels.items():
+            mermaid_syntax += f"\tsubgraph Level{idx}:{level + 1}\n"
+            for node in nodes:
+                mermaid_syntax += f"\t\t{node.name}\n"
+            mermaid_syntax += "\tend\n"
 
-    # Add connections between levels
-    for i in range(len(levels) - 1):
-        mermaid_syntax += f"\tLevel{i + 1} --> Level{i + 2}\n"
+        # Add connections between levels
+        for i in range(len(levels) - 1):
+            mermaid_syntax += f"\tLevel{idx}:{i + 1} --> Level{idx}:{i + 2}\n"
 
     return mermaid_syntax
