@@ -24,7 +24,8 @@ def main(
         "--concurrency",
         "-c",
         envvar="PARAFFIN_CONCURRENCY",
-        help="Number of stages to run in parallel. If not provided, a celery worker has to be started manually.",
+        help="Number of stages to run in parallel. If not provided," + \
+            " a celery worker has to be started manually.",
     ),
     glob: bool = typer.Option(
         False, "--glob", "-g", help="Use glob pattern to match stage names."
