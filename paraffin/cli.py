@@ -16,11 +16,19 @@ app = typer.Typer()
 
 @app.command()
 def main(
-    names: t.Optional[list[str]] = typer.Argument(None, help="Stage names to run. If not specified, run all stages."),
-    concurrency: int = typer.Option(
-        0, "--concurrency", "-c", envvar="PARAFFIN_CONCURRENCY", help="Number of stages to run in parallel. If not provided, a celery worker has to be started manually."
+    names: t.Optional[list[str]] = typer.Argument(
+        None, help="Stage names to run. If not specified, run all stages."
     ),
-    glob: bool = typer.Option(False, "--glob", "-g", help="Use glob pattern to match stage names."),
+    concurrency: int = typer.Option(
+        0,
+        "--concurrency",
+        "-c",
+        envvar="PARAFFIN_CONCURRENCY",
+        help="Number of stages to run in parallel. If not provided, a celery worker has to be started manually.",
+    ),
+    glob: bool = typer.Option(
+        False, "--glob", "-g", help="Use glob pattern to match stage names."
+    ),
     shutdown_after_finished: bool = typer.Option(
         False,
         "--shutdown-after-finished",
@@ -28,7 +36,9 @@ def main(
         envvar="PARAFFIN_SHUTDOWN_AFTER_FINISHED",
         help="Shutdown the worker after all tasks are finished (experimental).",
     ),
-    show_mermaid: bool = typer.Option(True, help="Visualize the parallel execution graph using Mermaid."),
+    show_mermaid: bool = typer.Option(
+        True, help="Visualize the parallel execution graph using Mermaid."
+    ),
     dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
 ):
     """Run DVC stages in parallel using Celery."""
@@ -38,7 +48,9 @@ def main(
     custom_queues = get_custom_queue()
 
     disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
-    disconnected_levels = [dag_to_levels(graph.subgraph(sg)) for sg in disconnected_subgraphs]
+    disconnected_levels = [
+        dag_to_levels(graph.subgraph(sg)) for sg in disconnected_subgraphs
+    ]
     # iterate disconnected subgraphs for better performance
     if not dry:
         for levels in disconnected_levels:
