@@ -90,10 +90,10 @@ def proj02(proj_path) -> zntrack.Project:
     PARAM = 1  # noqa N806
     project = zntrack.Project()
 
-    with project.group("A") as group:
+    with project.group("A"):
         n = zntrack.examples.ParamsToOuts(params=PARAM)
     for idx in range(3):
-        with project.group("A", str(idx)) as group:
+        with project.group("A", str(idx)):
             _ = zntrack.examples.AddNodeNumbers(numbers=[n])
 
     project.build()
