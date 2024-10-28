@@ -5,6 +5,7 @@ import dvc.api
 import networkx as nx
 import yaml
 
+from paraffin.abc import HirachicalStages
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     # Initialize a set to store nodes that will be in the subgraph
@@ -53,7 +54,7 @@ def get_custom_queue():
         return {}
 
 
-def dag_to_levels(graph):
+def dag_to_levels(graph) -> HirachicalStages:
     nodes = []
     levels = {}
     for start_node in graph.nodes():
@@ -72,7 +73,7 @@ def dag_to_levels(graph):
                         break
     return levels
 
-def levels_to_mermaid(levels: dict):
+def levels_to_mermaid(levels: HirachicalStages) -> str:
     # Initialize Mermaid syntax
     mermaid_syntax = "flowchart TD\n"
 

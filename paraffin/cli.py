@@ -4,7 +4,7 @@ import typer
 
 from paraffin.submit import submit_node_graph
 import networkx as nx
-from paraffin.utils import get_custom_queue, get_stage_graph
+from paraffin.utils import get_custom_queue, get_stage_graph, levels_to_mermaid, dag_to_levels
 
 app = typer.Typer()
 
@@ -22,18 +22,24 @@ def main(
         "-s",
         envvar="PARAFFIN_SHUTDOWN_AFTER_FINISHED",
     ),
+    show_mermaid: bool = typer.Option(True),
 ):
     from paraffin.worker import app as celery_app
+    from paraffin.worker import make_celery
 
     subgraph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
-    # iterate disconnected subgraphs
+
+    # iterate disconnected subgraphs for better performance
     for sg in nx.connected_components(subgraph.to_undirected()):
+        levels = dag_to_levels(subgraph.subgraph(sg))
         submit_node_graph(
-            subgraph.subgraph(sg),
+            levels,
             shutdown_after_finished=shutdown_after_finished,
             custom_queues=custom_queues,
         )
+        if show_mermaid:
+            typer.echo(levels_to_mermaid(levels))
 
     typer.echo(f"Submitted all (n = {len(subgraph)})  tasks.")
     if concurrency > 0:

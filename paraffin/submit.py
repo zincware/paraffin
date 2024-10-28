@@ -5,16 +5,15 @@ import networkx as nx
 from celery import chain, group
 
 from paraffin.worker import repro, shutdown_worker
-from paraffin.utils import dag_to_levels, levels_to_mermaid
+from paraffin.abc import HirachicalStages
 
 
 def submit_node_graph(
-    subgraph: nx.DiGraph,
+    levels: HirachicalStages,
     shutdown_after_finished: bool = False,
     custom_queues: t.Optional[dict] = None,
-):  # noqa C901
+): 
 
-    levels = dag_to_levels(subgraph)
 
     per_level_groups = []
     for nodes in levels.values():
@@ -39,5 +38,3 @@ def submit_node_graph(
         chain(workflow, shutdown_worker.s()).apply_async()
     else:
         workflow.apply_async()
-
-    print(levels_to_mermaid(levels))

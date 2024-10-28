@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)
 
 def make_celery() -> Celery:
     data_folder = pathlib.Path(".paraffin", "data")
-    control_folder = pathlib.Path(".paraffin", "control")
+    control_folder = pathlib.Path(".paraffin", "data")
     results_db = pathlib.Path(".paraffin", "results.db")
 
     data_folder.mkdir(parents=True, exist_ok=True)
@@ -28,6 +28,12 @@ def make_celery() -> Celery:
             "control_folder": control_folder.as_posix(),
         },
     )
+    
+    # app = Celery(
+    #     __name__,
+    #     broker="redis://localhost:6379/0",
+    #     backend="redis://localhost:6379/0",
+    # )
 
     return app
 
