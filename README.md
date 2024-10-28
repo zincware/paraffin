@@ -24,21 +24,19 @@ pip install paraffin
 
 ## Usage
 
-The `paraffin` command replicates the `dvc repro` command.
-If you don't give any parameters, the entire graph will be queued and exectued using `dvc repro --single-item`.
-`paraffin` will visualize all stages that can run in parallel using [mermaid](https://mermaid.js.org/).
-By default, the execution will be queued and needs to be run by manually starting a celery worker.
-For more information run `paraffin --help`.
+The `paraffin` command mirrors `dvc repro`, enabling you to queue and execute your entire pipeline or selected stages with parallelization.
+If no parameters are specified, the entire graph will be queued and executed via `dvc repro --single-item`.
 
 ```bash
 paraffin <stage name> <stage name> ... <stage name>
-# run max 4 jobs in parallel
+# Example: run with a maximum of 4 parallel jobs
 celery -A paraffin.worker worker --loglevel=WARNING --concurrency=4
 ```
 
 ### Parallel Execution
-Due to some limitations of the celery package (https://github.com/celery/celery/discussions/9376), the graph can not be fully parallized.
-`paraffin` will show you what it can run in parallel as follows:
+
+Due to limitations in Celery’s graph handling (see [Celery discussion](https://github.com/celery/celery/discussions/9376)), complete parallelization is not always achievable. Paraffin will display parallel-ready stages in a flowchart format.
+All stages are visualized in a [Mermaid](https://mermaid.js.org/) flowchart.
 
 ```mermaid
 flowchart TD
@@ -77,24 +75,22 @@ flowchart TD
 
 
 
-## Labels
+## Queue Labels
 
-You can put stages into dedicated celery queues, e.g. to run them from different environments or on shard storage from different hardware.
-
-To configure the stages you need to create a `paraffin.yaml` file as follows:
+To fine-tune execution, you can assign stages to specific Celery queues, allowing you to manage execution across different environments or hardware setups.
+Define queues in a `paraffin.yaml` file:
 
 ```yaml
 queue:
     "B_X*": BQueue
     "A_X_AddNodeNumbers": AQueue
 ```
-
-and then start a worker with one or multiple queues using e.g. to run the default queue `celery` and the `AQueue`:
+Then, start a worker with specified queues, such as celery (default) and AQueue:
 ```bash
 celery -A paraffin.worker worker -Q AQueue,celery
 ```
+All `stages` not assigned to a queue in `paraffin.yaml` will default to the `celery` queue.
 
-All `stages` that are not part of the `paraffin.yaml` will run on workers that have the `celery` queue assigned.
 
 > \[!TIP\] If you are building Python-based workflows with DVC, consider trying
 > our other project [ZnTrack](https://zntrack.readthedocs.io/) for a more
