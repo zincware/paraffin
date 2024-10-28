@@ -3,6 +3,7 @@ import typing as t
 import typer
 
 from paraffin.submit import submit_node_graph
+import networkx as nx
 from paraffin.utils import get_custom_queue, get_stage_graph
 
 app = typer.Typer()
@@ -26,11 +27,13 @@ def main(
 
     subgraph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
-    submit_node_graph(
-        subgraph,
-        shutdown_after_finished=shutdown_after_finished,
-        custom_queues=custom_queues,
-    )
+    # iterate disconnected subgraphs
+    for sg in nx.connected_components(subgraph.to_undirected()):
+        submit_node_graph(
+            subgraph.subgraph(sg),
+            shutdown_after_finished=shutdown_after_finished,
+            custom_queues=custom_queues,
+        )
 
     typer.echo(f"Submitted all (n = {len(subgraph)})  tasks.")
     if concurrency > 0:

@@ -53,4 +53,38 @@ def get_custom_queue():
         return {}
 
 
-# TODO: what about lists, shutdown, ?
+def dag_to_levels(graph):
+    nodes = []
+    levels = {}
+    for start_node in graph.nodes():
+        if len(list(graph.predecessors(start_node))) == 0:
+            if start_node not in nodes:
+                for node in nx.bfs_tree(graph, start_node):
+                    if node not in nodes:
+                        nodes.append(node)
+                        level = nx.shortest_path_length(graph, start_node, node)
+                        try:
+                            levels[level].append(node)
+                        except KeyError:
+                            levels[level] = [node]
+                    else:
+                        # this part has already been added
+                        break
+    return levels
+
+def levels_to_mermaid(levels: dict):
+    # Initialize Mermaid syntax
+    mermaid_syntax = "flowchart TD\n"
+
+    # Add each level as a subgraph
+    for level, nodes in levels.items():
+        mermaid_syntax += f"\tsubgraph Level{level + 1}\n"
+        for node in nodes:
+            mermaid_syntax += f"\t\t{node.name}\n"
+        mermaid_syntax += "\tend\n"
+
+    # Add connections between levels
+    for i in range(len(levels) - 1):
+        mermaid_syntax += f"\tLevel{i + 1} --> Level{i + 2}\n"
+
+    return mermaid_syntax

@@ -163,3 +163,10 @@ def test_run_datafile(proj02, caplog):
     assert result.exit_code == 0
     assert zntrack.from_rev("b_1").data == 15
     assert zntrack.from_rev("b_2").c == 30
+
+
+def test_run_one_two_many(proj02):
+    result = runner.invoke(app)
+    assert result.exit_code == 0
+    assert check_finished()
+

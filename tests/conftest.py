@@ -84,3 +84,21 @@ def proj01(proj_path) -> zntrack.Project:
     assert len(proj) == 14
 
     return proj
+
+
+def proj02(proj_path) -> zntrack.Project:
+    
+    PARAM = 1  # noqa N806
+    project = zntrack.Project()
+
+    with project.group("A") as group:
+        n = zntrack.examples.ParamsToOuts(params=PARAM)
+    for idx in range(3):
+        with project.group("A", str(idx)) as group:
+            _ = zntrack.examples.AddNodeNumbers(numbers=[n])
+    
+    project.build()
+
+    assert len(project) == 4
+
+    return project
