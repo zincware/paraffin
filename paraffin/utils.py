@@ -27,8 +27,7 @@ def get_stage_graph(names, glob=False):
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
-    print(names)
-    if names is not None:
+    if names is not None and len(names) > 0:
         if glob:
             nodes = [
                 x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
@@ -40,7 +39,6 @@ def get_stage_graph(names, glob=False):
 
     # remove all nodes that do not have a name
     subgraph = nx.subgraph_view(subgraph, filter_node=lambda x: hasattr(x, "name"))
-    print(subgraph)
 
     return subgraph
 
