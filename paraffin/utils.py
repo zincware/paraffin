@@ -26,6 +26,7 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
 def get_stage_graph(names, glob=False):
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
+    print(graph)
 
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
     if names is not None:
