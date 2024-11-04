@@ -29,6 +29,7 @@ def get_stage_graph(names, glob=False):
     print(graph)
 
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
+    print(nodes)
     if names is not None:
         if glob:
             nodes = [
