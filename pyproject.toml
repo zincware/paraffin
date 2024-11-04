@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "paraffin"
-version = "0.2.0a4"
+version = "0.2.0a5"
 description = "Parallel execution of DVC stages"
 authors = ["Fabian Zills <fzills@icp.uni-stuttgart.de>"]
 license = "Apache-2.0"
