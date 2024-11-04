@@ -1,8 +1,9 @@
+import subprocess
+import time
 import typing as t
 
 import networkx as nx
 import typer
-import time
 
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (
@@ -11,8 +12,6 @@ from paraffin.utils import (
     get_stage_graph,
     levels_to_mermaid,
 )
-import subprocess
-
 
 app = typer.Typer()
 
@@ -79,7 +78,9 @@ def submit(
     show_mermaid: bool = typer.Option(
         True, help="Visualize the parallel execution graph using Mermaid."
     ),
-    skip_unchanged: bool = typer.Option(False, help="Do not re-evaluate unchanged stages."),
+    skip_unchanged: bool = typer.Option(
+        False, help="Do not re-evaluate unchanged stages."
+    ),
     dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
 ):
     """Run DVC stages in parallel using Celery."""

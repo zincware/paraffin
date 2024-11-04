@@ -126,7 +126,7 @@ def test_run_selection_glob(proj01, caplog):
 
 
 def test_run_datafile(proj02, caplog):
-    result = runner.invoke(app, ["submit, ""--glob", "a*"])
+    result = runner.invoke(app, ["submit, " "--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
