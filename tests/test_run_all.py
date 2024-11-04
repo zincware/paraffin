@@ -67,7 +67,7 @@ def test_check_finished(proj01):
 
 
 def test_run_all(proj01, caplog):
-    result = runner.invoke(app)
+    result = runner.invoke(app, "submit")
     assert result.exit_code == 0
     # assert f"Running {len(proj01)} stages" in caplog.text
 
@@ -75,7 +75,7 @@ def test_run_all(proj01, caplog):
 
 
 def test_run_selection(proj01, caplog):
-    result = runner.invoke(app, ["A_X_ParamsToOuts"])
+    result = runner.invoke(app, ["submit", "A_X_ParamsToOuts"])
     assert result.exit_code == 0
     # assert "Running 1 stages" in caplog.text
     # caplog.clear()
@@ -83,15 +83,15 @@ def test_run_selection(proj01, caplog):
     assert check_finished(["A_X_ParamsToOuts"])
     assert not check_finished(["A_Y_ParamsToOuts"])
 
-    result = runner.invoke(app, ["A_Y_ParamsToOuts"])
+    result = runner.invoke(app, ["submit", "A_Y_ParamsToOuts"])
     assert result.exit_code == 0
     # assert "Running 1 stages" in caplog.text
     # caplog.clear()
 
-    assert check_finished(["A_Y_ParamsToOuts"])
+    assert check_finished(["submit", "A_Y_ParamsToOuts"])
     assert not check_finished()
 
-    result = runner.invoke(app, ["B_X_AddNodeNumbers", "B_Y_AddNodeNumbers"])
+    result = runner.invoke(app, ["submit", "B_X_AddNodeNumbers", "B_Y_AddNodeNumbers"])
     assert result.exit_code == 0
     # assert "Running 6 stages" in caplog.text
     # caplog.clear()
@@ -110,12 +110,12 @@ def test_run_selection(proj01, caplog):
 
 
 def test_run_selection_glob(proj01, caplog):
-    result = runner.invoke(app, ["A_X_*"])
+    result = runner.invoke(app, ["submit", "A_X_*"])
     assert result.exit_code == 0
     # assert "Running 0 stages" in caplog.text
     # caplog.clear()
 
-    result = runner.invoke(app, ["--glob", "A_X_*"])
+    result = runner.invoke(app, ["submit", "--glob", "A_X_*"])
     assert result.exit_code == 0
     # assert "Running 3 stages" in caplog.text
     # caplog.clear()
@@ -126,13 +126,13 @@ def test_run_selection_glob(proj01, caplog):
 
 
 def test_run_datafile(proj02, caplog):
-    result = runner.invoke(app, ["--glob", "a*"])
+    result = runner.invoke(app, ["submit, ""--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
     assert check_finished(["a_1", "a_2"])
 
-    result = runner.invoke(app, ["--glob", "b*"])
+    result = runner.invoke(app, ["submit", "--glob", "b*"])
     assert result.exit_code == 0
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
@@ -146,7 +146,7 @@ def test_run_datafile(proj02, caplog):
     data_file.unlink()
     data_file.write_text("4,5,6")
 
-    result = runner.invoke(app, ["--glob", "a*"])
+    result = runner.invoke(app, ["submit", "--glob", "a*"])
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
     assert result.exit_code == 0
@@ -156,7 +156,7 @@ def test_run_datafile(proj02, caplog):
     assert zntrack.from_rev("a_2").c == 30
     assert zntrack.from_rev("b_2").c == 12
 
-    result = runner.invoke(app, ["--glob", "b*"])
+    result = runner.invoke(app, ["submit", "--glob", "b*"])
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
     assert check_finished(["b_1", "b_2"])
@@ -166,6 +166,6 @@ def test_run_datafile(proj02, caplog):
 
 
 def test_run_one_two_many(proj02):
-    result = runner.invoke(app)
+    result = runner.invoke(app, "submit")
     assert result.exit_code == 0
     assert check_finished()

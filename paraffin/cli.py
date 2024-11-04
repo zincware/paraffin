@@ -2,6 +2,7 @@ import typing as t
 
 import networkx as nx
 import typer
+import time
 
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (
@@ -10,32 +11,70 @@ from paraffin.utils import (
     get_stage_graph,
     levels_to_mermaid,
 )
+import subprocess
+
 
 app = typer.Typer()
 
 
 @app.command()
-def main(
-    names: t.Optional[list[str]] = typer.Argument(
-        None, help="Stage names to run. If not specified, run all stages."
-    ),
+def worker(
     concurrency: int = typer.Option(
-        0,
+        1,
         "--concurrency",
         "-c",
         envvar="PARAFFIN_CONCURRENCY",
-        help="Number of stages to run in parallel. If not provided,"
-        + " a celery worker has to be started manually.",
+    ),
+    queues: t.Optional[str] = typer.Option(None, "--queues", "-q"),
+):
+    """Start a Celery worker."""
+    from paraffin.worker import app as celery_app
+
+    if queues is None or len(queues) == 0:
+        queues = "celery"
+
+    proc = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "paraffin.worker",
+            "worker",
+            "--loglevel=info",
+            f"--concurrency={concurrency}",
+            "-Q",
+            queues,
+        ]
+    )
+
+    def auto_shutdown(timeout: float):
+        """
+        Monitors worker activity and shuts down workers if idle for `timeout` seconds.
+        """
+        inspect = celery_app.control.inspect()
+
+        while True:
+            # Get active tasks
+            active_tasks = inspect.active()
+            if any(active_tasks.values()):
+                time.sleep(timeout)
+                continue
+            print("No active tasks. Shutting down worker.")
+            break
+
+        # Shutdown worker
+        celery_app.control.broadcast("shutdown", destination=list(active_tasks.keys()))
+
+    auto_shutdown(5)
+    proc.wait()
+
+
+@app.command()
+def submit(
+    names: t.Optional[list[str]] = typer.Argument(
+        None, help="Stage names to run. If not specified, run all stages."
     ),
     glob: bool = typer.Option(
         False, "--glob", "-g", help="Use glob pattern to match stage names."
-    ),
-    shutdown_after_finished: bool = typer.Option(
-        False,
-        "--shutdown-after-finished",
-        "-s",
-        envvar="PARAFFIN_SHUTDOWN_AFTER_FINISHED",
-        help="Shutdown the worker after all tasks are finished (experimental).",
     ),
     show_mermaid: bool = typer.Option(
         True, help="Visualize the parallel execution graph using Mermaid."
@@ -57,25 +96,13 @@ def main(
         for levels in disconnected_levels:
             submit_node_graph(
                 levels,
-                shutdown_after_finished=shutdown_after_finished,
                 custom_queues=custom_queues,
             )
     if show_mermaid:
         typer.echo(levels_to_mermaid(disconnected_levels))
 
     typer.echo(f"Submitted all (n = {len(graph)})  tasks.")
-    if not dry:
-        if concurrency > 0:
-            celery_app.worker_main(
-                argv=[
-                    "worker",
-                    "--loglevel=info",
-                    f"--concurrency={concurrency}",
-                    "--without-gossip",
-                ]
-            )
-        else:
-            typer.echo(
-                "Start your celery worker using `celery -A paraffin.worker worker`"
-                " and specify concurrency with `--concurrency`."
-            )
+    typer.echo(
+        "Start your celery worker using `paraffin worker`"
+        " and specify concurrency with `--concurrency`."
+    )

@@ -85,10 +85,3 @@ def repro(self, *args, name: str):
                 raise RuntimeError(f"Unable to commit lock for {name}")
     popen.stderr.close()
     return True
-
-
-# Shutdown task
-@app.task(bind=True)
-def shutdown_worker(self, *args, **kwargs):
-    app.control.revoke(self.request.id)  # prevent this task from being executed again
-    app.control.shutdown()

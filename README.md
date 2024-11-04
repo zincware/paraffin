@@ -28,9 +28,9 @@ The `paraffin` command mirrors `dvc repro`, enabling you to queue and execute yo
 If no parameters are specified, the entire graph will be queued and executed via `dvc repro --single-item`.
 
 ```bash
-paraffin <stage name> <stage name> ... <stage name>
+paraffin submit <stage name> <stage name> ... <stage name>
 # Example: run with a maximum of 4 parallel jobs
-celery -A paraffin.worker worker --loglevel=WARNING --concurrency=4
+paraffin worker --concurrency=4
 ```
 
 ### Parallel Execution
@@ -87,7 +87,7 @@ queue:
 ```
 Then, start a worker with specified queues, such as celery (default) and AQueue:
 ```bash
-celery -A paraffin.worker worker -Q AQueue,celery
+paraffin worker -q AQueue,celery
 ```
 All `stages` not assigned to a queue in `paraffin.yaml` will default to the `celery` queue.
 
