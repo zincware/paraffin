@@ -79,10 +79,12 @@ def submit(
     show_mermaid: bool = typer.Option(
         True, help="Visualize the parallel execution graph using Mermaid."
     ),
+    skip_unchanged: bool = typer.Option(False, help="Do not re-evaluate unchanged stages."),
     dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
 ):
     """Run DVC stages in parallel using Celery."""
-    from paraffin.worker import app as celery_app
+    if skip_unchanged:
+        raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
 
     graph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
