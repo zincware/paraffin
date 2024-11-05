@@ -44,7 +44,7 @@ def worker(
             queues,
         ]
     )
-    time.sleep(5) # wait for the worker to start. TODO: use regex on output
+    time.sleep(5)  # wait for the worker to start. TODO: use regex on output
 
     def auto_shutdown(timeout: float):
         """
