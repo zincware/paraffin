@@ -88,7 +88,7 @@ def test_run_selection(proj01, caplog):
     # assert "Running 1 stages" in caplog.text
     # caplog.clear()
 
-    assert check_finished(["submit", "A_Y_ParamsToOuts"])
+    assert check_finished(["A_Y_ParamsToOuts"])
     assert not check_finished()
 
     result = runner.invoke(app, ["submit", "B_X_AddNodeNumbers", "B_Y_AddNodeNumbers"])
@@ -126,7 +126,7 @@ def test_run_selection_glob(proj01, caplog):
 
 
 def test_run_datafile(proj02, caplog):
-    result = runner.invoke(app, ["submit, " "--glob", "a*"])
+    result = runner.invoke(app, ["submit", "--glob", "a*"])
     assert result.exit_code == 0
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
