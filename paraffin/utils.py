@@ -9,6 +9,24 @@ from paraffin.abc import HirachicalStages
 
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
+    """
+    Generate a subgraph containing the specified nodes and all their predecessors.
+
+    Parameters
+    ----------
+    graph: networkx.DiGraph
+        The original graph from which the subgraph is to be extracted.
+    nodes: Iterable
+        An iterable of nodes to be included in the subgraph along with 
+        their predecessors.
+    reverse: bool, optional
+        If True, the resulting subgraph will be reversed. Default is False.
+
+    Returns
+    -------
+    networkx.Graph
+        A subgraph containing the specified nodes and all their predecessors.
+    """
     # Initialize a set to store nodes that will be in the subgraph
     nodes_to_include = set(nodes)
 
@@ -24,6 +42,21 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
 
 
 def get_stage_graph(names, glob=False):
+    """
+    Generates a subgraph of stages from a DVC repository based on provided names.
+
+    Attributes
+    ----------
+    names: list
+        A list of stage names to filter the graph nodes.
+    glob: bool, optional
+        If True, uses glob pattern matching for names. Defaults to False.
+
+    Returns
+    -------
+    networkx.DiGraph:
+        A subgraph containing the specified stages and their predecessors.
+    """
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
@@ -55,6 +88,28 @@ def get_custom_queue():
 
 
 def dag_to_levels(graph) -> HirachicalStages:
+    """Converts a directed acyclic graph (DAG) into hierarchical levels.
+
+    This function takes a directed acyclic graph (DAG) and organizes its nodes 
+    into hierarchical levels based on their distance from the root nodes.
+    A root node is defined as a node with no predecessors.
+
+    Arguments
+    ---------
+    graph: newtorkx.DiGraph
+        A directed acyclic graph represented using NetworkX.
+
+    Returns
+    -------
+        HirachicalStages: A dictionary where the keys are levels (integers) and the values are lists of nodes at that level.
+
+    Example:
+        >>> import networkx as nx
+        >>> G = nx.DiGraph()
+        >>> G.add_edges_from([(1, 2), (1, 3), (3, 4)])
+        >>> dag_to_levels(G)
+        {0: [1], 1: [2, 3], 2: [4]}
+    """
     nodes = []
     levels = {}
     for start_node in graph.nodes():

@@ -49,7 +49,9 @@ def proj02(proj_path) -> zntrack.Project:
     return proj
 
 
-def check_finished(names: list[str] | None = None) -> bool:
+def check_finished(names: list[str] | None = None, exclusive: bool = False) -> bool:
+    if exclusive:
+        raise NotImplementedError
     cmd = ["dvc", "status"]
     for name in names or []:
         cmd.append(name)

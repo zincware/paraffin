@@ -2,6 +2,7 @@ import logging
 import pathlib
 import subprocess
 import time
+import random
 
 from celery import Celery
 
@@ -48,6 +49,28 @@ app = make_celery()
 
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
 def repro(self, *args, name: str):
+    """Celery task to reproduce a DVC pipeline stage.
+
+    This task attempts to reproduce a specified DVC pipeline stage 
+    using the `dvc repro` command.
+    If the command fails due to an "Unable to acquire lock" error, 
+    it retries the operation up to 5 times.
+    If the error occurs after the stage has been executed, it attempts to 
+    commit the lock using the `dvc commit` command with a 
+    forced option to avoid loss of computational resources.
+
+    Args:
+        self (Task): The bound Celery task instance.
+        *args: Additional arguments.
+        name (str): The name of the DVC pipeline stage to reproduce.
+
+    Raises:
+        self.retry: If the "Unable to acquire lock" error occurs, the task is retried up to 5 times.
+        RuntimeError: If unable to commit the lock after multiple attempts.
+
+    Returns:
+        bool: True if the operation is successful.
+    """
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],
         stdout=subprocess.PIPE,
@@ -80,7 +103,7 @@ def repro(self, *args, name: str):
                     )
                     break
                 except subprocess.CalledProcessError:
-                    time.sleep(1)
+                    time.sleep(1 + random.random())
             else:
                 raise RuntimeError(f"Unable to commit lock for {name}")
     popen.stderr.close()

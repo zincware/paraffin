@@ -24,7 +24,7 @@ pip install paraffin
 
 ## Usage
 
-The `paraffin` command mirrors `dvc repro`, enabling you to queue and execute your entire pipeline or selected stages with parallelization.
+The `paraffin submit` command mirrors `dvc repro`, enabling you to queue and execute your entire pipeline or selected stages with parallelization.
 If no parameters are specified, the entire graph will be queued and executed via `dvc repro --single-item`.
 
 ```bash
@@ -34,7 +34,6 @@ paraffin worker --concurrency=4
 ```
 
 ### Parallel Execution
-
 Due to limitations in Celery’s graph handling (see [Celery discussion](https://github.com/celery/celery/discussions/9376)), complete parallelization is not always achievable. Paraffin will display parallel-ready stages in a flowchart format.
 All stages are visualized in a [Mermaid](https://mermaid.js.org/) flowchart.
 

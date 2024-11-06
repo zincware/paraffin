@@ -23,14 +23,13 @@ def worker(
         "--concurrency",
         "-c",
         envvar="PARAFFIN_CONCURRENCY",
+        help="Number of concurrent tasks to run.",
     ),
-    queues: t.Optional[str] = typer.Option(None, "--queues", "-q"),
+    queues: str = typer.Option("celery", "--queues", "-q", envvar="PARAFFIN_QUEUES", help="Comma separated list of queues to listen on."),
+    shutdown_timeout: int = typer.Option(10, help="Timeout in seconds to wait for worker to shutdown."),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
-
-    if queues is None or len(queues) == 0:
-        queues = "celery"
 
     proc = subprocess.Popen(
         [
@@ -64,7 +63,7 @@ def worker(
         # Shutdown worker
         celery_app.control.broadcast("shutdown", destination=list(active_tasks.keys()))
 
-    auto_shutdown(5)
+    auto_shutdown(shutdown_timeout)
     proc.wait()
 
 
