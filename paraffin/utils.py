@@ -17,7 +17,7 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     graph: networkx.DiGraph
         The original graph from which the subgraph is to be extracted.
     nodes: Iterable
-        An iterable of nodes to be included in the subgraph along with 
+        An iterable of nodes to be included in the subgraph along with
         their predecessors.
     reverse: bool, optional
         If True, the resulting subgraph will be reversed. Default is False.
@@ -90,7 +90,7 @@ def get_custom_queue():
 def dag_to_levels(graph) -> HirachicalStages:
     """Converts a directed acyclic graph (DAG) into hierarchical levels.
 
-    This function takes a directed acyclic graph (DAG) and organizes its nodes 
+    This function takes a directed acyclic graph (DAG) and organizes its nodes
     into hierarchical levels based on their distance from the root nodes.
     A root node is defined as a node with no predecessors.
 

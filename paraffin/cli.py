@@ -25,8 +25,16 @@ def worker(
         envvar="PARAFFIN_CONCURRENCY",
         help="Number of concurrent tasks to run.",
     ),
-    queues: str = typer.Option("celery", "--queues", "-q", envvar="PARAFFIN_QUEUES", help="Comma separated list of queues to listen on."),
-    shutdown_timeout: int = typer.Option(10, help="Timeout in seconds to wait for worker to shutdown."),
+    queues: str = typer.Option(
+        "celery",
+        "--queues",
+        "-q",
+        envvar="PARAFFIN_QUEUES",
+        help="Comma separated list of queues to listen on.",
+    ),
+    shutdown_timeout: int = typer.Option(
+        10, help="Timeout in seconds to wait for worker to shutdown."
+    ),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
