@@ -101,7 +101,9 @@ def dag_to_levels(graph) -> HirachicalStages:
 
     Returns
     -------
-        HirachicalStages: A dictionary where the keys are levels (integers) and the values are lists of nodes at that level.
+    HirachicalStages
+        A dictionary where the keys are levels (integers)
+        and the values are lists of nodes at that level.
 
     Example:
         >>> import networkx as nx
