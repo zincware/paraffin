@@ -65,7 +65,7 @@ def repro(self, *args, name: str):
         name (str): The name of the DVC pipeline stage to reproduce.
 
     Raises:
-        self.retry: If the "Unable to acquire lock" error occurs, 
+        self.retry: If the "Unable to acquire lock" error occurs,
         the task is retried up to 5 times.
         RuntimeError: If unable to commit the lock after multiple attempts.
 
