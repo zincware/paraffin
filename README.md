@@ -11,7 +11,8 @@ documentation on
 [parallel stage execution](https://dvc.org/doc/command-reference/repro#parallel-stage-execution).
 
 > [!WARNING]
-> `paraffin` is still very experimental. Do not use it for production workflows.
+> `paraffin` is still very experimental.
+> Do not use it for production workflows.
 
 ## Installation
 
@@ -23,51 +24,72 @@ pip install paraffin
 
 ## Usage
 
-To use Paraffin, you can run the following to run up to 4 DVC stages in
-parallel:
+The `paraffin submit` command mirrors `dvc repro`, enabling you to queue and execute your entire pipeline or selected stages with parallelization.
+If no parameters are specified, the entire graph will be queued and executed via `dvc repro --single-item`.
 
 ```bash
-paraffin -n 4 <stage names>
+paraffin submit <stage name> <stage name> ... <stage name>
+# Example: run with a maximum of 4 parallel jobs
+paraffin worker --concurrency=4
 ```
 
-If you have `pip install dash` you can also access the dashboard by running
+### Parallel Execution
+Due to limitations in Celery’s graph handling (see [Celery discussion](https://github.com/celery/celery/discussions/9376)), complete parallelization is not always achievable. Paraffin will display parallel-ready stages in a flowchart format.
+All stages are visualized in a [Mermaid](https://mermaid.js.org/) flowchart.
 
-```bash
-paraffin --dashboard <stage names>
+```mermaid
+flowchart TD
+        subgraph Level0:1
+                A_X_ParamsToOuts
+                A_X_ParamsToOuts_1
+                A_Y_ParamsToOuts
+                A_Y_ParamsToOuts_1
+        end
+        subgraph Level0:2
+                A_X_AddNodeNumbers
+                A_Y_AddNodeNumbers
+        end
+        subgraph Level0:3
+                A_SumNodeAttributes
+        end
+        Level0:1 --> Level0:2
+        Level0:2 --> Level0:3
+        subgraph Level1:1
+                B_X_ParamsToOuts
+                B_X_ParamsToOuts_1
+                B_Y_ParamsToOuts
+                B_Y_ParamsToOuts_1
+        end
+        subgraph Level1:2
+                B_X_AddNodeNumbers
+                B_Y_AddNodeNumbers
+        end
+        subgraph Level1:3
+                B_SumNodeAttributes
+        end
+        Level1:1 --> Level1:2
+        Level1:2 --> Level1:3
 ```
 
-For more information, run:
 
-```bash
-paraffin --help
-```
 
-## Labels
 
-You can run `paraffin` in multiple processes (e.g. on different hardware with a
-shared file system). To specify where a `stage` should run, you can assign
-labels to each worker.
+## Queue Labels
 
-```
-paraffin --labels GPU # on a GPU node
-paraffin --label CPU intel # on a CPU node
-```
-
-To configure the stages you need to create a `paraffin.yaml` file as follows:
+To fine-tune execution, you can assign stages to specific Celery queues, allowing you to manage execution across different environments or hardware setups.
+Define queues in a `paraffin.yaml` file:
 
 ```yaml
-labels:
-    GPU_TASK:
-        - GPU
-    CPU_TASK:
-        - CPU
-    SPECIAL_CPU_TASK:
-        - CPU
-        - intel
+queue:
+    "B_X*": BQueue
+    "A_X_AddNodeNumbers": AQueue
 ```
+Then, start a worker with specified queues, such as celery (default) and AQueue:
+```bash
+paraffin worker -q AQueue,celery
+```
+All `stages` not assigned to a queue in `paraffin.yaml` will default to the `celery` queue.
 
-All `stages` that are not part of the `paraffin.yaml` will choose any of the
-available workers.
 
 > [!TIP]
 > If you are building Python-based workflows with DVC, consider trying

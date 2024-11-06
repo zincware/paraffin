@@ -1,277 +1,119 @@
-import contextlib
-import fnmatch
-import logging
-import os
-import pathlib
 import subprocess
-import threading
-from concurrent.futures import Future, ProcessPoolExecutor
-from typing import List, Optional
+import time
+import typing as t
 
-import dvc.cli
-import dvc.repo
-import dvc.stage
 import networkx as nx
 import typer
-from dvc.lock import LockError
-from dvc.stage.cache import RunCacheNotFoundError
 
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)  # Ensure the logger itself is set to INFO or lower
-
-# Attach a logging handler to print info to stdout
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-
-# Set a format for the handler
-formatter = logging.Formatter("%(asctime)s %(message)s")
-handler.setFormatter(formatter)
-
-log.addHandler(handler)
+from paraffin.submit import submit_node_graph
+from paraffin.utils import (
+    dag_to_levels,
+    get_custom_queue,
+    get_stage_graph,
+    levels_to_mermaid,
+)
 
 app = typer.Typer()
 
-stages: List[dvc.stage.PipelineStage] = []
-finished: set[str] = set()
-submitted: dict[str, Future] = {}
-graph: nx.DiGraph = nx.DiGraph()
-positions: dict = {}
 
-
-def update_gitignore():
-    if not pathlib.Path(".gitignore").exists():
-        with open(".gitignore", "w") as f:
-            f.write(".parrafin_*\n")
-        return
-    with open(".gitignore", "r") as f:
-        if ".parrafin_*" in f.read():
-            return
-    with open(".gitignore", "a") as f:
-        f.write(".parrafin_*\n")
-
-
-def get_paraffin_stage_file(addressing: str) -> pathlib.Path:
-    return pathlib.Path(f".parrafin_{addressing}")
-
-
-def get_tree_layout(graph):
-    try:
-        positions = nx.drawing.nx_agraph.graphviz_layout(graph, prog="dot")
-    except ImportError:
-        log.critical(
-            "Graphviz is not available. Falling back to spring layout."
-            "See https://pygraphviz.github.io/documentation/stable/install.html"
-            " for installation instructions."
-        )
-        positions = nx.spring_layout(graph)
-    return positions
-
-
-def run_stage(stage_name: str, max_retries: int) -> bool:
-    # get the stage from the DVC repo
-    with dvc.repo.Repo() as repo:
-        for _ in range(max_retries):
-            with contextlib.suppress(LockError):
-                with dvc.repo.lock_repo(repo):
-                    stages = list(repo.stage.collect(stage_name))
-                    if len(stages) != 1:
-                        raise RuntimeError(f"Stage {stage_name} not found.")
-                    stage = stages[0]
-                    if stage.already_cached():
-                        log.info(f"Stage '{stage_name}' didn't change, skipping")
-                        return True
-                    # try to restore the stage from the cache
-                    # https://github.com/iterative/dvc/blob/main/dvc/stage/run.py#L166
-                    with contextlib.suppress(RunCacheNotFoundError, FileNotFoundError):
-                        stage.repo.stage_cache.restore(stage)
-                        return True
-                break
-                # no LockError was raised and no return was
-                # executed ->  the stage was not found in the cache
-
-    log.info(f"Running stage '{stage_name}':")
-    log.info(f"> {stage.cmd}")
-    subprocess.check_call(stage.cmd, shell=True)
-
-    for _ in range(max_retries):
-        with contextlib.suppress(LockError):
-            with dvc.repo.lock_repo(repo):
-                stage.save()
-                stage.commit()
-                stage.dump(update_pipeline=False)
-            return True
-    else:
-        raise RuntimeError(
-            f"Failed to commit stage '{stage_name}' after {max_retries} retries."
-        )
-
-
-def get_predecessor_subgraph(
-    graph: nx.DiGraph, nodes: List[dvc.stage.PipelineStage]
-) -> nx.DiGraph:
-    # Create an empty set to hold all nodes to be included in the subgraph
-    subgraph_nodes = set(nodes)
-
-    # Iterate over each node and add all its ancestors (predecessors) to the set
-    for node in nodes:
-        subgraph_nodes.update(nx.ancestors(graph, node))
-
-    # Create the subgraph with the collected nodes
-    subgraph = graph.subgraph(subgraph_nodes).copy()
-
-    return subgraph
-
-
-def execute_graph(
-    max_workers: int,
-    targets: List[str],
-    max_retries: int,
-    glob: bool = False,
+@app.command()
+def worker(
+    concurrency: int = typer.Option(
+        1,
+        "--concurrency",
+        "-c",
+        envvar="PARAFFIN_CONCURRENCY",
+        help="Number of concurrent tasks to run.",
+    ),
+    queues: str = typer.Option(
+        "celery",
+        "--queues",
+        "-q",
+        envvar="PARAFFIN_QUEUES",
+        help="Comma separated list of queues to listen on.",
+    ),
+    shutdown_timeout: int = typer.Option(
+        10, help="Timeout in seconds to wait for worker to shutdown."
+    ),
 ):
-    with dvc.repo.Repo() as repo:
-        with dvc.repo.lock_repo(repo):
-            # graph: nx.DiGraph = repo.index.graph
-            # add to the existing graph
-            global graph
-            graph.add_nodes_from(repo.index.graph.nodes)
-            graph.add_edges_from(repo.index.graph.edges)
+    """Start a Celery worker."""
+    from paraffin.worker import app as celery_app
 
-            positions.update(get_tree_layout(graph))
+    proc = subprocess.Popen(
+        [
+            "celery",
+            "-A",
+            "paraffin.worker",
+            "worker",
+            "--loglevel=info",
+            f"--concurrency={concurrency}",
+            "-Q",
+            queues,
+        ]
+    )
+    time.sleep(5)  # wait for the worker to start. TODO: use regex on output
 
-            # reverse the graph
-            graph = graph.reverse()
+    def auto_shutdown(timeout: float):
+        """
+        Monitors worker activity and shuts down workers if idle for `timeout` seconds.
+        """
+        inspect = celery_app.control.inspect()
 
-            # construct a subgraph of the targets and their dependencies
-            if targets:
-                if not glob:
-                    selected_stages = [
-                        stage for stage in graph.nodes if stage.addressing in targets
-                    ]
-                else:
-                    selected_stages = [
-                        stage
-                        for stage in graph.nodes
-                        if any(
-                            fnmatch.fnmatch(stage.addressing, target)
-                            for target in targets
-                        )
-                    ]
-                    log.debug(f"Selected stages: {selected_stages} from {targets}")
+        while True:
+            # Get active tasks
+            active_tasks = inspect.active()
+            if any(active_tasks.values()):
+                time.sleep(timeout)
+                continue
+            print("No active tasks. Shutting down worker.")
+            break
 
-                graph = get_predecessor_subgraph(graph, selected_stages)
-            log.debug(f"Graph: {graph}")
-            stages.extend(list(reversed(list(nx.topological_sort(graph)))))
-            for stage in stages:
-                if stage.cmd is None:
-                    # skip non-PipeLineStages
-                    finished.add(stage.addressing)
-                # if stage.already_cached(): # this is not correct! If there are changed deps, this is true altough it should be false!
-                #     finished.add(stage.addressing)
-                #     warnings.warn(f"{stage.addressing} {stage.already_cached() = } ")
+        # Shutdown worker
+        celery_app.control.broadcast("shutdown", destination=list(active_tasks.keys()))
 
-        pipeline_stages = [x for x in stages if x.addressing not in finished]
-        log.info(f"Running {len(pipeline_stages)} stages using {max_workers} workers.")
-        try:
-            with ProcessPoolExecutor(max_workers=max_workers) as executor:
-                while len(finished) < len(stages):
-                    # TODO: consider using proper workers / queues like celery with file system broker ?
-
-                    for stage in pipeline_stages:
-                        # shuffling the stages might lead to better performance with multiple workers
-                        if (
-                            len(submitted) >= max_workers
-                        ):  # do not queue more jobs than workers
-                            break
-                        if stage.addressing in finished:
-                            continue
-                        # if stage.addressing in submitted:
-                        if get_paraffin_stage_file(stage.addressing).exists():
-                            continue
-                        # if a run finished in another paraffin process, if will be added
-                        #  but automatically loaded from the DVC cache and added to the finished set
-                        if not all(
-                            pred.addressing in finished
-                            for pred in graph.predecessors(stage)
-                        ):
-                            continue
-                        get_paraffin_stage_file(stage.addressing).touch()
-                        submitted[stage.addressing] = executor.submit(
-                            run_stage, stage.addressing, max_retries
-                        )
-
-                    # iterare over the submitted stages and check if they are finished
-                    for stage_addressing in list(submitted.keys()):
-                        future = submitted[stage_addressing]
-                        if future.done():
-                            # check if an exception was raised
-                            _ = future.result()
-                            finished.add(stage_addressing)
-                            del submitted[stage_addressing]
-                            get_paraffin_stage_file(stage_addressing).unlink()
-        finally:
-            for stage_addressing in list(submitted.keys()):
-                get_paraffin_stage_file(stage_addressing).unlink(missing_ok=True)
-
-    log.info("Finished running all stages.")
+    auto_shutdown(shutdown_timeout)
+    proc.wait()
 
 
 @app.command()
-def main(
-    max_workers: Optional[int] = typer.Option(
-        None, "--max-workers", "-n", help="Maximum number of workers to run in parallel"
+def submit(
+    names: t.Optional[list[str]] = typer.Argument(
+        None, help="Stage names to run. If not specified, run all stages."
     ),
-    max_retries: int = typer.Option(
-        10, "--max-retries", "-r", help="Maximum number of retries to commit a stage"
-    ),
-    dashboard: bool = typer.Option(
-        False, "--dashboard", "-d", help="Enable the dashboard for monitoring"
-    ),
-    targets: List[str] = typer.Argument(None, help="List of DVC targets to run"),
     glob: bool = typer.Option(
-        False, help="Allows targets containing shell-style wildcards"
+        False, "--glob", "-g", help="Use glob pattern to match stage names."
     ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging"
+    show_mermaid: bool = typer.Option(
+        True, help="Visualize the parallel execution graph using Mermaid."
     ),
+    skip_unchanged: bool = typer.Option(
+        False, help="Do not re-evaluate unchanged stages."
+    ),
+    dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
 ):
-    """Run DVC stages in parallel."""
-    # we need the globals for the dashboard >_<
-    global graph, stages, finished, submitted, positions
+    """Run DVC stages in parallel using Celery."""
+    if skip_unchanged:
+        raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
 
-    if not all(len(x) == 0 for x in [finished, submitted, positions, stages, graph]):
-        graph = nx.DiGraph()
-        stages.clear()
-        finished.clear()
-        submitted.clear()
-        positions.clear()
-        typer.echo("Found existing global variables, resetting.", err=True)
+    graph = get_stage_graph(names=names, glob=glob)
+    custom_queues = get_custom_queue()
 
-    update_gitignore()
-
-    if verbose:
-        logging.basicConfig(level=logging.DEBUG)
-
-    if max_workers is None:
-        max_workers = os.cpu_count()
-
-    if not dashboard:
-        execute_graph(max_workers, targets, max_retries, glob)
-    else:
-        try:
-            from .dashboard import app as dashboard_app
-        except ImportError:
-            typer.echo(
-                "Dash is not installed. Please install it with `pip install dash` (see https://dash.plotly.com/installation)"
+    disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
+    disconnected_levels = [
+        dag_to_levels(graph.subgraph(sg)) for sg in disconnected_subgraphs
+    ]
+    # iterate disconnected subgraphs for better performance
+    if not dry:
+        for levels in disconnected_levels:
+            submit_node_graph(
+                levels,
+                custom_queues=custom_queues,
             )
-            raise typer.Exit(1)
+    if show_mermaid:
+        typer.echo(levels_to_mermaid(disconnected_levels))
 
-        execution_thread = threading.Thread(
-            target=execute_graph,
-            args=(max_workers, targets, max_retries, glob),
-        )
-        execution_thread.start()
-        dashboard_app.run_server()
-
-
-if __name__ == "__main__":
-    app()
+    typer.echo(f"Submitted all (n = {len(graph)})  tasks.")
+    typer.echo(
+        "Start your celery worker using `paraffin worker`"
+        " and specify concurrency with `--concurrency`."
+    )
