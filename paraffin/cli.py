@@ -17,8 +17,6 @@ from paraffin.utils import (
 
 app = typer.Typer()
 
-# TODO: working directory, autocommit args
-
 
 @app.command()
 def worker(
