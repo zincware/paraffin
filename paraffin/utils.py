@@ -1,11 +1,13 @@
 import fnmatch
 import pathlib
+import subprocess
 
 import dvc.api
+import git
 import networkx as nx
 import yaml
 
-from paraffin.abc import HirachicalStages
+from paraffin.abc import HirachicalStages, StageContainer
 
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
@@ -87,7 +89,9 @@ def get_custom_queue():
         return {}
 
 
-def dag_to_levels(graph) -> HirachicalStages:
+def dag_to_levels(
+    graph, branch: str, origin: str | None, commit: bool
+) -> HirachicalStages:
     """Converts a directed acyclic graph (DAG) into hierarchical levels.
 
     This function takes a directed acyclic graph (DAG) and organizes its nodes
@@ -122,9 +126,23 @@ def dag_to_levels(graph) -> HirachicalStages:
                         nodes.append(node)
                         level = nx.shortest_path_length(graph, start_node, node)
                         try:
-                            levels[level].append(node)
+                            levels[level].append(
+                                StageContainer(
+                                    stage=node,
+                                    branch=branch,
+                                    origin=origin,
+                                    commit=commit,
+                                )
+                            )
                         except KeyError:
-                            levels[level] = [node]
+                            levels[level] = [
+                                StageContainer(
+                                    stage=node,
+                                    branch=branch,
+                                    origin=origin,
+                                    commit=commit,
+                                )
+                            ]
                     else:
                         # this part has already been added
                         break
@@ -148,3 +166,39 @@ def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
             mermaid_syntax += f"\tLevel{idx}:{i + 1} --> Level{idx}:{i + 2}\n"
 
     return mermaid_syntax
+
+
+def clone_and_checkout(branch: str, origin: str | None) -> None:
+    # check if we are in a git repo
+    try:
+        repo = git.Repo()
+        if origin is not None:
+            if origin != str(repo.remotes.origin.url):
+                raise ValueError(
+                    f"Origin mismatch: {origin} != {str(repo.remotes.origin.url)}"
+                )
+        if branch != str(repo.active_branch):
+            repo.git.checkout(branch)
+    except git.InvalidGitRepositoryError:
+        if origin is None:
+            raise ValueError("Cannot clone a repository without an origin.")
+        print(f"Cloning {origin} into current directory.")
+        repo = git.Repo.clone_from(origin, ".")
+        print(f"Checking out branch {branch}.")
+        repo.git.checkout(branch)
+    if origin is not None:
+        print("Pulling latest changes.")
+        repo.git.pull("origin", branch)
+        subprocess.check_call(["dvc", "pull"])
+
+
+def commit_and_push(name: str, origin) -> None:
+    repo = git.Repo()
+    if repo.is_dirty():
+        print("Committing changes.")
+        repo.git.add(".")
+        repo.git.commit("-m", f"paraffin: auto-commit {name}")
+        if origin is not None:
+            print("Pushing changes.")
+            repo.git.push("origin", repo.active_branch)
+            subprocess.check_call(["dvc", "push"])

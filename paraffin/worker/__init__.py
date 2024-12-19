@@ -1,46 +1,50 @@
 import logging
+import os
 import pathlib
 import random
+import shutil
 import subprocess
 import time
 
 from celery import Celery
 
+from paraffin.utils import clone_and_checkout, commit_and_push
+
 log = logging.getLogger(__name__)
 
 
 def make_celery() -> Celery:
-    paraffin_folder = pathlib.Path(".paraffin")
-    data_folder = paraffin_folder / "data"
-    control_folder = paraffin_folder / "data"
-    results_db = paraffin_folder / "results.db"
-    gitignore = paraffin_folder / ".gitignore"
+    if url := os.environ.get("PARAFFIN_REDIS_URL"):
+        app = Celery(
+            __name__,
+            broker=url,
+            backend=url,
+        )
+    else:
+        paraffin_folder = pathlib.Path(".paraffin")
+        data_folder = paraffin_folder / "data"
+        control_folder = paraffin_folder / "data"
+        results_db = paraffin_folder / "results.db"
+        gitignore = paraffin_folder / ".gitignore"
 
-    data_folder.mkdir(parents=True, exist_ok=True)
-    control_folder.mkdir(parents=True, exist_ok=True)
-    results_db.parent.mkdir(parents=True, exist_ok=True)
+        data_folder.mkdir(parents=True, exist_ok=True)
+        control_folder.mkdir(parents=True, exist_ok=True)
+        results_db.parent.mkdir(parents=True, exist_ok=True)
 
-    if not gitignore.exists():
-        gitignore.write_text("data\nresults.db\n")
+        if not gitignore.exists():
+            gitignore.write_text("data\nresults.db\n")
 
-    app = Celery(
-        __name__,
-        broker_url="filesystem://",
-        result_backend=f"db+sqlite:///{results_db.as_posix()}",
-        broker_transport_options={
-            "data_folder_in": data_folder.as_posix(),
-            "data_folder_out": data_folder.as_posix(),
-            "data_folder_processed": data_folder.as_posix(),
-            "control_folder": control_folder.as_posix(),
-        },
-    )
-
-    # app = Celery(
-    #     __name__,
-    #     broker="redis://localhost:6379/0",
-    #     backend="redis://localhost:6379/0",
-    # )
-
+        app = Celery(
+            __name__,
+            broker_url="filesystem://",
+            result_backend=f"db+sqlite:///{results_db.as_posix()}",
+            broker_transport_options={
+                "data_folder_in": data_folder.as_posix(),
+                "data_folder_out": data_folder.as_posix(),
+                "data_folder_processed": data_folder.as_posix(),
+                "control_folder": control_folder.as_posix(),
+            },
+        )
     return app
 
 
@@ -48,7 +52,7 @@ app = make_celery()
 
 
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
-def repro(self, *args, name: str):
+def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool):
     """Celery task to reproduce a DVC pipeline stage.
 
     This task attempts to reproduce a specified DVC pipeline stage
@@ -72,6 +76,16 @@ def repro(self, *args, name: str):
     Returns:
         bool: True if the operation is successful.
     """
+    working_dir = pathlib.Path(os.environ.get("PARAFFIN_WORKING_DIRECTORY", "."))
+    cleanup = True if os.environ.get("PARAFFIN_CLEANUP", "True") == "True" else False
+    print(f"Working directory: {working_dir} with cleanup: {cleanup}")
+
+    if not working_dir.exists():
+        working_dir.mkdir(parents=True)
+    os.chdir(working_dir)
+
+    clone_and_checkout(branch, origin)
+
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],
         stdout=subprocess.PIPE,
@@ -108,4 +122,11 @@ def repro(self, *args, name: str):
             else:
                 raise RuntimeError(f"Unable to commit lock for {name}")
     popen.stderr.close()
+
+    if commit:
+        commit_and_push(name=name, origin=origin)
+
+    if working_dir != pathlib.Path(".") and cleanup:
+        # remove the working directory
+        shutil.rmtree(working_dir)
     return True

@@ -1,7 +1,9 @@
+import os
 import subprocess
 import time
 import typing as t
 
+import git
 import networkx as nx
 import typer
 
@@ -14,6 +16,8 @@ from paraffin.utils import (
 )
 
 app = typer.Typer()
+
+# TODO: working directory, autocommit args
 
 
 @app.command()
@@ -35,9 +39,21 @@ def worker(
     shutdown_timeout: int = typer.Option(
         10, help="Timeout in seconds to wait for worker to shutdown."
     ),
+    working_directory: str = typer.Option(
+        ".", help="Working directory.", envvar="PARAFFIN_WORKING_DIRECTORY"
+    ),
+    cleanup: bool = typer.Option(
+        True,
+        help="Cleanup working directory after task completion.",
+        envvar="PARAFFIN_CLEANUP",
+    ),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
+
+    env = os.environ.copy()
+    env["PARAFFIN_WORKING_DIRECTORY"] = working_directory
+    env["PARAFFIN_CLEANUP"] = str(cleanup)
 
     proc = subprocess.Popen(
         [
@@ -49,9 +65,12 @@ def worker(
             f"--concurrency={concurrency}",
             "-Q",
             queues,
-        ]
+        ],
+        env=env,
     )
-    time.sleep(5)  # wait for the worker to start. TODO: use regex on output
+    time.sleep(
+        shutdown_timeout
+    )  # wait for the worker to start. TODO: use regex on output
 
     def auto_shutdown(timeout: float):
         """
@@ -62,7 +81,7 @@ def worker(
         while True:
             # Get active tasks
             active_tasks = inspect.active()
-            if any(active_tasks.values()):
+            if active_tasks is not None and any(active_tasks.values()):
                 time.sleep(timeout)
                 continue
             print("No active tasks. Shutting down worker.")
@@ -90,6 +109,9 @@ def submit(
         False, help="Do not re-evaluate unchanged stages."
     ),
     dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
+    commit: bool = typer.Option(
+        False, help="Automatically commit changes and push to remotes."
+    ),
 ):
     """Run DVC stages in parallel using Celery."""
     if skip_unchanged:
@@ -98,10 +120,23 @@ def submit(
     graph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
 
+    repo = git.Repo()  # TODO: consider allow submitting remote repos
+    try:
+        origin = str(repo.remotes.origin.url)
+    except AttributeError:
+        origin = None
+
     disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
-    disconnected_levels = [
-        dag_to_levels(graph.subgraph(sg)) for sg in disconnected_subgraphs
-    ]
+    disconnected_levels = []
+    for subgraph in disconnected_subgraphs:
+        disconnected_levels.append(
+            dag_to_levels(
+                graph=graph.subgraph(subgraph),
+                branch=str(repo.active_branch),
+                origin=origin,
+                commit=commit,
+            )
+        )
     # iterate disconnected subgraphs for better performance
     if not dry:
         for levels in disconnected_levels:
