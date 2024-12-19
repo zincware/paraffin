@@ -4,6 +4,7 @@ import pathlib
 import dvc.api
 import networkx as nx
 import yaml
+import git
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -164,3 +165,35 @@ def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
             mermaid_syntax += f"\tLevel{idx}:{i + 1} --> Level{idx}:{i + 2}\n"
 
     return mermaid_syntax
+
+
+def clone_and_checkout(branch: str, origin: str|None) -> None:
+    # check if we are in a git repo
+    try:
+        repo = git.Repo()
+        if origin is not None:
+            if origin != str(repo.remotes.origin.url):
+                raise ValueError(
+                    f"Origin mismatch: {origin} != {str(repo.remotes.origin.url)}"
+                )
+        if branch != str(repo.active_branch):
+            repo.git.checkout(branch)
+    except git.InvalidGitRepositoryError:
+        if origin is None:
+            raise ValueError("Cannot clone a repository without an origin.")
+        print(f"Cloning {origin} into current directory.")
+        repo = git.Repo.clone_from(origin, ".")
+        print(f"Checking out branch {branch}.")
+        repo.git.checkout(branch) 
+    
+    repo.git.pull("origin", branch)
+
+
+def commit_and_push(name: str) -> None:
+    repo = git.Repo()
+    if repo.is_dirty():
+        print("Committing changes.")
+        repo.git.add(".")
+        repo.git.commit("-m", f"paraffin: auto-commit {name}")
+        print("Pushing changes.")
+        repo.git.push("origin", str(repo.active_branch))

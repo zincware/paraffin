@@ -39,10 +39,15 @@ def worker(
     shutdown_timeout: int = typer.Option(
         10, help="Timeout in seconds to wait for worker to shutdown."
     ),
-    working_directory: str = typer.Option(".", help="Working directory."),
+    working_directory: str = typer.Option(".", help="Working directory.", envvar="PARAFFIN_WORKING_DIRECTORY"),
+    cleanup: bool = typer.Option(True, help="Cleanup working directory after task completion.", envvar="PARAFFIN_CLEANUP"),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
+
+    env = os.environ.copy()
+    env["PARAFFIN_WORKING_DIRECTORY"] = working_directory
+    env["PARAFFIN_CLEANUP"] = str(cleanup)
 
     proc = subprocess.Popen(
         [
@@ -55,7 +60,7 @@ def worker(
             "-Q",
             queues,
         ],
-        env={**os.environ, "PARAFFIN_WORKING_DIRECTORY": working_directory},
+        env=env,
     )
     time.sleep(
         shutdown_timeout
@@ -111,7 +116,7 @@ def submit(
 
     repo = git.Repo()  # TODO: consider allow submitting remote repos
     try:
-        origin = str(repo.remotes.origin)
+        origin = str(repo.remotes.origin.url)
     except AttributeError:
         origin = None
 
