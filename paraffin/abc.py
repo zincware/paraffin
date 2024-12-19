@@ -14,7 +14,7 @@ class StageContainer:
     @property
     def name(self) -> str:
         return self.stage.name
-    
+
     def to_dict(self) -> dict[str, t.Any]:
         dct = dataclasses.asdict(self)
         dct.pop("stage")
