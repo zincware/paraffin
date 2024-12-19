@@ -5,6 +5,7 @@ import dvc.api
 import git
 import networkx as nx
 import yaml
+import subprocess
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -185,15 +186,20 @@ def clone_and_checkout(branch: str, origin: str | None) -> None:
         repo = git.Repo.clone_from(origin, ".")
         print(f"Checking out branch {branch}.")
         repo.git.checkout(branch)
+    if origin is not None:
+        print("Pulling latest changes.")
+        repo.git.pull("origin", branch)
+        subprocess.check_call(["dvc", "pull"])
 
-    repo.git.pull("origin", branch)
 
 
-def commit_and_push(name: str) -> None:
+def commit_and_push(name: str, origin) -> None:
     repo = git.Repo()
     if repo.is_dirty():
         print("Committing changes.")
         repo.git.add(".")
         repo.git.commit("-m", f"paraffin: auto-commit {name}")
-        print("Pushing changes.")
-        repo.git.push("origin", str(repo.active_branch))
+        if origin is not None:
+            print("Pushing changes.")
+            repo.git.push("origin", repo.active_branch)
+            subprocess.check_call(["dvc", "push"])

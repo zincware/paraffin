@@ -124,7 +124,7 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     popen.stderr.close()
 
     if commit:
-        commit_and_push(name=name)
+        commit_and_push(name=name, origin=origin)
 
     if working_dir != "." and cleanup:
         # remove the working directory
