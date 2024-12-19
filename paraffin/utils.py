@@ -87,7 +87,7 @@ def get_custom_queue():
         return {}
 
 
-def dag_to_levels(graph) -> HirachicalStages:
+def dag_to_levels(graph, branch, origin) -> HirachicalStages:
     """Converts a directed acyclic graph (DAG) into hierarchical levels.
 
     This function takes a directed acyclic graph (DAG) and organizes its nodes
@@ -122,9 +122,9 @@ def dag_to_levels(graph) -> HirachicalStages:
                         nodes.append(node)
                         level = nx.shortest_path_length(graph, start_node, node)
                         try:
-                            levels[level].append(StageContainer(stage=node))
+                            levels[level].append(StageContainer(stage=node, branch=branch, origin=origin))
                         except KeyError:
-                            levels[level] = [StageContainer(stage=node)]
+                            levels[level] = [StageContainer(stage=node, branch=branch, origin=origin)]
                     else:
                         # this part has already been added
                         break
