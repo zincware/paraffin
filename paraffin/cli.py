@@ -2,6 +2,7 @@ import subprocess
 import time
 import typing as t
 
+import git
 import networkx as nx
 import typer
 
@@ -13,11 +14,10 @@ from paraffin.utils import (
     levels_to_mermaid,
 )
 
-import git
-
 app = typer.Typer()
 
 # TODO: working directory, autocommit args
+
 
 @app.command()
 def worker(
@@ -112,7 +112,11 @@ def submit(
     disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
     disconnected_levels = []
     for subgraph in disconnected_subgraphs:
-        disconnected_levels.append(dag_to_levels(graph=graph.subgraph(subgraph), branch=repo.active_branch, origin=origin))
+        disconnected_levels.append(
+            dag_to_levels(
+                graph=graph.subgraph(subgraph), branch=repo.active_branch, origin=origin
+            )
+        )
     # iterate disconnected subgraphs for better performance
     if not dry:
         for levels in disconnected_levels:

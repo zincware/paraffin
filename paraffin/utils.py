@@ -122,9 +122,13 @@ def dag_to_levels(graph, branch, origin) -> HirachicalStages:
                         nodes.append(node)
                         level = nx.shortest_path_length(graph, start_node, node)
                         try:
-                            levels[level].append(StageContainer(stage=node, branch=branch, origin=origin))
+                            levels[level].append(
+                                StageContainer(stage=node, branch=branch, origin=origin)
+                            )
                         except KeyError:
-                            levels[level] = [StageContainer(stage=node, branch=branch, origin=origin)]
+                            levels[level] = [
+                                StageContainer(stage=node, branch=branch, origin=origin)
+                            ]
                     else:
                         # this part has already been added
                         break
