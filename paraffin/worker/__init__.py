@@ -2,9 +2,9 @@ import logging
 import os
 import pathlib
 import random
+import shutil
 import subprocess
 import time
-import shutil
 
 from celery import Celery
 
@@ -85,7 +85,6 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     os.chdir(working_dir)
 
     clone_and_checkout(branch, origin)
-
 
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],

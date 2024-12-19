@@ -2,9 +2,9 @@ import fnmatch
 import pathlib
 
 import dvc.api
+import git
 import networkx as nx
 import yaml
-import git
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -167,7 +167,7 @@ def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
     return mermaid_syntax
 
 
-def clone_and_checkout(branch: str, origin: str|None) -> None:
+def clone_and_checkout(branch: str, origin: str | None) -> None:
     # check if we are in a git repo
     try:
         repo = git.Repo()
@@ -184,8 +184,8 @@ def clone_and_checkout(branch: str, origin: str|None) -> None:
         print(f"Cloning {origin} into current directory.")
         repo = git.Repo.clone_from(origin, ".")
         print(f"Checking out branch {branch}.")
-        repo.git.checkout(branch) 
-    
+        repo.git.checkout(branch)
+
     repo.git.pull("origin", branch)
 
 

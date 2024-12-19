@@ -39,8 +39,14 @@ def worker(
     shutdown_timeout: int = typer.Option(
         10, help="Timeout in seconds to wait for worker to shutdown."
     ),
-    working_directory: str = typer.Option(".", help="Working directory.", envvar="PARAFFIN_WORKING_DIRECTORY"),
-    cleanup: bool = typer.Option(True, help="Cleanup working directory after task completion.", envvar="PARAFFIN_CLEANUP"),
+    working_directory: str = typer.Option(
+        ".", help="Working directory.", envvar="PARAFFIN_WORKING_DIRECTORY"
+    ),
+    cleanup: bool = typer.Option(
+        True,
+        help="Cleanup working directory after task completion.",
+        envvar="PARAFFIN_CLEANUP",
+    ),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
