@@ -3,6 +3,8 @@ import pathlib
 import random
 import subprocess
 import time
+import git
+import os
 
 from celery import Celery
 
@@ -72,6 +74,25 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     Returns:
         bool: True if the operation is successful.
     """
+    working_dir = os.environ["PARAFFIN_WORKING_DIRECTORY"]
+    os.chdir(working_dir)
+    # check if we are in a git repo
+    try:
+        repo = git.Repo()
+        if origin is not None:
+            if origin != str(repo.remotes.origin):
+                raise ValueError(
+                    f"Origin mismatch: {origin} != {str(repo.remotes.origin)}"
+                )
+        if branch != str(repo.active_branch):
+            repo.git.checkout(branch)
+            # TODO: pull!
+    except git.InvalidGitRepositoryError:
+        # TODO: clone the repo
+        # TODO: what about dvc credentials?
+        raise RuntimeError("Not in a git repository")
+
+
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],
         stdout=subprocess.PIPE,

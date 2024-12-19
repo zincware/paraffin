@@ -5,6 +5,7 @@ import typing as t
 import git
 import networkx as nx
 import typer
+import os
 
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (
@@ -38,6 +39,7 @@ def worker(
     shutdown_timeout: int = typer.Option(
         10, help="Timeout in seconds to wait for worker to shutdown."
     ),
+    working_directory: str = typer.Option(".", help="Working directory."),
 ):
     """Start a Celery worker."""
     from paraffin.worker import app as celery_app
@@ -52,7 +54,8 @@ def worker(
             f"--concurrency={concurrency}",
             "-Q",
             queues,
-        ]
+        ],
+        env={**os.environ, "PARAFFIN_WORKING_DIRECTORY": working_directory},
     )
     time.sleep(
         shutdown_timeout
