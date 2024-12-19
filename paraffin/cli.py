@@ -51,7 +51,7 @@ def worker(
             queues,
         ]
     )
-    time.sleep(5)  # wait for the worker to start. TODO: use regex on output
+    time.sleep(shutdown_timeout)  # wait for the worker to start. TODO: use regex on output
 
     def auto_shutdown(timeout: float):
         """
@@ -62,7 +62,7 @@ def worker(
         while True:
             # Get active tasks
             active_tasks = inspect.active()
-            if any(active_tasks.values()):
+            if active_tasks is not None and any(active_tasks.values()):
                 time.sleep(timeout)
                 continue
             print("No active tasks. Shutting down worker.")

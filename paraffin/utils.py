@@ -5,7 +5,7 @@ import dvc.api
 import networkx as nx
 import yaml
 
-from paraffin.abc import HirachicalStages
+from paraffin.abc import HirachicalStages, StageContainer
 
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
@@ -122,9 +122,9 @@ def dag_to_levels(graph) -> HirachicalStages:
                         nodes.append(node)
                         level = nx.shortest_path_length(graph, start_node, node)
                         try:
-                            levels[level].append(node)
+                            levels[level].append(StageContainer(stage=node))
                         except KeyError:
-                            levels[level] = [node]
+                            levels[level] = [StageContainer(stage=node)]
                     else:
                         # this part has already been added
                         break
