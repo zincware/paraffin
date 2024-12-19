@@ -126,7 +126,7 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     if commit:
         commit_and_push(name=name, origin=origin)
 
-    if working_dir != "." and cleanup:
+    if working_dir != pathlib.Path(".") and cleanup:
         # remove the working directory
         shutil.rmtree(working_dir)
     return True
