@@ -1,11 +1,11 @@
 import fnmatch
 import pathlib
+import subprocess
 
 import dvc.api
 import git
 import networkx as nx
 import yaml
-import subprocess
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -190,7 +190,6 @@ def clone_and_checkout(branch: str, origin: str | None) -> None:
         print("Pulling latest changes.")
         repo.git.pull("origin", branch)
         subprocess.check_call(["dvc", "pull"])
-
 
 
 def commit_and_push(name: str, origin) -> None:
