@@ -16,10 +16,12 @@ class StageContainer:
         return self.stage.name
 
     def to_dict(self) -> dict[str, t.Any]:
-        dct = dataclasses.asdict(self)
-        dct.pop("stage")
-        dct["name"] = self.name
-        return dct
+        return {
+            "name": self.name,
+            "branch": self.branch,
+            "origin": self.origin,
+            "commit": self.commit,
+        }
 
 
 HirachicalStages = t.Dict[int, t.List[StageContainer]]
