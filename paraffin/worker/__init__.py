@@ -74,7 +74,7 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     Returns:
         bool: True if the operation is successful.
     """
-    working_dir = os.environ["PARAFFIN_WORKING_DIRECTORY"]
+    working_dir = os.environ.get("PARAFFIN_WORKING_DIRECTORY", ".")
     os.chdir(working_dir)
     # check if we are in a git repo
     try:
