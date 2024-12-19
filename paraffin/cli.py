@@ -1,3 +1,4 @@
+import os
 import subprocess
 import time
 import typing as t
@@ -5,7 +6,6 @@ import typing as t
 import git
 import networkx as nx
 import typer
-import os
 
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (

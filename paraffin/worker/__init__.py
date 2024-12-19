@@ -1,11 +1,11 @@
 import logging
+import os
 import pathlib
 import random
 import subprocess
 import time
-import git
-import os
 
+import git
 from celery import Celery
 
 log = logging.getLogger(__name__)
@@ -91,7 +91,6 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
         # TODO: clone the repo
         # TODO: what about dvc credentials?
         raise RuntimeError("Not in a git repository")
-
 
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],
