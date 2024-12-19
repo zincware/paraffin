@@ -76,8 +76,8 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     Returns:
         bool: True if the operation is successful.
     """
-    working_dir = pathlib.Path(os.environ["PARAFFIN_WORKING_DIRECTORY"])
-    cleanup = True if os.environ["PARAFFIN_CLEANUP"] == "True" else False
+    working_dir = pathlib.Path(os.environ.get("PARAFFIN_WORKING_DIRECTORY", "."))
+    cleanup = True if os.environ.get("PARAFFIN_CLEANUP", "True") == "True" else False
     print(f"Working directory: {working_dir} with cleanup: {cleanup}")
 
     if not working_dir.exists():
