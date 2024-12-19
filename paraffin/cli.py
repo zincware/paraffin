@@ -95,6 +95,7 @@ def submit(
         False, help="Do not re-evaluate unchanged stages."
     ),
     dry: bool = typer.Option(False, help="Dry run. Do not submit tasks."),
+    commit: bool = typer.Option(False, help="Automatically commit changes and push to remotes."),
 ):
     """Run DVC stages in parallel using Celery."""
     if skip_unchanged:
@@ -103,9 +104,9 @@ def submit(
     graph = get_stage_graph(names=names, glob=glob)
     custom_queues = get_custom_queue()
 
-    repo = git.Repo()
+    repo = git.Repo() # TODO: consider allow submitting remote repos
     try:
-        origin = repo.remotes.origin
+        origin = str(repo.remotes.origin)
     except AttributeError:
         origin = None
 
@@ -114,7 +115,7 @@ def submit(
     for subgraph in disconnected_subgraphs:
         disconnected_levels.append(
             dag_to_levels(
-                graph=graph.subgraph(subgraph), branch=repo.active_branch, origin=origin
+                graph=graph.subgraph(subgraph), branch=str(repo.active_branch), origin=origin, commit=commit
             )
         )
     # iterate disconnected subgraphs for better performance

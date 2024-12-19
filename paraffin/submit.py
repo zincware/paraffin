@@ -24,10 +24,10 @@ def submit_node_graph(
                 None,
             ):
                 group_tasks.append(
-                    repro.s(name=node.name).set(queue=custom_queues[matched_pattern])
+                    repro.s(**node.to_dict()).set(queue=custom_queues[matched_pattern])
                 )
             else:
-                group_tasks.append(repro.s(name=node.name))
+                group_tasks.append(repro.s(**node.to_dict()))
         per_level_groups.append(group(group_tasks))
 
     workflow = chain(per_level_groups)

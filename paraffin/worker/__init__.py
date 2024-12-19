@@ -48,7 +48,7 @@ app = make_celery()
 
 
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
-def repro(self, *args, name: str):
+def repro(self, *args, name: str, branch: str, origin: str|None, commit: bool):
     """Celery task to reproduce a DVC pipeline stage.
 
     This task attempts to reproduce a specified DVC pipeline stage
