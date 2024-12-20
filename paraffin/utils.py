@@ -94,7 +94,7 @@ def get_changed_stages(subgraph) -> list:
         stage = next(x for x in graph.nodes if hasattr(x, "name") and x.name == name)
         for node in nx.descendants(graph, stage):
             changed.append(node.name)
-    # TODO: split into definetly changed and maybe changed stages
+    # TODO: split into definitely changed and maybe changed stages
     return changed
 
 
