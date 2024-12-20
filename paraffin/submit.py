@@ -5,6 +5,10 @@ from celery import chain, group
 from paraffin.abc import HirachicalStages
 from paraffin.worker import repro, skipped_repro
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 def submit_node_graph(
     levels: HirachicalStages,
@@ -20,6 +24,7 @@ def submit_node_graph(
         group_tasks = []
         for node in nodes:
             if changed_stages and node.name not in changed_stages:
+                log.debug(f"Skipping {node.name}")
                 group_tasks.append(skipped_repro.s())
             elif matched_pattern := next(
                 (
@@ -29,6 +34,7 @@ def submit_node_graph(
                 ),
                 None,
             ):
+                log.debug(f"Submitting {node.name} to custom queue {matched_pattern}")
                 group_tasks.append(
                     repro.s(
                         name=node.name,
@@ -40,6 +46,7 @@ def submit_node_graph(
                     ).set(queue=custom_queues[matched_pattern])
                 )
             else:
+                log.debug(f"Submitting {node.name}")
                 group_tasks.append(
                     repro.s(
                         name=node.name,
