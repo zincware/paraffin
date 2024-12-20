@@ -1,4 +1,5 @@
 import fnmatch
+import json
 import pathlib
 import subprocess
 
@@ -6,7 +7,6 @@ import dvc.api
 import git
 import networkx as nx
 import yaml
-import json
 
 from paraffin.abc import HirachicalStages
 
