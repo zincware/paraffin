@@ -6,6 +6,7 @@ import dvc.api
 import git
 import networkx as nx
 import yaml
+import json
 
 from paraffin.abc import HirachicalStages
 
@@ -79,16 +80,17 @@ def get_stage_graph(names, glob=False):
 
 
 def get_changed_stages(subgraph) -> list:
+    res = subprocess.run(["dvc", "status", "--json"], capture_output=True)
+    # faster than repo.status()
+    status = json.loads(res.stdout)
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
-    repo = fs.repo
-    names = [x.name for x in subgraph.nodes]
-    changed = list(repo.status(targets=names))
+    changed = list(status)
     graph = fs.repo.index.graph.reverse(copy=True)
-    # find all downstream stages and add them to the changed list
-    # Issue with changed stages is, if any upstream stage was changed
-    # then we need to run ALL downstream stages, because
-    # dvc status does not know / tell us because the immediate
-    # upstream stage was unchanged at the point of checking.
+    # # find all downstream stages and add them to the changed list
+    # # Issue with changed stages is, if any upstream stage was changed
+    # # then we need to run ALL downstream stages, because
+    # # dvc status does not know / tell us because the immediate
+    # # upstream stage was unchanged at the point of checking.
 
     for name in changed:
         stage = next(x for x in graph.nodes if hasattr(x, "name") and x.name == name)
