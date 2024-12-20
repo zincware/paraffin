@@ -33,7 +33,9 @@ def submit_node_graph(
                 ),
                 None,
             ):
-                log.debug(f"Submitting '{node.name}' to custom queue '{matched_pattern}'")
+                log.debug(
+                    f"Submitting '{node.name}' to custom queue '{matched_pattern}'"
+                )
                 group_tasks.append(
                     repro.s(
                         name=node.name,

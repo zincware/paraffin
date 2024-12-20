@@ -19,9 +19,7 @@ def make_celery() -> Celery:
             __name__,
             broker_url=url,
             result_backend=url,
-            result_backend_transport_options = {
-                'global_keyprefix': 'paraffin_'
-            }
+            result_backend_transport_options={"global_keyprefix": "paraffin_"},
         )
     else:
         paraffin_folder = pathlib.Path(".paraffin")
