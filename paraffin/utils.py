@@ -124,7 +124,10 @@ def dag_to_levels(
                 for node in nx.bfs_tree(graph, start_node):
                     if node not in nodes:
                         nodes.append(node)
-                        level = nx.shortest_path_length(graph, start_node, node)
+                        # iterate all paths from start_node to node
+                        level = 0
+                        for path in nx.all_simple_paths(graph, start_node, node):
+                            level = max(level, len(path) - 1)
                         try:
                             levels[level].append(
                                 StageContainer(
