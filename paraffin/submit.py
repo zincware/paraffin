@@ -10,7 +10,7 @@ from paraffin.worker import repro, skipped_repro
 def submit_node_graph(
     levels: HirachicalStages,
     custom_queues: t.Optional[t.Dict[str, str]] = None,
-    changed_stages: list[str]|None = None,
+    changed_stages: list[str] | None = None,
 ):
     per_level_groups = []
     for nodes in levels.values():
