@@ -1,5 +1,4 @@
 import fnmatch
-import typing as t
 
 from celery import chain, group
 
@@ -30,10 +29,24 @@ def submit_node_graph(
                 None,
             ):
                 group_tasks.append(
-                    repro.s(name=node.name, cmd=node.cmd, branch=branch, commit=commit, origin=origin).set(queue=custom_queues[matched_pattern])
+                    repro.s(
+                        name=node.name,
+                        cmd=node.cmd,
+                        branch=branch,
+                        commit=commit,
+                        origin=origin,
+                    ).set(queue=custom_queues[matched_pattern])
                 )
             else:
-                group_tasks.append(repro.s(name=node.name, cmd=node.cmd, branch=branch, commit=commit, origin=origin))
+                group_tasks.append(
+                    repro.s(
+                        name=node.name,
+                        cmd=node.cmd,
+                        branch=branch,
+                        commit=commit,
+                        origin=origin,
+                    )
+                )
         per_level_groups.append(group(group_tasks))
 
     workflow = chain(per_level_groups)

@@ -46,6 +46,7 @@ def test_dag_to_levels_3():
 
     assert levels == {0: ["A"], 1: ["B"], 2: ["C"]}
 
+
 def test_dag_to_levles_4():
     """
     ```mermaid

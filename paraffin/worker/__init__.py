@@ -50,6 +50,7 @@ def make_celery() -> Celery:
 
 app = make_celery()
 
+
 def _run_dvc(self, name: str):
     """Run DVC repro command for a given stage.
 
@@ -122,8 +123,11 @@ def _run_vanilla(self, cmd: str):
         print(stderr_line, end="")
     popen.stderr.close()
 
+
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
-def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str):
+def repro(
+    self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str
+):
     """Celery task to reproduce a DVC pipeline stage.
 
     Args:
