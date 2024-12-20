@@ -17,8 +17,11 @@ def make_celery() -> Celery:
     if url := os.environ.get("PARAFFIN_REDIS_URL"):
         app = Celery(
             __name__,
-            broker=url,
-            backend=url,
+            broker_url=url,
+            result_backend=url,
+            result_backend_transport_options = {
+                'global_keyprefix': 'paraffin_'
+            }
         )
     else:
         paraffin_folder = pathlib.Path(".paraffin")
