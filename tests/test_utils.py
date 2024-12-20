@@ -63,6 +63,7 @@ def test_dag_to_levles_4():
 
     assert levels == {0: ["A", "B", "C"], 1: ["D", "E"]}
 
+
 def test_dag_to_levels_5():
     """
     ```mermaid
@@ -85,13 +86,21 @@ def test_dag_to_levels_5():
     ```
     """
     digraph = nx.DiGraph()
-    digraph.add_edges_from([
-        ("A", "D"), ("B", "D"), ("B", "E"), ("C", "E"),
-        ("D", "F"), ("E", "F"),
-        ("B", "G"), ("E", "G"),
-        ("F", "H"), ("C", "H"),
-        ("G", "I")
-    ])
+    digraph.add_edges_from(
+        [
+            ("A", "D"),
+            ("B", "D"),
+            ("B", "E"),
+            ("C", "E"),
+            ("D", "F"),
+            ("E", "F"),
+            ("B", "G"),
+            ("E", "G"),
+            ("F", "H"),
+            ("C", "H"),
+            ("G", "I"),
+        ]
+    )
     levels = dag_to_levels(digraph)
 
     assert levels == {0: ["A", "B", "C"], 1: ["D", "E"], 2: ["F", "G"], 3: ["H", "I"]}
