@@ -77,6 +77,12 @@ def get_stage_graph(names, glob=False):
 
     return subgraph
 
+def get_changed_stages(subgraph) -> list:
+    fs = dvc.api.DVCFileSystem(url=None, rev=None) 
+    repo = fs.repo
+    names = [x.name for x in subgraph.nodes]
+    return list(repo.status(targets=names))
+
 
 def get_custom_queue():
     try:

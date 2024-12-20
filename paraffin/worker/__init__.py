@@ -130,3 +130,9 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
         # remove the working directory
         shutil.rmtree(working_dir)
     return True
+
+
+@app.task(bind=True)
+def skipped_repro(*args, **kwargs):
+    """Dummy Celery task for testing purposes."""
+    pass

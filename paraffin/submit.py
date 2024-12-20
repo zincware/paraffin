@@ -4,18 +4,21 @@ import typing as t
 from celery import chain, group
 
 from paraffin.abc import HirachicalStages
-from paraffin.worker import repro
+from paraffin.worker import repro, skipped_repro
 
 
 def submit_node_graph(
     levels: HirachicalStages,
     custom_queues: t.Optional[t.Dict[str, str]] = None,
+    changed_stages: list[str]|None = None,
 ):
     per_level_groups = []
     for nodes in levels.values():
         group_tasks = []
         for node in nodes:
-            if matched_pattern := next(
+            if changed_stages and node.name not in changed_stages:
+                group_tasks.append(skipped_repro.s())
+            elif matched_pattern := next(
                 (
                     pattern
                     for pattern in custom_queues

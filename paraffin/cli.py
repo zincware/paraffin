@@ -13,6 +13,7 @@ from paraffin.utils import (
     get_custom_queue,
     get_stage_graph,
     levels_to_mermaid,
+    get_changed_stages,
 )
 
 app = typer.Typer()
@@ -116,6 +117,7 @@ def submit(
         raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
 
     graph = get_stage_graph(names=names, glob=glob)
+    changed_stages = get_changed_stages(graph)
     custom_queues = get_custom_queue()
 
     repo = git.Repo()  # TODO: consider allow submitting remote repos
@@ -138,9 +140,11 @@ def submit(
     # iterate disconnected subgraphs for better performance
     if not dry:
         for levels in disconnected_levels:
+            # TODO: why not have the commit, repo, branch and origin as arguments here!
             submit_node_graph(
                 levels,
                 custom_queues=custom_queues,
+                changed_stages=changed_stages,
             )
     if show_mermaid:
         typer.echo(levels_to_mermaid(disconnected_levels))
