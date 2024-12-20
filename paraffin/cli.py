@@ -141,9 +141,6 @@ def submit(
         disconnected_levels.append(
             dag_to_levels(
                 graph=graph.subgraph(subgraph),
-                branch=str(repo.active_branch),
-                origin=origin,
-                commit=commit,
             )
         )
     # iterate disconnected subgraphs for better performance
@@ -155,6 +152,9 @@ def submit(
                 levels,
                 custom_queues=custom_queues,
                 changed_stages=changed_stages,
+                branch=str(repo.active_branch),
+                origin=origin,
+                commit=commit,
             )
     if show_mermaid:
         log.debug("Visualizing graph")

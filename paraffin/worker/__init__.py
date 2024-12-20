@@ -99,8 +99,31 @@ def _run_dvc(self, name: str):
     popen.stderr.close()
 
 
+def _run_vanilla(self, cmd: str):
+    """Run a vanilla command for a given stage.
+
+    This task attempts to run a specified command
+    using the `subprocess.Popen` function.
+    """
+    popen = subprocess.Popen(
+        name,
+        shell=True,
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+        stderr=subprocess.PIPE,
+    )
+    for stdout_line in iter(popen.stdout.readline, ""):
+        # logging.info(stdout_line)
+        print(stdout_line, end="")
+    popen.stdout.close()
+
+    for stderr_line in iter(popen.stderr.readline, ""):
+        # logging.error(stderr_line)
+        print(stderr_line, end="")
+    popen.stderr.close()
+
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
-def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool):
+def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str):
     """Celery task to reproduce a DVC pipeline stage.
 
     Args:
@@ -127,6 +150,7 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     clone_and_checkout(branch, origin)
 
     _run_dvc(self, name)
+    # _run_vanilla(self, cmd)
 
     if commit:
         commit_and_push(name=name, origin=origin)
