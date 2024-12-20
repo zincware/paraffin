@@ -136,26 +136,26 @@ def dag_to_levels(graph) -> HirachicalStages:
         >>> dag_to_levels(G)
         {0: [1], 1: [2, 3], 2: [4]}
     """
-    nodes = []
+    # Initialize the levels dictionary
     levels = {}
-    for start_node in graph.nodes():
-        if len(list(graph.predecessors(start_node))) == 0:
-            if start_node not in nodes:
-                for node in nx.bfs_tree(graph, start_node):
-                    if node not in nodes:
-                        nodes.append(node)
-                        # find the longest path from the start_node to the current node
-                        # to determine the level of the current node
-                        level = 0
-                        for path in nx.all_simple_paths(graph, start_node, node):
-                            level = max(level, len(path) - 1)
-                        try:
-                            levels[level].append(node)
-                        except KeyError:
-                            levels[level] = [node]
-                    else:
-                        # this part has already been added
-                        break
+    node_to_level = {}
+
+    # Perform topological sort
+    for node in nx.topological_sort(graph):
+        # Determine the level of the current node
+        if len(list(graph.predecessors(node))) == 0:
+            # No predecessors, this is a root node
+            level = 0
+        else:
+            # Level is one more than the maximum level of all predecessors
+            level = max(node_to_level[pred] for pred in graph.predecessors(node)) + 1
+
+        # Assign the node to its level
+        node_to_level[node] = level
+        if level not in levels:
+            levels[level] = []
+        levels[level].append(node)
+
     return levels
 
 
