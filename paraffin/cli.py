@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import time
@@ -15,7 +16,6 @@ from paraffin.utils import (
     get_stage_graph,
     levels_to_mermaid,
 )
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -158,7 +158,9 @@ def submit(
             )
     if show_mermaid:
         log.debug("Visualizing graph")
-        typer.echo(levels_to_mermaid(disconnected_levels, changed_stages=changed_stages))
+        typer.echo(
+            levels_to_mermaid(disconnected_levels, changed_stages=changed_stages)
+        )
 
     typer.echo(f"Submitted all (n = {len(graph)})  tasks.")
     typer.echo(

@@ -6,7 +6,6 @@ import dvc.api
 import git
 import networkx as nx
 import yaml
-import json
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -90,7 +89,7 @@ def get_changed_stages(subgraph) -> list:
     # then we need to run ALL downstream stages, because
     # dvc status does not know / tell us because the immediate
     # upstream stage was unchanged at the point of checking.
-  
+
     for name in changed:
         stage = next(x for x in graph.nodes if hasattr(x, "name") and x.name == name)
         for node in nx.descendants(graph, stage):
@@ -174,7 +173,9 @@ def dag_to_levels(
     return levels
 
 
-def levels_to_mermaid(all_levels: list[HirachicalStages], changed_stages: list[str]) -> str:
+def levels_to_mermaid(
+    all_levels: list[HirachicalStages], changed_stages: list[str]
+) -> str:
     # Initialize Mermaid syntax
     mermaid_syntax = "flowchart TD\n"
 
