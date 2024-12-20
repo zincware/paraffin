@@ -11,9 +11,9 @@ def test_dag_to_levels_1():
         B --> C
     ```
     """
-    G = nx.DiGraph()
-    G.add_edges_from([("A", "C"), ("B", "C")])
-    levels = dag_to_levels(G, branch="main", origin=None, commit=False)
+    digraph = nx.DiGraph()
+    digraph.add_edges_from([("A", "C"), ("B", "C")])
+    levels = dag_to_levels(digraph, branch="main", origin=None, commit=False)
     assert len(levels) == 2
 
     assert len(levels[0]) == 2
@@ -30,9 +30,9 @@ def test_dag_to_levels_2():
         A --> B --> C
     ```
     """
-    G = nx.DiGraph()
-    G.add_edges_from([("A", "B"), ("B", "C")])
-    levels = dag_to_levels(G, branch="main", origin=None, commit=False)
+    digraph = nx.DiGraph()
+    digraph.add_edges_from([("A", "B"), ("B", "C")])
+    levels = dag_to_levels(digraph, branch="main", origin=None, commit=False)
     assert len(levels) == 3
 
     assert len(levels[0]) == 1
@@ -51,9 +51,9 @@ def test_dag_to_levels_3():
         A --> C
     ```
     """
-    G = nx.DiGraph()
-    G.add_edges_from([("A", "B"), ("B", "C"), ("A", "C")])
-    levels = dag_to_levels(G, branch="main", origin=None, commit=False)
+    digraph = nx.DiGraph()
+    digraph.add_edges_from([("A", "B"), ("B", "C"), ("A", "C")])
+    levels = dag_to_levels(digraph, branch="main", origin=None, commit=False)
     assert len(levels) == 3
 
     assert len(levels[0]) == 1
@@ -74,9 +74,9 @@ def test_dag_to_levles_4():
         C --> E
     ```
     """
-    G = nx.DiGraph()
-    G.add_edges_from([("A", "D"), ("B", "D"), ("B", "E"), ("C", "E")])
-    levels = dag_to_levels(G, branch="main", origin=None, commit=False)
+    digraph = nx.DiGraph()
+    digraph.add_edges_from([("A", "D"), ("B", "D"), ("B", "E"), ("C", "E")])
+    levels = dag_to_levels(digraph, branch="main", origin=None, commit=False)
     assert len(levels) == 2
 
     assert len(levels[0]) == 3
