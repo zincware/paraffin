@@ -10,10 +10,10 @@ import typer
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (
     dag_to_levels,
+    get_changed_stages,
     get_custom_queue,
     get_stage_graph,
     levels_to_mermaid,
-    get_changed_stages,
 )
 
 app = typer.Typer()
