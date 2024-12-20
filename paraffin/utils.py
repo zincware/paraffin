@@ -6,6 +6,7 @@ import dvc.api
 import git
 import networkx as nx
 import yaml
+import json
 
 from paraffin.abc import HirachicalStages, StageContainer
 
@@ -82,7 +83,20 @@ def get_changed_stages(subgraph) -> list:
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     repo = fs.repo
     names = [x.name for x in subgraph.nodes]
-    return list(repo.status(targets=names))
+    changed = list(repo.status(targets=names))
+    graph = fs.repo.index.graph.reverse(copy=True)
+    # find all downstream stages and add them to the changed list
+    # Issue with changed stages is, if any upstream stage was changed
+    # then we need to run ALL downstream stages, because
+    # dvc status does not know / tell us because the immediate
+    # upstream stage was unchanged at the point of checking.
+  
+    for name in changed:
+        stage = next(x for x in graph.nodes if hasattr(x, "name") and x.name == name)
+        for node in nx.descendants(graph, stage):
+            changed.append(node.name)
+    # TODO: split into definetly changed and maybe changed stages
+    return changed
 
 
 def get_custom_queue():
@@ -160,7 +174,7 @@ def dag_to_levels(
     return levels
 
 
-def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
+def levels_to_mermaid(all_levels: list[HirachicalStages], changed_stages: list[str]) -> str:
     # Initialize Mermaid syntax
     mermaid_syntax = "flowchart TD\n"
 
@@ -169,7 +183,10 @@ def levels_to_mermaid(all_levels: list[HirachicalStages]) -> str:
         for level, nodes in levels.items():
             mermaid_syntax += f"\tsubgraph Level{idx}:{level + 1}\n"
             for node in nodes:
-                mermaid_syntax += f"\t\t{node.name}\n"
+                if node.name in changed_stages:
+                    mermaid_syntax += f"\t\t{node.name}\n"
+                else:
+                    mermaid_syntax += f"\t\t{node.name}(✓)\n"
             mermaid_syntax += "\tend\n"
 
         # Add connections between levels

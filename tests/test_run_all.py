@@ -56,7 +56,10 @@ def check_finished(names: list[str] | None = None, exclusive: bool = False) -> b
     for name in names or []:
         cmd.append(name)
     result = subprocess.run(cmd, capture_output=True, check=True)
-    return result.stdout.decode().strip() == "Data and pipelines are up to date."
+    finished = result.stdout.decode().strip() == "Data and pipelines are up to date."
+    if not finished:
+        print(result.stdout.decode())
+    return finished
 
 
 def test_check_finished(proj01):
@@ -149,6 +152,7 @@ def test_run_datafile(proj02, caplog):
     data_file.write_text("4,5,6")
 
     result = runner.invoke(app, ["submit", "--glob", "a*"])
+    print(result.stdout)
     # assert "Running 2 stages" in caplog.text
     # caplog.clear()
     assert result.exit_code == 0

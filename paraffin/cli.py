@@ -158,7 +158,7 @@ def submit(
             )
     if show_mermaid:
         log.debug("Visualizing graph")
-        typer.echo(levels_to_mermaid(disconnected_levels))
+        typer.echo(levels_to_mermaid(disconnected_levels, changed_stages=changed_stages))
 
     typer.echo(f"Submitted all (n = {len(graph)})  tasks.")
     typer.echo(
