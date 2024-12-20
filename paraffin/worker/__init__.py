@@ -106,27 +106,11 @@ def _run_vanilla(self, cmd: str):
     This task attempts to run a specified command
     using the `subprocess.Popen` function.
     """
-    popen = subprocess.Popen(
-        name,
-        shell=True,
-        stdout=subprocess.PIPE,
-        universal_newlines=True,
-        stderr=subprocess.PIPE,
-    )
-    for stdout_line in iter(popen.stdout.readline, ""):
-        # logging.info(stdout_line)
-        print(stdout_line, end="")
-    popen.stdout.close()
-
-    for stderr_line in iter(popen.stderr.readline, ""):
-        # logging.error(stderr_line)
-        print(stderr_line, end="")
-    popen.stderr.close()
-
+    subprocess.check_call(cmd, shell=True)
 
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
 def repro(
-    self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str
+    self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str, use_dvc: bool
 ):
     """Celery task to reproduce a DVC pipeline stage.
 
@@ -145,7 +129,7 @@ def repro(
     """
     working_dir = pathlib.Path(os.environ.get("PARAFFIN_WORKING_DIRECTORY", "."))
     cleanup = True if os.environ.get("PARAFFIN_CLEANUP", "True") == "True" else False
-    print(f"Working directory: {working_dir} with cleanup: {cleanup}")
+    # print(f"Working directory: {working_dir} with cleanup: {cleanup}")
 
     if not working_dir.exists():
         working_dir.mkdir(parents=True)
@@ -153,8 +137,10 @@ def repro(
 
     clone_and_checkout(branch, origin)
 
-    _run_dvc(self, name)
-    # _run_vanilla(self, cmd)
+    if use_dvc:
+        _run_dvc(self, name)
+    else:
+        _run_vanilla(self, cmd)
 
     if commit:
         commit_and_push(name=name, origin=origin)

@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 import typing as t
+import tqdm
 
 import git
 import networkx as nx
@@ -115,10 +116,13 @@ def submit(
         False, help="Automatically commit changes and push to remotes."
     ),
     v: bool = typer.Option(False, help="Verbose output."),
+    use_dvc: bool = typer.Option(True, help="Use DVC to manage pipeline stages. This should be the default, unless you know what you are doing!")
 ):
     """Run DVC stages in parallel using Celery."""
     if skip_unchanged:
         raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
+    if not use_dvc and commit:
+        raise ValueError("Cannot commit changes without using DVC.")
     if v:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -155,6 +159,7 @@ def submit(
                 branch=str(repo.active_branch),
                 origin=origin,
                 commit=commit,
+                use_dvc=use_dvc
             )
     if show_mermaid:
         log.debug("Visualizing graph")
@@ -167,3 +172,41 @@ def submit(
         "Start your celery worker using `paraffin worker`"
         " and specify concurrency with `--concurrency`."
     )
+
+
+@app.command()
+def commit(
+    names: t.Optional[list[str]] = typer.Argument(
+        None, help="Stage names to run. If not specified, run all stages."
+    ),
+    v: bool = typer.Option(False, help="Verbose output."),
+):
+    if v:
+        logging.basicConfig(level=logging.DEBUG)
+    log.debug("Getting stage graph")
+    graph = get_stage_graph(names=names, glob=True)
+    log.debug("Getting changed stages")
+    changed_stages = get_changed_stages(graph)
+
+    disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
+    disconnected_levels = []
+    for subgraph in disconnected_subgraphs:
+        disconnected_levels.append(
+            dag_to_levels(
+                graph=graph.subgraph(subgraph),
+            )
+        )
+    
+    tbar = tqdm.tqdm(disconnected_levels, desc="Committing stages", total=len(graph))
+
+    for levels in disconnected_levels:
+        for nodes in levels.values():
+            for node in nodes:
+                if node.name in changed_stages:
+                    tbar.set_postfix(current=node.name)
+                    res = subprocess.run(["dvc", "commit", node.name, "--force"], capture_output=True)
+                    if res.returncode != 0:
+                        log.error(f"Failed to commit {node.name}")
+                        log.error(res.stderr.decode())
+                        raise RuntimeError(f"Failed to commit {node.name}")
+                    tbar.update()
