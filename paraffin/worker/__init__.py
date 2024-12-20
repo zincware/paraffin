@@ -106,6 +106,7 @@ def _run_vanilla(self, cmd: str):
     This task attempts to run a specified command
     using the `subprocess.Popen` function.
     """
+    print(f"Running command: {cmd}")    
     subprocess.check_call(cmd, shell=True)
 
 

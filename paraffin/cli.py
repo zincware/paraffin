@@ -183,14 +183,18 @@ def commit(
     names: t.Optional[list[str]] = typer.Argument(
         None, help="Stage names to run. If not specified, run all stages."
     ),
+    check: bool = typer.Option(False),
     verbose: bool = typer.Option(False, help="Verbose output."),
 ):
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
     log.debug("Getting stage graph")
     graph = get_stage_graph(names=names, glob=True)
-    log.debug("Getting changed stages")
-    changed_stages = get_changed_stages(graph)
+    if check:
+        log.debug("Getting changed stages")
+        changed_stages = get_changed_stages(graph)
+    else:
+        changed_stages = [node.name for node in graph.nodes]
 
     disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
     disconnected_levels = []
@@ -201,15 +205,16 @@ def commit(
             )
         )
 
-    tbar = tqdm.tqdm(disconnected_levels, desc="Committing stages", total=len(graph))
+    tbar = tqdm.tqdm(disconnected_levels, desc="Committing stages", total=len(changed_stages))
 
     for levels in disconnected_levels:
         for nodes in levels.values():
             for node in nodes:
                 if node.name in changed_stages:
                     tbar.set_postfix(current=node.name)
+                    cmd = ["dvc", "commit", node.name, "--force"]
                     res = subprocess.run(
-                        ["dvc", "commit", node.name, "--force"], capture_output=True
+                        cmd, capture_output=True
                     )
                     if res.returncode != 0:
                         log.error(f"Failed to commit {node.name}")
