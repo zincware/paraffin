@@ -51,9 +51,8 @@ def make_celery() -> Celery:
 app = make_celery()
 
 
-@app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
-def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool):
-    """Celery task to reproduce a DVC pipeline stage.
+def _run_dvc(self, name: str):
+    """Run DVC repro command for a given stage.
 
     This task attempts to reproduce a specified DVC pipeline stage
     using the `dvc repro` command.
@@ -62,30 +61,7 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
     If the error occurs after the stage has been executed, it attempts to
     commit the lock using the `dvc commit` command with a
     forced option to avoid loss of computational resources.
-
-    Args:
-        self (Task): The bound Celery task instance.
-        *args: Additional arguments.
-        name (str): The name of the DVC pipeline stage to reproduce.
-
-    Raises:
-        self.retry: If the "Unable to acquire lock" error occurs,
-        the task is retried up to 5 times.
-        RuntimeError: If unable to commit the lock after multiple attempts.
-
-    Returns:
-        bool: True if the operation is successful.
     """
-    working_dir = pathlib.Path(os.environ.get("PARAFFIN_WORKING_DIRECTORY", "."))
-    cleanup = True if os.environ.get("PARAFFIN_CLEANUP", "True") == "True" else False
-    print(f"Working directory: {working_dir} with cleanup: {cleanup}")
-
-    if not working_dir.exists():
-        working_dir.mkdir(parents=True)
-    os.chdir(working_dir)
-
-    clone_and_checkout(branch, origin)
-
     popen = subprocess.Popen(
         ["dvc", "repro", "--single-item", name],
         stdout=subprocess.PIPE,
@@ -122,6 +98,58 @@ def repro(self, *args, name: str, branch: str, origin: str | None, commit: bool)
             else:
                 raise RuntimeError(f"Unable to commit lock for {name}")
     popen.stderr.close()
+
+
+def _run_vanilla(self, cmd: str):
+    """Run a vanilla command for a given stage.
+
+    This task attempts to run a specified command
+    using the `subprocess.Popen` function.
+    """
+    print(f"Running command: {cmd}")
+    subprocess.check_call(cmd, shell=True)
+
+
+@app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
+def repro(
+    self,
+    *args,
+    name: str,
+    branch: str,
+    origin: str | None,
+    commit: bool,
+    cmd: str,
+    use_dvc: bool,
+):
+    """Celery task to reproduce a DVC pipeline stage.
+
+    Args:
+        self (Task): The bound Celery task instance.
+        *args: Additional arguments.
+        name (str): The name of the DVC pipeline stage to reproduce.
+
+    Raises:
+        self.retry: If the "Unable to acquire lock" error occurs,
+        the task is retried up to 5 times.
+        RuntimeError: If unable to commit the lock after multiple attempts.
+
+    Returns:
+        bool: True if the operation is successful.
+    """
+    working_dir = pathlib.Path(os.environ.get("PARAFFIN_WORKING_DIRECTORY", "."))
+    cleanup = True if os.environ.get("PARAFFIN_CLEANUP", "True") == "True" else False
+    # print(f"Working directory: {working_dir} with cleanup: {cleanup}")
+
+    if not working_dir.exists():
+        working_dir.mkdir(parents=True)
+    os.chdir(working_dir)
+
+    clone_and_checkout(branch, origin)
+
+    if use_dvc:
+        _run_dvc(self, name)
+    else:
+        _run_vanilla(self, cmd)
 
     if commit:
         commit_and_push(name=name, origin=origin)

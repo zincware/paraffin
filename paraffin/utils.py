@@ -7,7 +7,7 @@ import git
 import networkx as nx
 import yaml
 
-from paraffin.abc import HirachicalStages, StageContainer
+from paraffin.abc import HirachicalStages
 
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
@@ -109,9 +109,7 @@ def get_custom_queue():
         return {}
 
 
-def dag_to_levels(
-    graph, branch: str, origin: str | None, commit: bool
-) -> HirachicalStages:
+def dag_to_levels(graph) -> HirachicalStages:
     """Converts a directed acyclic graph (DAG) into hierarchical levels.
 
     This function takes a directed acyclic graph (DAG) and organizes its nodes
@@ -150,23 +148,9 @@ def dag_to_levels(
                         for path in nx.all_simple_paths(graph, start_node, node):
                             level = max(level, len(path) - 1)
                         try:
-                            levels[level].append(
-                                StageContainer(
-                                    stage=node,
-                                    branch=branch,
-                                    origin=origin,
-                                    commit=commit,
-                                )
-                            )
+                            levels[level].append(node)
                         except KeyError:
-                            levels[level] = [
-                                StageContainer(
-                                    stage=node,
-                                    branch=branch,
-                                    origin=origin,
-                                    commit=commit,
-                                )
-                            ]
+                            levels[level] = [node]
                     else:
                         # this part has already been added
                         break

@@ -1,5 +1,4 @@
 import fnmatch
-import typing as t
 
 from celery import chain, group
 
@@ -9,8 +8,12 @@ from paraffin.worker import repro, skipped_repro
 
 def submit_node_graph(
     levels: HirachicalStages,
-    custom_queues: t.Optional[t.Dict[str, str]] = None,
-    changed_stages: list[str] | None = None,
+    custom_queues: dict[str, str],
+    changed_stages: list[str],
+    branch: str,
+    origin: str | None,
+    commit: bool,
+    use_dvc: bool,
 ):
     per_level_groups = []
     for nodes in levels.values():
@@ -27,10 +30,26 @@ def submit_node_graph(
                 None,
             ):
                 group_tasks.append(
-                    repro.s(**node.to_dict()).set(queue=custom_queues[matched_pattern])
+                    repro.s(
+                        name=node.name,
+                        cmd=node.cmd,
+                        branch=branch,
+                        commit=commit,
+                        origin=origin,
+                        use_dvc=use_dvc,
+                    ).set(queue=custom_queues[matched_pattern])
                 )
             else:
-                group_tasks.append(repro.s(**node.to_dict()))
+                group_tasks.append(
+                    repro.s(
+                        name=node.name,
+                        cmd=node.cmd,
+                        branch=branch,
+                        commit=commit,
+                        origin=origin,
+                        use_dvc=use_dvc,
+                    )
+                )
         per_level_groups.append(group(group_tasks))
 
     workflow = chain(per_level_groups)
