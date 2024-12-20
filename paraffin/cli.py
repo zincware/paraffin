@@ -115,10 +115,11 @@ def submit(
     commit: bool = typer.Option(
         False, help="Automatically commit changes and push to remotes."
     ),
-    v: bool = typer.Option(False, help="Verbose output."),
+    verbose: bool = typer.Option(False, help="Verbose output."),
     use_dvc: bool = typer.Option(
         True,
-        help="Use DVC to manage pipeline stages. This should be the default, unless you know what you are doing!",
+        help="Use DVC to manage pipeline stages. Do not change"
+        " this unless you know what you are doing.",
     ),
 ):
     """Run DVC stages in parallel using Celery."""
@@ -126,7 +127,7 @@ def submit(
         raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
     if not use_dvc and commit:
         raise ValueError("Cannot commit changes without using DVC.")
-    if v:
+    if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
     log.debug("Getting stage graph")
@@ -182,9 +183,9 @@ def commit(
     names: t.Optional[list[str]] = typer.Argument(
         None, help="Stage names to run. If not specified, run all stages."
     ),
-    v: bool = typer.Option(False, help="Verbose output."),
+    verbose: bool = typer.Option(False, help="Verbose output."),
 ):
-    if v:
+    if verbose:
         logging.basicConfig(level=logging.DEBUG)
     log.debug("Getting stage graph")
     graph = get_stage_graph(names=names, glob=True)
