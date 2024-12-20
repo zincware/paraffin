@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import time
@@ -10,10 +11,13 @@ import typer
 from paraffin.submit import submit_node_graph
 from paraffin.utils import (
     dag_to_levels,
+    get_changed_stages,
     get_custom_queue,
     get_stage_graph,
     levels_to_mermaid,
 )
+
+log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -110,12 +114,18 @@ def submit(
     commit: bool = typer.Option(
         False, help="Automatically commit changes and push to remotes."
     ),
+    v: bool = typer.Option(False, help="Verbose output."),
 ):
     """Run DVC stages in parallel using Celery."""
     if skip_unchanged:
         raise NotImplementedError("Skipping unchanged stages is not yet implemented.")
+    if v:
+        logging.basicConfig(level=logging.DEBUG)
 
+    log.debug("Getting stage graph")
     graph = get_stage_graph(names=names, glob=glob)
+    log.debug("Getting changed stages")
+    changed_stages = get_changed_stages(graph)
     custom_queues = get_custom_queue()
 
     repo = git.Repo()  # TODO: consider allow submitting remote repos
@@ -124,6 +134,7 @@ def submit(
     except AttributeError:
         origin = None
 
+    log.debug("Converting graph to levels")
     disconnected_subgraphs = list(nx.connected_components(graph.to_undirected()))
     disconnected_levels = []
     for subgraph in disconnected_subgraphs:
@@ -137,13 +148,19 @@ def submit(
         )
     # iterate disconnected subgraphs for better performance
     if not dry:
+        log.debug("Submitting node graph")
         for levels in disconnected_levels:
+            # TODO: why not have the commit, repo, branch and origin as arguments here!
             submit_node_graph(
                 levels,
                 custom_queues=custom_queues,
+                changed_stages=changed_stages,
             )
     if show_mermaid:
-        typer.echo(levels_to_mermaid(disconnected_levels))
+        log.debug("Visualizing graph")
+        typer.echo(
+            levels_to_mermaid(disconnected_levels, changed_stages=changed_stages)
+        )
 
     typer.echo(f"Submitted all (n = {len(graph)})  tasks.")
     typer.echo(
