@@ -1,11 +1,10 @@
 import fnmatch
+import logging
 
 from celery import chain, group
 
 from paraffin.abc import HirachicalStages
 from paraffin.worker import repro, skipped_repro
-
-import logging
 
 log = logging.getLogger(__name__)
 
