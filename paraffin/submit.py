@@ -13,7 +13,7 @@ def submit_node_graph(
     branch: str,
     origin: str | None,
     commit: bool,
-    use_dvc: bool
+    use_dvc: bool,
 ):
     per_level_groups = []
     for nodes in levels.values():
@@ -36,7 +36,7 @@ def submit_node_graph(
                         branch=branch,
                         commit=commit,
                         origin=origin,
-                        use_dvc=use_dvc
+                        use_dvc=use_dvc,
                     ).set(queue=custom_queues[matched_pattern])
                 )
             else:
@@ -47,7 +47,7 @@ def submit_node_graph(
                         branch=branch,
                         commit=commit,
                         origin=origin,
-                        use_dvc=use_dvc
+                        use_dvc=use_dvc,
                     )
                 )
         per_level_groups.append(group(group_tasks))

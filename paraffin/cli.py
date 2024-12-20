@@ -3,10 +3,10 @@ import os
 import subprocess
 import time
 import typing as t
-import tqdm
 
 import git
 import networkx as nx
+import tqdm
 import typer
 
 from paraffin.submit import submit_node_graph
@@ -116,7 +116,10 @@ def submit(
         False, help="Automatically commit changes and push to remotes."
     ),
     v: bool = typer.Option(False, help="Verbose output."),
-    use_dvc: bool = typer.Option(True, help="Use DVC to manage pipeline stages. This should be the default, unless you know what you are doing!")
+    use_dvc: bool = typer.Option(
+        True,
+        help="Use DVC to manage pipeline stages. This should be the default, unless you know what you are doing!",
+    ),
 ):
     """Run DVC stages in parallel using Celery."""
     if skip_unchanged:
@@ -159,7 +162,7 @@ def submit(
                 branch=str(repo.active_branch),
                 origin=origin,
                 commit=commit,
-                use_dvc=use_dvc
+                use_dvc=use_dvc,
             )
     if show_mermaid:
         log.debug("Visualizing graph")
@@ -196,7 +199,7 @@ def commit(
                 graph=graph.subgraph(subgraph),
             )
         )
-    
+
     tbar = tqdm.tqdm(disconnected_levels, desc="Committing stages", total=len(graph))
 
     for levels in disconnected_levels:
@@ -204,7 +207,9 @@ def commit(
             for node in nodes:
                 if node.name in changed_stages:
                     tbar.set_postfix(current=node.name)
-                    res = subprocess.run(["dvc", "commit", node.name, "--force"], capture_output=True)
+                    res = subprocess.run(
+                        ["dvc", "commit", node.name, "--force"], capture_output=True
+                    )
                     if res.returncode != 0:
                         log.error(f"Failed to commit {node.name}")
                         log.error(res.stderr.decode())

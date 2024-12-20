@@ -108,9 +108,17 @@ def _run_vanilla(self, cmd: str):
     """
     subprocess.check_call(cmd, shell=True)
 
+
 @app.task(bind=True, default_retry_delay=5)  # retry in 5 seconds
 def repro(
-    self, *args, name: str, branch: str, origin: str | None, commit: bool, cmd: str, use_dvc: bool
+    self,
+    *args,
+    name: str,
+    branch: str,
+    origin: str | None,
+    commit: bool,
+    cmd: str,
+    use_dvc: bool,
 ):
     """Celery task to reproduce a DVC pipeline stage.
 
