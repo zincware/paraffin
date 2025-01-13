@@ -2,6 +2,12 @@
 [![PyPI version](https://badge.fury.io/py/paraffin.svg)](https://badge.fury.io/py/paraffin)
 [![Discord](https://img.shields.io/discord/1034511611802689557)](https://discord.gg/7ncfwhsnm4)
 
+> [!WARNING]
+> [celery](https://github.com/celery/celery) can not handle large workflows and will crash your computer.
+> See https://github.com/celery/celery/issues/9475.
+> Therefore, `paraffin` should **currently not** be used for large workflows.
+> We are working on a solution without relying on `celery`.
+
 # paraffin
 
 Paraffin, derived from the Latin phrase `parum affinis` meaning
