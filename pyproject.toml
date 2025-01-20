@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "paraffin"
-version = "0.2.2"
+version = "0.3.0"
 description = "Parallel execution of DVC stages"
 authors = ["Fabian Zills <fzills@icp.uni-stuttgart.de>"]
 license = "Apache-2.0"
@@ -13,8 +13,7 @@ repository = "https://github.com/zincware/paraffin"
 python = ">=3.10,<4"
 dvc = "^3.51"
 typer = {extras = ["all"], version = "^0"}
-sqlalchemy = "^2"
-celery = "^5"
+sqlmodel = "^0.0.22"
 
 [tool.poetry.scripts]
 paraffin = 'paraffin.cli:app'

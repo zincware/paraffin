@@ -43,7 +43,7 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     return graph.subgraph(nodes_to_include).copy()
 
 
-def get_stage_graph(names, glob=False):
+def get_stage_graph(names, glob=False) -> nx.DiGraph:
     """
     Generates a subgraph of stages from a DVC repository based on provided names.
 
