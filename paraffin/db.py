@@ -1,12 +1,14 @@
-from typing import Optional, List
-from sqlmodel import Field, Relationship, SQLModel, create_engine, Session, select
-import networkx as nx
-from sqlalchemy.orm import joinedload
 import fnmatch
+from typing import List, Optional
+
+import networkx as nx
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+
 
 class JobDependency(SQLModel, table=True):
     parent_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
     child_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
+
 
 class Job(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -19,13 +21,20 @@ class Job(SQLModel, table=True):
     parents: List["Job"] = Relationship(
         link_model=JobDependency,
         back_populates="children",
-        sa_relationship_kwargs={"primaryjoin": "Job.id==JobDependency.child_id", "secondaryjoin": "Job.id==JobDependency.parent_id"}
+        sa_relationship_kwargs={
+            "primaryjoin": "Job.id==JobDependency.child_id",
+            "secondaryjoin": "Job.id==JobDependency.parent_id",
+        },
     )
     children: List["Job"] = Relationship(
         link_model=JobDependency,
         back_populates="parents",
-        sa_relationship_kwargs={"primaryjoin": "Job.id==JobDependency.parent_id", "secondaryjoin": "Job.id==JobDependency.child_id"}
+        sa_relationship_kwargs={
+            "primaryjoin": "Job.id==JobDependency.parent_id",
+            "secondaryjoin": "Job.id==JobDependency.child_id",
+        },
     )
+
 
 def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str]):
     engine = create_engine("sqlite:///jobs.db")
@@ -42,10 +51,13 @@ def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str]):
             session.add(job)
             # add dependencies
             for parent in graph.predecessors(node):
-                parent_job = session.exec(select(Job).where(Job.cmd == parent.cmd)).one()
+                parent_job = session.exec(
+                    select(Job).where(Job.cmd == parent.cmd)
+                ).one()
                 session.add(JobDependency(parent_id=parent_job.id, child_id=job.id))
-        
+
         session.commit()
+
 
 def db_to_graph(db: str = "sqlite:///jobs.db") -> nx.DiGraph:
     engine = create_engine(db)
@@ -60,7 +72,7 @@ def db_to_graph(db: str = "sqlite:///jobs.db") -> nx.DiGraph:
     return graph
 
 
-def get_job(db: str = "sqlite:///jobs.db", queues: list|None = None) -> dict | None:
+def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
     """
@@ -87,6 +99,7 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list|None = None) -> dict | N
                     "status": job.status,
                 }
     return None
+
 
 def complete_job(job_id: int, db: str = "sqlite:///jobs.db", status: str = "completed"):
     engine = create_engine(db)

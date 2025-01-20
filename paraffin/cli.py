@@ -1,14 +1,14 @@
 import logging
-import time
-import typing as t
-import typer
 import subprocess
+import typing as t
 
+import typer
+
+from paraffin.db import complete_job, get_job, save_graph_to_db
 from paraffin.utils import (
     get_custom_queue,
     get_stage_graph,
 )
-from paraffin.db import save_graph_to_db, get_job, complete_job
 
 log = logging.getLogger(__name__)
 
