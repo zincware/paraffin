@@ -3,8 +3,10 @@ import subprocess
 import typing as t
 
 import typer
+import uvicorn
 
 from paraffin.db import complete_job, get_job, save_graph_to_db
+from paraffin.ui.app import app as webapp
 from paraffin.utils import (
     get_custom_queue,
     get_stage_graph,
@@ -13,6 +15,13 @@ from paraffin.utils import (
 log = logging.getLogger(__name__)
 
 app = typer.Typer()
+
+
+@app.command()
+def ui():
+    """Start the Paraffin web UI."""
+    # run the web app using uvicorn
+    uvicorn.run(webapp, host="0.0.0.0", port=8000)
 
 
 @app.command()

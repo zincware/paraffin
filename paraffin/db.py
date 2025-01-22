@@ -110,3 +110,23 @@ def complete_job(job_id: int, db: str = "sqlite:///jobs.db", status: str = "comp
         job.status = status
         session.add(job)
         session.commit()
+
+
+def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        jobs = session.exec(select(Job)).all()
+        nodes = []
+        edges = []
+        for job in jobs:
+            nodes.append(
+                {
+                    "id": str(job.id),
+                    "label": job.name,
+                    "status": job.status,
+                    "queue": job.queue,
+                }
+            )
+            for parent in job.parents:
+                edges.append({"source": str(parent.id), "target": str(job.id)})
+        return nodes, edges
