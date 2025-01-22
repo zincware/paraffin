@@ -4,12 +4,16 @@ import typing as t
 
 import typer
 import uvicorn
+import dvc.api
+import webbrowser
+from dvc.stage.serialize import  to_single_stage_lockfile
 
-from paraffin.db import complete_job, get_job, save_graph_to_db
+from paraffin.db import complete_job, get_job, save_graph_to_db, set_job_deps_lock
 from paraffin.ui.app import app as webapp
 from paraffin.utils import (
     get_custom_queue,
     get_stage_graph,
+    get_changed_stages
 )
 
 log = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ app = typer.Typer()
 def ui():
     """Start the Paraffin web UI."""
     # run the web app using uvicorn
+    webbrowser.open("http://localhost:8000")
     uvicorn.run(webapp, host="0.0.0.0", port=8000)
 
 
@@ -43,13 +48,27 @@ def worker(
             # TODO: timeout
             print("No job found.")
             return
+        
+        fs = dvc.api.DVCFileSystem(url=None, rev=None)
+        with fs.repo.lock:
+            stage = fs.repo.stage.collect(job['name'])[0]
+            stage.save()
+        stage_lock = to_single_stage_lockfile(stage, with_files=True)
+        set_job_deps_lock(job["id"], stage_lock)
+
         try:
             subprocess.check_call(f"dvc repro -s {job['name']}", shell=True)
         except Exception as e:
             log.error(f"Failed to run job: {e}")
             complete_job(job["id"], status="failed")
         else:
-            complete_job(job["id"], status="completed")
+            # get the stage_lock
+            fs = dvc.api.DVCFileSystem(url=None, rev=None)
+            with fs.repo.lock:
+                stage = fs.repo.stage.collect(job['name'])[0]
+                stage.save()
+            stage_lock = to_single_stage_lockfile(stage, with_files=True)
+            complete_job(job["id"], status="completed", lock=stage_lock)
 
 
 @app.command()
@@ -58,6 +77,7 @@ def submit(
         None, help="Stage names to run. If not specified, run all stages."
     ),
     verbose: bool = typer.Option(False, help="Verbose output."),
+    check: bool = typer.Option(True, help="Check if stages are changed."),
 ):
     """Run DVC stages in parallel."""
     if verbose:
@@ -65,6 +85,11 @@ def submit(
 
     log.debug("Getting stage graph")
     graph = get_stage_graph(names=names, glob=True)
+    if check:
+        changed = get_changed_stages(graph)
+    else:
+        changed = [node.name for node in graph.nodes]
+    print(f"Changed stages: {changed}")
     print(f"Submitting {graph}")
     custom_queues = get_custom_queue()
-    save_graph_to_db(graph, queues=custom_queues)
+    save_graph_to_db(graph, queues=custom_queues, changed=changed)

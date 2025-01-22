@@ -1,5 +1,7 @@
 import fnmatch
 from typing import List, Optional
+import json
+from dvc.stage.cache import  _get_cache_hash
 
 import networkx as nx
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
@@ -16,6 +18,9 @@ class Job(SQLModel, table=True):
     cmd: str  # Command to execute
     status: str = "pending"  # pending, running, completed, failed
     queue: str = "default"  # Queue name(s)
+    lock: str = ""  # JSON string of lockfile for the stage
+    deps_lock: str = ""  # JSON string of lockfile for the dependencies
+    deps_hash: str = ""  # Hash of the dependencies
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -36,7 +41,7 @@ class Job(SQLModel, table=True):
     )
 
 
-def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str]):
+def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str], changed: list[str]):
     engine = create_engine("sqlite:///jobs.db")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -47,7 +52,7 @@ def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str]):
                 if fnmatch.fnmatch(node.name, pattern):
                     queue = q
                     break
-            job = Job(cmd=node.cmd, name=node.name, queue=queue)
+            job = Job(cmd=node.cmd, name=node.name, queue=queue, status="pending" if node.name in changed else "completed")
             session.add(job)
             # add dependencies
             for parent in graph.predecessors(node):
@@ -100,14 +105,36 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict |
                 }
     return None
 
+def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
+    engine = create_engine(db)
 
-def complete_job(job_id: int, db: str = "sqlite:///jobs.db", status: str = "completed"):
+    reduced_lock= {}
+
+    if x := lock.get("cmd"):
+        reduced_lock["cmd"] = x
+    if x := lock.get("params"):
+        reduced_lock["params"] = x
+    if x := lock.get("deps"):
+        reduced_lock["deps"] = x
+
+    with Session(engine) as session:
+        statement = select(Job).where(Job.id == job_id)
+        results = session.exec(statement)
+        job = results.one()
+        job.deps_lock = json.dumps(reduced_lock)
+        job.deps_hash = _get_cache_hash(reduced_lock)
+        session.add(job)
+        session.commit()
+
+
+def complete_job(job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed"):
     engine = create_engine(db)
     with Session(engine) as session:
         statement = select(Job).where(Job.id == job_id)
         results = session.exec(statement)
         job = results.one()
         job.status = status
+        job.lock = json.dumps(lock)
         session.add(job)
         session.commit()
 
@@ -125,6 +152,9 @@ def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
                     "label": job.name,
                     "status": job.status,
                     "queue": job.queue,
+                    "lock": json.loads(job.lock) if job.lock else None,
+                    "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
+                    "deps_hash": job.deps_hash,
                 }
             )
             for parent in job.parents:

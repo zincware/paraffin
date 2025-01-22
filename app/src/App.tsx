@@ -3,7 +3,51 @@ import {ReactFlow, Edge, Node, Background, Controls} from "@xyflow/react";
 import Dagre from '@dagrejs/dagre';
 import GraphStateNode from "./GraphStateNode";
 import Card from "react-bootstrap/Card";
+import Form from 'react-bootstrap/Form';
+import Dropdown from 'react-bootstrap/Dropdown';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import Container from 'react-bootstrap/Container';
 
+
+function RangeExample({ value, setValue }: { value: number; setValue: (value: number) => void }) {
+  return (
+    <div className="px-3 py-2">
+      <Form.Label style={{ display: "block", marginBottom: "8px" }}>
+        <strong>Refresh Interval:</strong> {value} ms
+      </Form.Label>
+      <Form.Range
+        min={100}
+        max={1000}
+        step={100}
+        onChange={(e) => setValue(parseInt(e.target.value))}
+        value={value}
+        style={{ marginTop: "10px" }}
+      />
+    </div>
+  );
+}
+
+function DropdownMenu({ value, setValue }: { value: number; setValue: (value: number) => void }) {
+  const handleMenuClick = (e: React.MouseEvent) => {
+    // Prevent the dropdown menu from closing
+    e.stopPropagation();
+  };
+
+  return (
+    <Dropdown align="end">
+      <Dropdown.Toggle variant="success" id="dropdown-basic">
+        Settings
+      </Dropdown.Toggle>
+
+      <Dropdown.Menu style={{ minWidth: "300px", padding: "10px" }}>
+        <div onClick={handleMenuClick} style={{ cursor: "default", padding: "0" }}>
+          <RangeExample value={value} setValue={setValue} />
+        </div>
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+}
 
 function useInterval(callback: () => void, delay: number | null) {
   const savedCallback = useRef();
@@ -31,6 +75,9 @@ type GraphNode = {
   label: string;
   status: string;
   queue: string;
+  lock: object;
+  deps_lock: object;
+  deps_hash: string;
 };
 
 type GraphEdge = {
@@ -47,7 +94,7 @@ type GraphData = {
 const dagreGraph = new Dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-const nodeWidth = 250;
+const nodeWidth = 280;
 const nodeHeight = 150;
 
 const applyDagreLayout = (nodes: Node[], edges: Edge[], direction = "TB") => {
@@ -87,6 +134,7 @@ function App() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState(2000);
 
   const nodeTypes = useMemo(() => ({ graphstatenode: GraphStateNode }), []);
 
@@ -102,7 +150,7 @@ function App() {
         if (data.nodes && data.edges) {
           const formattedNodes: Node[] = data.nodes.map((node) => ({
             id: node.id,
-            data: { label: node.label, status: node.status, width: nodeWidth, height: nodeHeight, queue: node.queue },
+            data: { label: node.label, status: node.status, width: nodeWidth, height: nodeHeight, queue: node.queue, lock: node.lock, deps_lock: node.deps_lock, deps_hash: node.deps_hash },
             position: { x: 0, y: 0 }, // Dagre will calculate positions
             type: "graphstatenode",
           }));
@@ -126,20 +174,37 @@ function App() {
         setError(err.message);
         setLoading(false);
       });
-  }, 100);
+  }, refreshInterval);
+  // TODO: this can be very slow for large graphs!
   // TODO: trigger useInterval on component mount as well
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error}</p>;
 
   return (
-    <Card style={{ width: "80%", height: "50vh", margin: "auto", paddingBottom: "20px", marginTop: "20px"
-    }}>
+    <Card
+      style={{
+        width: "80%",
+        height: "50vh",
+        margin: "auto",
+        paddingBottom: "35px",
+        marginTop: "20px",
+      }}
+    >
       <Card.Body>
-      <Card.Title>  Graph Visualisation</Card.Title>
+        <Card.Title>
+          <Row className="align-items-center">
+            <Col>
+              <h3 style={{ fontWeight: "bold", marginBottom: "0" }}>Paraffin Graph Interface</h3>
+            </Col>
+            <Col className="text-end">
+              <DropdownMenu value={refreshInterval} setValue={setRefreshInterval} />
+            </Col>
+          </Row>
+        </Card.Title>
         <ReactFlow nodeTypes={nodeTypes} nodes={nodes} edges={edges} minZoom={0.01}>
-        <Background />
-        <Controls />
+          <Background />
+          <Controls />
         </ReactFlow>
       </Card.Body>
     </Card>

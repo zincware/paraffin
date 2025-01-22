@@ -2,6 +2,10 @@ import { useState, useEffect } from "react";
 import { Handle, Position } from "@xyflow/react";
 import Card from "react-bootstrap/Card";
 import { FaSpinner } from "react-icons/fa";
+import Button from 'react-bootstrap/Button';
+import Modal from 'react-bootstrap/Modal';
+import Markdown from "react-markdown";
+
 
 interface GraphStateNodeProps {
   data: {
@@ -10,6 +14,9 @@ interface GraphStateNodeProps {
     queue: string;
     width: number;
     height: number;
+    lock: object;
+    deps_lock: object;
+    deps_hash: string;
   };
 }
 
@@ -28,7 +35,13 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
     setColor(statusColors[data.status] || statusColors.default);
   }, [data.status]);
 
+  const [show, setShow] = useState(false);
+
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
+
   return (
+    <>
     <div style={{ position: "relative", width: data.width, height: data.height }}>
       <Handle
         type="target"
@@ -42,21 +55,22 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
         style={{ background: "black", borderRadius: "50%" }}
       />
       <Card
+        onClick={handleShow}
         style={{
           width: data.width,
           height: data.height,
           borderRadius: "8px",
           boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
           overflow: "hidden",
-          textAlign: "center",
           border: `6px solid ${color}`,
           backgroundColor: "white",
         }}
       >
         <Card.Body style={{ padding: "10px" }}>
-          <Card.Title style={{ fontSize: "1rem", marginBottom: "10px" }}>
-            {data.label}
+          <Card.Title style={{ fontSize: "1rem", marginBottom: "10px", textAlign: "center",}}>
+          {data.label}
           </Card.Title>
+          <hr />
           <Card.Text style={{ fontSize: "0.85rem", color: "gray" }}>
             <strong>Status:</strong>{" "}
             {data.status === "running" ? (
@@ -75,6 +89,36 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
         </Card.Body>
       </Card>
     </div>
+    <Modal show={show} onHide={handleClose} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{data.label}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+        <Markdown>
+  {`
+  #### DVC Stage Lock
+~~~dict
+${JSON.stringify(data.lock, null, 4)}
+~~~
+#### DVC Stage Dependencies Lock
+~~~dict
+${JSON.stringify(data.deps_lock, null, 4)}
+~~~
+#### DVC Stage Dependencies Hash
+~~~
+${data.deps_hash}
+~~~
+`}
+{/* TODO: show node-meta.json if requested */}
+</Markdown>
+          </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }
 
