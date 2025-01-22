@@ -1,15 +1,12 @@
 import fnmatch
+import logging
 import pathlib
-import subprocess
 
 import dvc.api
-import git
 import networkx as nx
 import yaml
-import logging
 
 log = logging.getLogger(__name__)
-
 
 
 def get_subgraph_with_predecessors(graph, nodes, reverse=False):
