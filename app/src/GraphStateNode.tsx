@@ -5,18 +5,13 @@ import { FaSpinner } from "react-icons/fa";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Markdown from "react-markdown";
+import { GraphNode } from "./types";
 
 interface GraphStateNodeProps {
 	data: {
-		label: string;
-		status: string;
-		queue: string;
 		width: number;
 		height: number;
-		lock: object;
-		deps_lock: object;
-		deps_hash: string;
-		group: string[];
+    node: GraphNode;
 	};
 }
 
@@ -32,8 +27,8 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
 
 	useEffect(() => {
-		setColor(statusColors[data.status] || statusColors.default);
-	}, [data.status]);
+		setColor(statusColors[data.node.status] || statusColors.default);
+	}, [data.node.status]);
 
 	const [show, setShow] = useState(false);
 
@@ -76,27 +71,27 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 								textAlign: "center",
 							}}
 						>
-							{data.label}
+							{data.node.label}
 						</Card.Title>
 						<hr />
 						<Card.Text style={{ fontSize: "0.85rem", color: "gray" }}>
 							<strong>Status:</strong>{" "}
-							{data.status === "running" ? (
+							{data.node.status === "running" ? (
 								<span style={{ color: color }}>
 									<FaSpinner className="spin-icon" /> Running
 								</span>
 							) : (
-								<span style={{ color: color }}>{data.status}</span>
+								<span style={{ color: color }}>{data.node.status}</span>
 							)}
 						</Card.Text>
-						{data.queue && (
+						{data.node.queue && (
 							<Card.Text style={{ fontSize: "0.75rem", marginTop: "5px" }}>
-								<strong>Queue:</strong> {data.queue}
+								<strong>Queue:</strong> {data.node.queue}
 							</Card.Text>
 						)}
             {/* {data.group && (
               <Card.Text style={{ fontSize: "0.75rem", marginTop: "5px" }}>
-                <strong>Group:</strong> {data.group.join(", ")}
+                <strong>Group:</strong> {data.node.group.join(", ")}
               </Card.Text>
             )} */}
 					</Card.Body>
@@ -104,22 +99,22 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 			</div>
 			<Modal show={show} onHide={handleClose} size="lg">
 				<Modal.Header closeButton>
-					<Modal.Title>{data.label}</Modal.Title>
+					<Modal.Title>{data.node.label}</Modal.Title>
 				</Modal.Header>
 				<Modal.Body>
 					<Markdown>
 						{`
   #### DVC Stage Lock
 ~~~dict
-${JSON.stringify(data.lock, null, 4)}
+${JSON.stringify(data.node.lock, null, 4)}
 ~~~
 #### DVC Stage Dependencies Lock
 ~~~dict
-${JSON.stringify(data.deps_lock, null, 4)}
+${JSON.stringify(data.node.deps_lock, null, 4)}
 ~~~
 #### DVC Stage Dependencies Hash
 ~~~
-${data.deps_hash}
+${data.node.deps_hash}
 ~~~
 `}
 						{/* TODO: show node-meta.json if requested */}
