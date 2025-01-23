@@ -82,6 +82,15 @@ def db_to_graph(db: str = "sqlite:///jobs.db") -> nx.DiGraph:
     return graph
 
 
+def get_group(name: str) -> list[str]:
+    """Extract the group from the job name."""
+    parts = name.split("_")
+    # check if parts[-1] is a number
+    if parts[-1].isdigit():
+        return parts[:-2]
+    return parts[:-1]
+
+
 def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
@@ -163,6 +172,7 @@ def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
                     "lock": json.loads(job.lock) if job.lock else None,
                     "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
                     "deps_hash": job.deps_hash,
+                    "group": get_group(job.name),
                 }
             )
             for parent in job.parents:
