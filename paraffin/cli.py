@@ -1,20 +1,16 @@
 import logging
 import subprocess
 import typing as t
+import webbrowser
 
+import dvc.api
 import typer
 import uvicorn
-import dvc.api
-import webbrowser
-from dvc.stage.serialize import  to_single_stage_lockfile
+from dvc.stage.serialize import to_single_stage_lockfile
 
 from paraffin.db import complete_job, get_job, save_graph_to_db, set_job_deps_lock
 from paraffin.ui.app import app as webapp
-from paraffin.utils import (
-    get_custom_queue,
-    get_stage_graph,
-    get_changed_stages
-)
+from paraffin.utils import get_changed_stages, get_custom_queue, get_stage_graph
 
 log = logging.getLogger(__name__)
 
@@ -47,10 +43,10 @@ def worker(
             # TODO: timeout
             print("No job found.")
             return
-        
+
         fs = dvc.api.DVCFileSystem(url=None, rev=None)
         with fs.repo.lock:
-            stage = fs.repo.stage.collect(job['name'])[0]
+            stage = fs.repo.stage.collect(job["name"])[0]
             stage.save()
         stage_lock = to_single_stage_lockfile(stage, with_files=True)
         set_job_deps_lock(job["id"], stage_lock)
@@ -64,7 +60,7 @@ def worker(
             # get the stage_lock
             fs = dvc.api.DVCFileSystem(url=None, rev=None)
             with fs.repo.lock:
-                stage = fs.repo.stage.collect(job['name'])[0]
+                stage = fs.repo.stage.collect(job["name"])[0]
                 stage.save()
             stage_lock = to_single_stage_lockfile(stage, with_files=True)
             complete_job(job["id"], status="completed", lock=stage_lock)

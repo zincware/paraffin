@@ -1,9 +1,9 @@
 import fnmatch
-from typing import List, Optional
 import json
-from dvc.stage.cache import  _get_cache_hash
+from typing import List, Optional
 
 import networkx as nx
+from dvc.stage.cache import _get_cache_hash
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 
 
@@ -52,7 +52,12 @@ def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str], changed: list[st
                 if fnmatch.fnmatch(node.name, pattern):
                     queue = q
                     break
-            job = Job(cmd=node.cmd, name=node.name, queue=queue, status="pending" if node.name in changed else "completed")
+            job = Job(
+                cmd=node.cmd,
+                name=node.name,
+                queue=queue,
+                status="pending" if node.name in changed else "completed",
+            )
             session.add(job)
             # add dependencies
             for parent in graph.predecessors(node):
@@ -105,10 +110,11 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict |
                 }
     return None
 
+
 def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
     engine = create_engine(db)
 
-    reduced_lock= {}
+    reduced_lock = {}
 
     if x := lock.get("cmd"):
         reduced_lock["cmd"] = x
@@ -127,7 +133,9 @@ def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
         session.commit()
 
 
-def complete_job(job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed"):
+def complete_job(
+    job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed"
+):
     engine = create_engine(db)
     with Session(engine) as session:
         statement = select(Job).where(Job.id == job_id)

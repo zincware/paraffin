@@ -28,6 +28,7 @@ def read_graph():
     nodes, edges = get_nodes_and_edges()
     return {"nodes": nodes, "edges": edges}
 
+
 @app.get("/api/v1/spawn")
 def spawn():
-    pass # run paraffin worker
+    pass  # run paraffin worker
