@@ -7,7 +7,6 @@ import Form from 'react-bootstrap/Form';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
-import Container from 'react-bootstrap/Container';
 
 
 function RangeExample({ value, setValue }: { value: number; setValue: (value: number) => void }) {
@@ -18,7 +17,7 @@ function RangeExample({ value, setValue }: { value: number; setValue: (value: nu
       </Form.Label>
       <Form.Range
         min={100}
-        max={1000}
+        max={60000}
         step={100}
         onChange={(e) => setValue(parseInt(e.target.value))}
         value={value}

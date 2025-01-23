@@ -22,11 +22,10 @@ app = typer.Typer()
 
 
 @app.command()
-def ui():
+def ui(port: int = 8000):
     """Start the Paraffin web UI."""
-    # run the web app using uvicorn
-    webbrowser.open("http://localhost:8000")
-    uvicorn.run(webapp, host="0.0.0.0", port=8000)
+    webbrowser.open(f"http://localhost:{port}")
+    uvicorn.run(webapp, host="0.0.0.0", port=port)
 
 
 @app.command()
