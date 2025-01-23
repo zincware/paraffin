@@ -29,10 +29,136 @@ function useInterval(callback: () => void, delay: number | null) {
 	}, [delay]);
 }
 
-
-
-const nodeWidth = 280;
+const nodeWidth = 200;
 const nodeHeight = 150;
+
+function handleGraphData(data: GraphData) {
+	if (data.nodes && data.edges) {
+		const groupNodesMap: Record<string, Node> = {}; // To store unique group nodes
+		const groupedNodes: Record<string, Node[]> = {}; // To store nodes grouped by group path
+		const groupEdgesSet: Set<string> = new Set(); // To track unique edges between groups
+
+		data.nodes.forEach((node) => {
+			let parentGroupId = "__default";
+			if (node.group && node.group.length > 0) {
+				node.group.forEach((group, index) => {
+					const groupId = node.group.slice(0, index + 1).join("/"); // Create a unique ID for the group path (e.g., "A/B")
+					if (!groupNodesMap[groupId]) {
+						groupNodesMap[groupId] = {
+							id: `group-${groupId}`,
+							data: {
+								label: group,
+								groupPath: node.group.slice(0, index + 1), // Full group path up to this point
+							},
+							position: { x: 0, y: 0 }, // Dagre will calculate positions
+							width: 1500,
+							height: 500,
+							type: "group",
+						};
+					}
+					// Add an edge between parent and current group
+					if (parentGroupId) {
+						const groupEdgeId = `group-${groupId}-to-group-${parentGroupId}`;
+						groupEdgesSet.add(groupEdgeId);
+					}
+					parentGroupId = groupId;
+				});
+			}
+
+			let formattedNode = {
+				id: node.id,
+				data: {
+					node: {
+						id: node.id,
+						label: node.label,
+						status: node.status,
+						queue: node.queue,
+						lock: node.lock,
+						deps_lock: node.deps_lock,
+						deps_hash: node.deps_hash,
+						group: node.group,
+					},
+					height: nodeHeight,
+					width: nodeWidth,
+				},
+				position: {
+					x: 0,
+					y: 0,
+				},
+				type: "graphstatenode",
+			};
+
+			if (parentGroupId !== "__default") {
+				formattedNode.parentId = `group-${parentGroupId}`;
+				formattedNode.extent = "parent";
+			}
+
+			groupedNodes[parentGroupId] = groupedNodes[parentGroupId] || [];
+			groupedNodes[parentGroupId].push(formattedNode);
+		});
+
+		// Step 4: Create formatted edges
+		const formattedEdges: Edge[] = data.edges
+			.map((edge) => {
+				const sourceNode = data.nodes.find((n) => n.id === edge.source);
+				const targetNode = data.nodes.find((n) => n.id === edge.target);
+
+				if (!sourceNode || !targetNode) return null; // Ignore invalid edges
+
+				// Add an edge between the actual nodes
+				return {
+					id: `e${edge.source}-${edge.target}`,
+					source: edge.source,
+					target: edge.target,
+				};
+			})
+			.filter(Boolean) as Edge[];
+
+		// Step 5: Add edges between groups
+		const groupEdges: Edge[] = Array.from(groupEdgesSet).map((groupEdgeId) => {
+			const [sourceGroupId, targetGroupId] = groupEdgeId.split("-to-");
+			return {
+				id: `e${sourceGroupId}-${targetGroupId}`,
+				source: sourceGroupId,
+				target: targetGroupId,
+			};
+		});
+
+		let layoutedNodes: Node[] = [];
+
+		for (const [groupId, nodes] of Object.entries(groupedNodes)) {
+			console.log("formatting group", groupId);
+			console.log(nodes);
+			const layoutedGroupNodes = applyDagreLayout(
+				nodes,
+				formattedEdges,
+				nodeWidth,
+				nodeHeight,
+			);
+			layoutedNodes.push(...layoutedGroupNodes);
+			console.log(layoutedGroupNodes);
+			console.log("done.");
+		}
+
+		// group nodes must be bevore the other nodes
+		layoutedNodes.unshift(
+			...applyDagreLayout(
+				Object.values(groupNodesMap),
+				groupEdges,
+				1500,
+				500,
+				"LR",
+			),
+		);
+
+		console.log(layoutedNodes);
+		console.log(groupedNodes);
+
+		return { nodes: layoutedNodes, edges: formattedEdges };
+	} else {
+		throw new Error("Invalid graph data format");
+	}
+}
 
 function App() {
 	const [nodes, setNodes] = useState<Node[]>([]);
@@ -52,45 +178,10 @@ function App() {
 				return res.json();
 			})
 			.then((data: GraphData) => {
-				if (data.nodes && data.edges) {
-					const formattedNodes: Node[] = data.nodes.map((node) => ({
-						id: node.id,
-						data: {
-              node: {
-                id: node.id,
-                label: node.label,
-                status: node.status,
-                queue: node.queue,
-                lock: node.lock,
-                deps_lock: node.deps_lock,
-                deps_hash: node.deps_hash,
-                group: node.group,
-              },
-              height: nodeHeight,
-              width: nodeWidth,
-						},
-						position: { x: 0, y: 0 }, // Dagre will calculate positions
-						type: "graphstatenode",
-					}));
+				const { nodes, edges } = handleGraphData(data);
+				setNodes(nodes);
+				setEdges(edges);
 
-					const formattedEdges: Edge[] = data.edges.map((edge) => ({
-						id: `e${edge.source}-${edge.target}`,
-						source: edge.source,
-						target: edge.target,
-					}));
-
-					const layoutedNodes = applyDagreLayout(
-						formattedNodes,
-						formattedEdges,
-            nodeWidth,
-            nodeHeight,
-					);
-
-					setNodes(layoutedNodes);
-					setEdges(formattedEdges);
-				} else {
-					throw new Error("Invalid graph data format");
-				}
 				setLoading(false);
 			})
 			.catch((err) => {
@@ -107,8 +198,8 @@ function App() {
 	return (
 		<Card
 			style={{
-				width: "80%",
-				height: "50vh",
+				width: "90%",
+				height: "95vh",
 				margin: "auto",
 				paddingBottom: "35px",
 				marginTop: "20px",

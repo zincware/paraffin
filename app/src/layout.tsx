@@ -1,13 +1,16 @@
 import Dagre from "@dagrejs/dagre";
 import { Edge, Node } from "@xyflow/react";
 
-// Dagre Graph Layout Configuration
-const dagreGraph = new Dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
-
-
-const applyDagreLayout = (nodes: Node[], edges: Edge[], nodeWidth: number, nodeHeight: number, direction = "TB", ) => {
+const applyDagreLayout = (
+	nodes: Node[],
+	edges: Edge[],
+	nodeWidth: number,
+	nodeHeight: number,
+	direction = "TB",
+) => {
+	// Dagre Graph Layout Configuration
+	const dagreGraph = new Dagre.graphlib.Graph();
+	dagreGraph.setDefaultEdgeLabel(() => ({}));
 	dagreGraph.setGraph({ rankdir: direction });
 
 	// Add nodes to Dagre
@@ -23,14 +26,24 @@ const applyDagreLayout = (nodes: Node[], edges: Edge[], nodeWidth: number, nodeH
 	// Run Dagre layout
 	Dagre.layout(dagreGraph);
 
-	// Apply positions to nodes
+	// Find minimum x and y values - No idea why this is necessary!!
+	let minX = Infinity;
+	let minY = Infinity;
+
+	nodes.forEach((node) => {
+		const { x, y } = dagreGraph.node(node.id);
+		if (x < minX) minX = x;
+		if (y < minY) minY = y;
+	});
+
+	// Normalize positions so the graph starts at (0, 0)
 	const positionedNodes = nodes.map((node) => {
-		const nodeWithPosition = dagreGraph.node(node.id);
+		const { x, y } = dagreGraph.node(node.id);
 		return {
 			...node,
 			position: {
-				x: nodeWithPosition.x - nodeWidth / 2,
-				y: nodeWithPosition.y - nodeHeight / 2,
+				x: x - minX - nodeWidth + 200, // Adjust by minX
+				y: y - minY - nodeHeight + 200, // Adjust by minY
 			},
 		};
 	});

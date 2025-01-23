@@ -11,7 +11,7 @@ interface GraphStateNodeProps {
 	data: {
 		width: number;
 		height: number;
-    node: GraphNode;
+		node: GraphNode;
 	};
 }
 
@@ -89,7 +89,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 								<strong>Queue:</strong> {data.node.queue}
 							</Card.Text>
 						)}
-            {/* {data.group && (
+						{/* {data.group && (
               <Card.Text style={{ fontSize: "0.75rem", marginTop: "5px" }}>
                 <strong>Group:</strong> {data.node.group.join(", ")}
               </Card.Text>
