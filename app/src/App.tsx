@@ -1,250 +1,230 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { ReactFlow, Edge, Node, Background, Controls } from "@xyflow/react";
+// import { initialNodes, initialEdges } from './initialElements.js';
+import ELK from "elkjs/lib/elk.bundled.js";
+import { useEffect, useState, useMemo } from "react";
+import {
+	Background,
+	ReactFlow,
+	ReactFlowProvider,
+	useNodesState,
+	useEdgesState,
+	useReactFlow,
+	Controls,
+} from "@xyflow/react";
+
+import "@xyflow/react/dist/style.css";
+import { Card } from "react-bootstrap";
 import GraphStateNode from "./GraphStateNode";
-import Card from "react-bootstrap/Card";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-import applyDagreLayout from "./layout";
-import { GraphData } from "./types";
+import GraphNodeGroup from "./GraphNodeGroup";
+import GraphContext from "./GraphContext";
 
-import DropdownMenu from "./menu";
+const elk = new ELK();
 
-function useInterval(callback: () => void, delay: number | null) {
-	const savedCallback = useRef();
-
-	// Remember the latest callback.
-	useEffect(() => {
-		savedCallback.current = callback;
-	}, [callback]);
-
-	// Set up the interval.
-	useEffect(() => {
-		function tick() {
-			savedCallback.current();
-		}
-		if (delay !== null) {
-			let id = setInterval(tick, delay);
-			return () => clearInterval(id);
-		}
-	}, [delay]);
-}
-
-const nodeWidth = 200;
-const nodeHeight = 150;
-
-function handleGraphData(data: GraphData) {
-	if (data.nodes && data.edges) {
-		const groupNodesMap: Record<string, Node> = {}; // To store unique group nodes
-		const groupedNodes: Record<string, Node[]> = {}; // To store nodes grouped by group path
-		const groupEdgesSet: Set<string> = new Set(); // To track unique edges between groups
-
-		data.nodes.forEach((node) => {
-			let parentGroupId = "__default";
-			if (node.group && node.group.length > 0) {
-				node.group.forEach((group, index) => {
-					const groupId = node.group.slice(0, index + 1).join("/"); // Create a unique ID for the group path (e.g., "A/B")
-					if (!groupNodesMap[groupId]) {
-						groupNodesMap[groupId] = {
-							id: `group-${groupId}`,
-							data: {
-								label: group,
-								groupPath: node.group.slice(0, index + 1), // Full group path up to this point
-							},
-							position: { x: 0, y: 0 }, // Dagre will calculate positions
-							type: "group",
-							width: 1500,
-							height: 500,
-						};
-					}
-					// Add an edge between parent and current group
-					if (parentGroupId) {
-						const groupEdgeId = `group-${groupId}-to-group-${parentGroupId}`;
-						groupEdgesSet.add(groupEdgeId);
-					}
-					parentGroupId = groupId;
-				});
-			}
-
-			let formattedNode = {
-				id: node.id,
-				data: {
-					node: {
-						id: node.id,
-						label: node.label,
-						status: node.status,
-						queue: node.queue,
-						lock: node.lock,
-						deps_lock: node.deps_lock,
-						deps_hash: node.deps_hash,
-						group: node.group,
-					},
-				},
-				position: {
-					x: 0,
-					y: 0,
-				},
-				type: "graphstatenode",
-				height: nodeHeight,
-				width: nodeWidth,
-			};
-
-			if (parentGroupId !== "__default") {
-				formattedNode.parentId = `group-${parentGroupId}`;
-				formattedNode.extent = "parent";
-			}
-
-			groupedNodes[parentGroupId] = groupedNodes[parentGroupId] || [];
-			groupedNodes[parentGroupId].push(formattedNode);
-		});
-
-		// Step 4: Create formatted edges
-		const formattedEdges: Edge[] = data.edges
-			.map((edge) => {
-				const sourceNode = data.nodes.find((n) => n.id === edge.source);
-				const targetNode = data.nodes.find((n) => n.id === edge.target);
-
-				if (!sourceNode || !targetNode) return null; // Ignore invalid edges
-
-				// Add an edge between the actual nodes
-				return {
-					id: `e${edge.source}-${edge.target}`,
-					source: edge.source,
-					target: edge.target,
-				};
-			})
-			.filter(Boolean) as Edge[];
-
-		// Step 5: Add edges between groups
-		const groupEdges: Edge[] = Array.from(groupEdgesSet).map((groupEdgeId) => {
-			const [sourceGroupId, targetGroupId] = groupEdgeId.split("-to-");
-			return {
-				id: `e${sourceGroupId}-${targetGroupId}`,
-				source: sourceGroupId,
-				target: targetGroupId,
-			};
-		});
-
-		let layoutedNodes: Node[] = [];
-
-		for (const [groupId, nodes] of Object.entries(groupedNodes)) {
-			const layoutedGroupNodes = applyDagreLayout(
-				nodes,
-				formattedEdges,
-			);
-			layoutedNodes.push(...layoutedGroupNodes);
-			groupedNodes[groupId] = layoutedGroupNodes; // in place update for latter formatting, needs updated positions
-		}
-
-		// resize the groups to fit the nodes by looking at the bounding box of the nodes
-
-		for (const [groupId, nodes] of Object.entries(groupedNodes)) {
-			const groupNode = groupNodesMap[groupId];
-			const groupNodes = nodes.map((node) => {
-				const { x, y } = node.position;
-				const { width, height } = node;
-				return {
-					x,
-					y,
-					width,
-					height,
-				};
-			});
-			const minX = Math.min(...groupNodes.map((node) => node.x));
-			const minY = Math.min(...groupNodes.map((node) => node.y));
-			const maxX = Math.max(...groupNodes.map((node) => node.x + node.width));
-			const maxY = Math.max(...groupNodes.map((node) => node.y + node.height));
-			groupNode.width = maxX - minX + 200;
-			groupNode.height = maxY - minY + 200;
-		}
-
-		// group nodes must be bevore the other nodes
-		layoutedNodes.unshift(
-			...applyDagreLayout(
-				Object.values(groupNodesMap),
-				groupEdges,
-				"LR",
-			),
-		);
-
-		return { nodes: layoutedNodes, edges: formattedEdges };
-	} else {
-		throw new Error("Invalid graph data format");
+async function fetchElkGraph() {
+	const res = await fetch("/api/v1/graph");
+	if (!res.ok) {
+		throw new Error(`HTTP error! Status: ${res.status}`);
 	}
+	const data = await res.json();
+	console.log("data", data);
+	return data;
 }
 
-function App() {
-	const [nodes, setNodes] = useState<Node[]>([]);
-	const [edges, setEdges] = useState<Edge[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [refreshInterval, setRefreshInterval] = useState(2000);
+function LayoutFlow() {
+	const [nodes, setNodes, onNodesChange] = useNodesState([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+	const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
+	const [visibleDepth, setVisibleDepth] = useState(999);
+	const { fitView } = useReactFlow();
 
-	const nodeTypes = useMemo(() => ({ graphstatenode: GraphStateNode }), []);
+	const [rawGraph, setRawGraph] = useState(null);
 
-	useInterval(() => {
-		fetch("/api/v1/graph")
-			.then((res) => {
-				if (!res.ok) {
-					throw new Error(`HTTP error! Status: ${res.status}`);
+	const [elkGraph, setElkGraph] = useState(null);
+
+	const nodeTypes = useMemo(
+		() => ({ graphstatenode: GraphStateNode, graphnodegroup: GraphNodeGroup }),
+		[],
+	);
+
+	useEffect(() => {
+		console.log("fetching graph");
+		fetchElkGraph().then((graph) => {
+			setRawGraph(graph);
+		});
+	}, []);
+
+	useEffect(() => {
+		if (rawGraph) {
+			const rawGraphCopy = JSON.parse(JSON.stringify(rawGraph));
+			// Set layout options for ELK
+			rawGraphCopy.layoutOptions = {
+				"elk.algorithm": "force", // Algorithm for layout (change if needed)
+				// Additional layout options can be uncommented as needed:
+				// "elk.direction": "TB", // Top-to-Bottom layout
+				// "elk.layered.spacing.nodeNodeBetweenLayers": 100, // Vertical spacing
+				// "elk.layered.spacing.nodeNode": 300, // Horizontal spacing
+				// "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES", // Reduce crossings
+			};
+
+			const availableNodeIds = new Set();
+
+			const processNodes = (node) => {
+				// Exclude hidden nodes
+				// Exclude nodes beyond the visible depth
+
+				if (hiddenNodes.includes(node.id)) {
+					return null;
 				}
-				return res.json();
-			})
-			.then((data: GraphData) => {
-				const { nodes, edges } = handleGraphData(data);
-				setNodes(nodes);
-				setEdges(edges);
 
-				setLoading(false);
-			})
-			.catch((err) => {
-				setError(err.message);
-				setLoading(false);
+				// Assign default dimensions
+				node.width = 250;
+				node.height = 150;
+
+				// Process children recursively
+				if (node.children) {
+					node.children = node.children
+						.map((child) => processNodes(child)) // Increment depth for children
+						.filter((child) => child !== null); // Remove hidden children
+				}
+
+				// Track node IDs that are still available
+				availableNodeIds.add(node.id);
+
+				return node;
+			};
+
+			// Process top-level nodes
+			rawGraphCopy.children = rawGraphCopy.children
+				.map((node) => processNodes(node)) // Start at depth 0 for top-level nodes
+				.filter((node) => node !== null); // Remove hidden top-level nodes
+
+			rawGraphCopy.edges = rawGraphCopy.edges.filter((edge) => {
+				return (
+					availableNodeIds.has(edge.sources[0]) &&
+					availableNodeIds.has(edge.targets[0])
+				);
 			});
-	}, refreshInterval);
-	// TODO: this can be very slow for large graphs!
-	// TODO: trigger useInterval on component mount as well
 
-	if (loading) return <p>Loading...</p>;
-	if (error) return <p>Error: {error}</p>;
+			// Run the ELK layout
+			elk.layout(rawGraphCopy).then((layoutedGraph) => {
+				setElkGraph(layoutedGraph); // Update the layouted graph state
+			});
+		}
+	}, [rawGraph, hiddenNodes, visibleDepth]); // Added `hiddenNodes` as a dependency
+
+	// Process ELK layout and update React Flow nodes and edges
+	useEffect(() => {
+		if (elkGraph) {
+			// Recursively extract nodes from ELK graph
+			const extractNodesAndEdges = (graph, currentDepth: number = 0) => {
+				const resultNodes = [];
+				const resultEdges = [];
+
+				if (hiddenNodes.includes(graph.id)) {
+					// TODO iterate all children and set the edges to the parent!
+					return { nodes: resultNodes, edges: resultEdges };
+				}
+
+				// Extract nodes
+				graph.children?.forEach((child) => {
+					if (child.children) {
+						// Subgraph: Recursively process children
+
+						let node = {
+							id: child.id,
+							position: {
+								x: child.x,
+								y: child.y,
+							},
+							data: { node: child, depth: currentDepth },
+							style: { width: child.width, height: child.height },
+							type: "graphnodegroup",
+						};
+						if (graph.id !== "root") {
+							node.parentId = graph.id;
+						}
+
+						resultNodes.push(node);
+						const { nodes: subNodes, edges: subEdges } = extractNodesAndEdges(
+							child,
+							currentDepth + 1,
+						);
+						resultNodes.push(...subNodes);
+						resultEdges.push(...subEdges);
+					} else {
+						// Individual node
+						resultNodes.push({
+							id: child.id,
+							position: {
+								x: child.x,
+								y: child.y,
+							},
+							type: "graphstatenode",
+							data: { node: child },
+							style: { width: child.width, height: child.height },
+							parentId: graph.id,
+							sourcePosition: "right",
+							targetPosition: "left",
+						});
+					}
+				});
+
+				// Extract edges
+				graph.edges?.forEach((edge) => {
+					resultEdges.push({
+						id: edge.id,
+						source: edge.sources[0], // ELK edges use arrays for sources/targets
+						target: edge.targets[0],
+					});
+				});
+
+				return { nodes: resultNodes, edges: resultEdges };
+			};
+
+			// Extract nodes and edges from the processed ELK graph
+			const { nodes: layoutedNodes, edges: layoutedEdges } =
+				extractNodesAndEdges(elkGraph);
+
+			// Update React Flow state
+			setNodes(layoutedNodes);
+			setEdges(layoutedEdges);
+
+			// Fit the view to include all nodes
+			fitView();
+		}
+	}, [elkGraph, setNodes, setEdges, fitView, hiddenNodes]);
 
 	return (
-		<Card
-			style={{
-				width: "90%",
-				height: "95vh",
-				margin: "auto",
-				paddingBottom: "35px",
-				marginTop: "20px",
-			}}
-		>
-			<Card.Body>
-				<Card.Title>
-					<Row className="align-items-center">
-						<Col>
-							<h3 style={{ fontWeight: "bold", marginBottom: "0" }}>
-								Paraffin Graph Interface
-							</h3>
-						</Col>
-						<Col className="text-end">
-							<DropdownMenu
-								value={refreshInterval}
-								setValue={setRefreshInterval}
-							/>
-						</Col>
-					</Row>
-				</Card.Title>
-				<ReactFlow
-					nodeTypes={nodeTypes}
-					nodes={nodes}
-					edges={edges}
-					minZoom={0.01}
-				>
-					<Background />
-					<Controls />
-				</ReactFlow>
-			</Card.Body>
-		</Card>
+		<GraphContext.Provider value={{ setHiddenNodes, visibleDepth }}>
+			<ReactFlow
+				nodes={nodes}
+				edges={edges}
+				onNodesChange={onNodesChange}
+				onEdgesChange={onEdgesChange}
+				nodeTypes={nodeTypes}
+				minZoom={0.1}
+				fitView
+			>
+				{/* <Panel position="top-right">
+				<button onClick={() => onLayout({ direction: "DOWN" })}>
+					vertical layout
+				</button>
+
+				<button onClick={() => onLayout({ direction: "RIGHT" })}>
+					horizontal layout
+				</button>
+			</Panel> */}
+				<Controls />
+				<Background />
+			</ReactFlow>
+		</GraphContext.Provider>
 	);
 }
+const App = () => (
+	<ReactFlowProvider>
+		<Card style={{ width: "100%", height: "85vh" }}>
+			<LayoutFlow />
+		</Card>
+	</ReactFlowProvider>
+);
 
 export default App;

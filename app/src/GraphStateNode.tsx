@@ -74,7 +74,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 								textAlign: "center",
 							}}
 						>
-							{data.node.label}
+							{data.node.name}
 						</Card.Title>
 						<hr />
 						<Card.Text style={{ fontSize: "0.85rem", color: "gray" }}>

@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from paraffin.db import get_nodes_and_edges
+from paraffin.db import db_to_graph
+from paraffin.utils import build_elk_hierarchy
 
 FILE = Path(__file__)
 
@@ -25,8 +26,8 @@ def read_root():
 
 @app.get("/api/v1/graph")
 def read_graph():
-    nodes, edges = get_nodes_and_edges()
-    return {"nodes": nodes, "edges": edges}
+    g = db_to_graph()
+    return build_elk_hierarchy(g)
 
 
 @app.get("/api/v1/spawn")

@@ -6,6 +6,10 @@ import dvc.api
 import networkx as nx
 import yaml
 
+
+import networkx as nx
+from collections import defaultdict
+
 log = logging.getLogger(__name__)
 
 
@@ -107,3 +111,59 @@ def get_custom_queue():
 
     except FileNotFoundError:
         return {}
+
+
+def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
+    """
+    Export a networkx.DiGraph to a JSON structure compatible with ELK.js,
+    including support for hierarchical subgraphs.
+
+    Args:
+        graph (nx.DiGraph): The directed graph to export.
+        node_width (int): Default width for nodes.
+        node_height (int): Default height for nodes.
+
+    Returns:
+        dict: JSON-compatible dictionary for ELK.js.
+    """
+    # Helper function to recursively build subgraph structure
+    def build_subgraph_hierarchy(subgraph_nodes, path):
+        """Recursively build subgraph children for a given path."""
+        result = []
+        children_by_group = defaultdict(list)
+
+        for node in subgraph_nodes:
+            group_path = tuple(graph.nodes[node].get("group", []))
+            if group_path[:len(path)] == path:  # Node belongs in this subgraph
+                if len(group_path) == len(path):  # Node is directly in this group
+                    result.append(graph.nodes[node] | {"id": graph.nodes[node]["name"]})
+                else:  # Node belongs in a subgroup
+                    sub_group = group_path[len(path)]
+                    children_by_group[sub_group].append(node)
+
+        # Add subgroups recursively
+        for sub_group, nodes in children_by_group.items():
+            result.append({
+                "id": "/".join(path + (sub_group,)),
+                "children": build_subgraph_hierarchy(nodes, path + (sub_group,)),
+            })
+
+        return result
+
+    # Collect nodes in the root group (group = [])
+    root_nodes = [node for node in graph.nodes if not graph.nodes[node].get("group", [])]
+
+    elk_graph = {
+        "id": "root",
+        "children": build_subgraph_hierarchy(graph.nodes, ()),
+        "edges": [
+            {
+                "id": f"{graph.nodes[source]['name']}-{graph.nodes[target]['name']}",
+                "sources": [graph.nodes[source]["name"]],
+                "targets": [graph.nodes[target]["name"]],
+            }
+            for source, target in graph.edges
+        ]
+    }
+
+    return elk_graph
