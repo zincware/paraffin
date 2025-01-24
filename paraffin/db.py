@@ -75,16 +75,19 @@ def db_to_graph(db: str = "sqlite:///jobs.db") -> nx.DiGraph:
         jobs = session.exec(select(Job)).all()
         graph = nx.DiGraph()
         for job in jobs:
-            graph.add_node(job.id, **{
-                "name": job.name,
-                "cmd": job.cmd,
-                "status": job.status,
-                "queue": job.queue,
-                "lock": json.loads(job.lock) if job.lock else None,
-                "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
-                "deps_hash": job.deps_hash,
-                "group": get_group(job.name),
-            })
+            graph.add_node(
+                job.id,
+                **{
+                    "name": job.name,
+                    "cmd": job.cmd,
+                    "status": job.status,
+                    "queue": job.queue,
+                    "lock": json.loads(job.lock) if job.lock else None,
+                    "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
+                    "deps_hash": job.deps_hash,
+                    "group": get_group(job.name),
+                },
+            )
             for parent in job.parents:
                 graph.add_edge(parent.id, job.id)
 

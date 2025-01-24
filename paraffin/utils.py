@@ -1,14 +1,11 @@
 import fnmatch
 import logging
 import pathlib
+from collections import defaultdict
 
 import dvc.api
 import networkx as nx
 import yaml
-
-
-import networkx as nx
-from collections import defaultdict
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +123,7 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
     Returns:
         dict: JSON-compatible dictionary for ELK.js.
     """
+
     # Helper function to recursively build subgraph structure
     def build_subgraph_hierarchy(subgraph_nodes, path):
         """Recursively build subgraph children for a given path."""
@@ -134,7 +132,7 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
 
         for node in subgraph_nodes:
             group_path = tuple(graph.nodes[node].get("group", []))
-            if group_path[:len(path)] == path:  # Node belongs in this subgraph
+            if group_path[: len(path)] == path:  # Node belongs in this subgraph
                 if len(group_path) == len(path):  # Node is directly in this group
                     result.append(graph.nodes[node] | {"id": graph.nodes[node]["name"]})
                 else:  # Node belongs in a subgroup
@@ -143,15 +141,19 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
 
         # Add subgroups recursively
         for sub_group, nodes in children_by_group.items():
-            result.append({
-                "id": "/".join(path + (sub_group,)),
-                "children": build_subgraph_hierarchy(nodes, path + (sub_group,)),
-            })
+            result.append(
+                {
+                    "id": "/".join(path + (sub_group,)),
+                    "children": build_subgraph_hierarchy(nodes, path + (sub_group,)),
+                }
+            )
 
         return result
 
     # Collect nodes in the root group (group = [])
-    root_nodes = [node for node in graph.nodes if not graph.nodes[node].get("group", [])]
+    root_nodes = [
+        node for node in graph.nodes if not graph.nodes[node].get("group", [])
+    ]
 
     elk_graph = {
         "id": "root",
@@ -163,7 +165,7 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
                 "targets": [graph.nodes[target]["name"]],
             }
             for source, target in graph.edges
-        ]
+        ],
     }
 
     return elk_graph
