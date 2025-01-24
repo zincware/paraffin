@@ -4,8 +4,6 @@ import { Edge, Node } from "@xyflow/react";
 const applyDagreLayout = (
 	nodes: Node[],
 	edges: Edge[],
-	nodeWidth: number,
-	nodeHeight: number,
 	direction = "TB",
 ) => {
 	// Dagre Graph Layout Configuration
@@ -15,7 +13,7 @@ const applyDagreLayout = (
 
 	// Add nodes to Dagre
 	nodes.forEach((node) => {
-		dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+		dagreGraph.setNode(node.id, { width: node.width as number, height: node.height as number });
 	});
 
 	// Add edges to Dagre
@@ -42,8 +40,8 @@ const applyDagreLayout = (
 		return {
 			...node,
 			position: {
-				x: x - minX - nodeWidth + 200, // Adjust by minX
-				y: y - minY - nodeHeight + 200, // Adjust by minY
+				x: x - minX - node.width + 200, // Adjust by minX
+				y: y - minY - node.height + 200, // Adjust by minY
 			},
 		};
 	});

@@ -23,6 +23,9 @@ const statusColors: { [key: string]: string } = {
 	default: "white",
 };
 
+// TODO: on the edge between the nodes, show infos on which attributes are connected.
+//  this can later be edited to build the graph in the paraffin ui.
+
 function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
 

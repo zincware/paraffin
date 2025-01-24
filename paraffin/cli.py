@@ -47,7 +47,7 @@ def worker(
         fs = dvc.api.DVCFileSystem(url=None, rev=None)
         with fs.repo.lock:
             stage = fs.repo.stage.collect(job["name"])[0]
-            stage.save()
+            stage.save(allow_missing=True)
         stage_lock = to_single_stage_lockfile(stage, with_files=True)
         set_job_deps_lock(job["id"], stage_lock)
 

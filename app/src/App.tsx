@@ -51,9 +51,9 @@ function handleGraphData(data: GraphData) {
 								groupPath: node.group.slice(0, index + 1), // Full group path up to this point
 							},
 							position: { x: 0, y: 0 }, // Dagre will calculate positions
+							type: "group",
 							width: 1500,
 							height: 500,
-							type: "group",
 						};
 					}
 					// Add an edge between parent and current group
@@ -78,14 +78,14 @@ function handleGraphData(data: GraphData) {
 						deps_hash: node.deps_hash,
 						group: node.group,
 					},
-					height: nodeHeight,
-					width: nodeWidth,
 				},
 				position: {
 					x: 0,
 					y: 0,
 				},
 				type: "graphstatenode",
+				height: nodeHeight,
+				width: nodeWidth,
 			};
 
 			if (parentGroupId !== "__default") {
@@ -127,17 +127,34 @@ function handleGraphData(data: GraphData) {
 		let layoutedNodes: Node[] = [];
 
 		for (const [groupId, nodes] of Object.entries(groupedNodes)) {
-			console.log("formatting group", groupId);
-			console.log(nodes);
 			const layoutedGroupNodes = applyDagreLayout(
 				nodes,
 				formattedEdges,
-				nodeWidth,
-				nodeHeight,
 			);
 			layoutedNodes.push(...layoutedGroupNodes);
-			console.log(layoutedGroupNodes);
-			console.log("done.");
+			groupedNodes[groupId] = layoutedGroupNodes; // in place update for latter formatting, needs updated positions
+		}
+
+		// resize the groups to fit the nodes by looking at the bounding box of the nodes
+
+		for (const [groupId, nodes] of Object.entries(groupedNodes)) {
+			const groupNode = groupNodesMap[groupId];
+			const groupNodes = nodes.map((node) => {
+				const { x, y } = node.position;
+				const { width, height } = node;
+				return {
+					x,
+					y,
+					width,
+					height,
+				};
+			});
+			const minX = Math.min(...groupNodes.map((node) => node.x));
+			const minY = Math.min(...groupNodes.map((node) => node.y));
+			const maxX = Math.max(...groupNodes.map((node) => node.x + node.width));
+			const maxY = Math.max(...groupNodes.map((node) => node.y + node.height));
+			groupNode.width = maxX - minX + 200;
+			groupNode.height = maxY - minY + 200;
 		}
 
 		// group nodes must be bevore the other nodes
@@ -145,14 +162,9 @@ function handleGraphData(data: GraphData) {
 			...applyDagreLayout(
 				Object.values(groupNodesMap),
 				groupEdges,
-				1500,
-				500,
 				"LR",
 			),
 		);
-
-		console.log(layoutedNodes);
-		console.log(groupedNodes);
 
 		return { nodes: layoutedNodes, edges: formattedEdges };
 	} else {
