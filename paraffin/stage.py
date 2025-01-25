@@ -13,7 +13,6 @@ class PipelineStageDC:
 
     stage: PipelineStage
     status: str
-    lock: str
 
     @property
     def changed(self) -> bool:
@@ -30,13 +29,3 @@ class PipelineStageDC:
         """Return the command of the stage."""
         return self.stage.cmd
 
-    @property
-    def deps_lock(self) -> dict:
-        """Return the hash of the dependencies."""
-        lock = json.loads(self.lock)
-        return {k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]}
-
-    @property
-    def deps_hash(self) -> str:
-        """Return the hash of the dependencies."""
-        return _get_cache_hash(self.deps_lock, key=True)

@@ -72,18 +72,8 @@ def get_stage_graph(names) -> nx.DiGraph:
 
     mapping = {}
     with fs.repo.lock:
+        status = _local_status(fs.repo, check_updates=True, with_deps=True)
         for node in nx.topological_sort(subgraph):
-            # TODO: consider trying to not use `node.save` but
-            #  simply read the `dvc.yaml` file
-            #  and hash the respective files yourself?
-            #  this could very much come with a noticeable performance decrease
-            #  as I think DVC is doing some caching and stuff
-            node.save(allow_missing=True, run_cache=False)
-            status = _local_status(fs.repo, targets=[node.name], check_updates=True)
-            if len(status) > 0:
-                print(f"Stage {node.name} is changed")
-            lock = to_single_stage_lockfile(node, with_files=True)
-
             for pred in nx.ancestors(graph, node):
                 if pred in mapping:
                     if mapping[pred].changed:
@@ -98,7 +88,6 @@ def get_stage_graph(names) -> nx.DiGraph:
             mapping[node] = PipelineStageDC(
                 stage=node,
                 status=json.dumps(status.get(node.name, [])),
-                lock=json.dumps(lock),
             )
 
     return nx.relabel_nodes(subgraph, mapping, copy=True)

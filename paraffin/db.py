@@ -75,22 +75,7 @@ def save_graph_to_db(
                 if fnmatch.fnmatch(node.name, pattern):
                     queue = q
                     break
-            status = "pending"
-            # check if the deps_hash is already in the database
-            # TODO: the deps_hash we are getting sometimes seems to be wrong
-            #   and is using input files from the dvc run cache or something...
-            # cached = (
-            #     len(
-            #         session.exec(
-            #             select(Job).where(Job.deps_hash == node.deps_hash)
-            #         ).all()
-            #     )
-            #     > 0
-            # )
-            # if cached:
-            #     status = "cached"
-            if not node.changed:
-                status = "completed"
+            status = "pending" if node.changed else "cached"
 
             job = Job(
                 cmd=node.cmd,
@@ -98,8 +83,12 @@ def save_graph_to_db(
                 queue=queue,
                 status=status,
                 experiment_id=experiment.id,
-                lock=node.lock,
             )
+            # if completed, we can look for the lock and deps_hash
+            if status == "completed":
+                # TODO: get the lock and deps_hash from the stage
+                pass
+
             session.add(job)
             # add dependencies
             for parent in graph.predecessors(node):
