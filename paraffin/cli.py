@@ -3,6 +3,8 @@ import socket
 import subprocess
 import typing as t
 import webbrowser
+import time
+import datetime
 
 import dvc.api
 import git
@@ -11,7 +13,7 @@ import uvicorn
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
 
-from paraffin.db import complete_job, find_cached_job, get_job, save_graph_to_db
+from paraffin.db import complete_job, find_cached_job, get_job, save_graph_to_db, register_worker, update_worker, close_worker
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph
 
@@ -41,76 +43,101 @@ def worker(
     experiment: str | None = typer.Option(
         None, "--experiment", "-e", help="Experiment ID."
     ),
+    timeout: int = typer.Option(
+        0, "--timeout", "-t", help="Timeout in seconds before exiting."
+    ),
 ):
     """Start a Celery worker."""
     queues = queues.split(",")
     # set the log level
     logging.basicConfig(level=logging.INFO)
+    worker_id = register_worker(name, machine=socket.gethostname())
     log.info(f"Listening on queues: {queues}")
-    while True:
-        job_obj = get_job(
-            queues=queues,
-            worker=name,
-            machine=socket.gethostname(),
-            experiment=experiment,
-            job_name=job,
-        )
 
-        # now we want to compute another stage.save() to check if the stage is changed
+    last_seen = datetime.datetime.now()
+    try:
+        while True:
+            job_obj = get_job(
+                queues=queues,
+                worker=name,
+                machine=socket.gethostname(),
+                experiment=experiment,
+                job_name=job,
+            )
 
-        if job_obj is None:
-            # TODO: timeout
-            log.info("No more job found - exiting.")
-            return
+            # now we want to compute another stage.save() to check if the stage is changed
 
-        fs = dvc.api.DVCFileSystem(url=None, rev=None)
-        # This will search the DB and not rely on DVC run cache to determine if the job is cached
-        #  so this can easily work across directories
-        with fs.repo.lock:
-            stage = fs.repo.stage.collect(job_obj["name"])[0]
-            stage.save(allow_missing=True, run_cache=False)
-            stage_lock = to_single_stage_lockfile(stage, with_files=True)
-            reduced_lock = {
-                k: v for k, v in stage_lock.items() if k in ["params", "deps", "cmd"]
-            }
-            deps_hash = _get_cache_hash(reduced_lock, key=True)
-            cached_job = find_cached_job(deps_cache=deps_hash)
-            if cached_job:
-                log.info(
-                    f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+            if job_obj is None:
+                remaining_seconds = timeout - (datetime.datetime.now() - last_seen).seconds
+                if remaining_seconds <= 0:
+                    log.info("Timeout reached - exiting.")
+                    break
+                time.sleep(1)
+                log.info(f"No more job found - sleeping until closing in {remaining_seconds} seconds")
+                continue
+            last_seen = datetime.datetime.now()
+
+            update_worker(worker_id, status="running")
+            fs = dvc.api.DVCFileSystem(url=None, rev=None)
+            # This will search the DB and not rely on DVC run cache to determine if the job is cached
+            #  so this can easily work across directories
+            with fs.repo.lock:
+                stage = fs.repo.stage.collect(job_obj["name"])[0]
+                stage.save(allow_missing=True, run_cache=False)
+                stage_lock = to_single_stage_lockfile(stage, with_files=True)
+                reduced_lock = {
+                    k: v for k, v in stage_lock.items() if k in ["params", "deps", "cmd"]
+                }
+                deps_hash = _get_cache_hash(reduced_lock, key=True)
+                cached_job = find_cached_job(deps_cache=deps_hash)
+                if cached_job:
+                    log.info(
+                        f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+                    )
+
+            log.info(f"Running job '{job_obj['name']}'")
+            # TODO: we need to ensure that all deps nodes are checked out!
+            #  this will be important when clone / push.
+            result = subprocess.run(
+                f"dvc repro -s {job_obj['name']}", shell=True, capture_output=True
+            )
+
+            if result.returncode != 0:
+                log.error(f"Failed to run job '{job_obj['name']}'")
+                log.error(result.stderr.decode())
+                complete_job(
+                    job_obj["id"],
+                    status="failed",
+                    lock={},
+                    stdout=result.stdout.decode(),
+                    stderr=result.stderr.decode(),
                 )
-
-        log.info(f"Running job '{job_obj['name']}'")
-        # TODO: we need to ensure that all deps nodes are checked out!
-        #  this will be important when clone / push.
-        result = subprocess.run(
-            f"dvc repro -s {job_obj['name']}", shell=True, capture_output=True
-        )
-
-        if result.returncode != 0:
-            log.error(f"Failed to run job '{job_obj['name']}'")
-            log.error(result.stderr.decode())
+            else:
+                # get the stage_lock
+                fs = dvc.api.DVCFileSystem(url=None, rev=None)
+                with fs.repo.lock:
+                    stage = fs.repo.stage.collect(job_obj["name"])[0]
+                    stage.save()
+                stage_lock = to_single_stage_lockfile(stage, with_files=True)
+                complete_job(
+                    job_obj["id"],
+                    status="completed",
+                    lock=stage_lock,
+                    stdout=result.stdout.decode(),
+                    stderr=result.stderr.decode(),
+                )
+            job_obj = None
+            update_worker(worker_id, status="idle")
+    finally:
+        if job_obj is not None:
             complete_job(
                 job_obj["id"],
                 status="failed",
                 lock={},
-                stdout=result.stdout.decode(),
-                stderr=result.stderr.decode(),
+                stdout="",
+                stderr="Worker exited.",
             )
-        else:
-            # get the stage_lock
-            fs = dvc.api.DVCFileSystem(url=None, rev=None)
-            with fs.repo.lock:
-                stage = fs.repo.stage.collect(job_obj["name"])[0]
-                stage.save()
-            stage_lock = to_single_stage_lockfile(stage, with_files=True)
-            complete_job(
-                job_obj["id"],
-                status="completed",
-                lock=stage_lock,
-                stdout=result.stdout.decode(),
-                stderr=result.stderr.decode(),
-            )
+        close_worker(worker_id)
 
 
 @app.command()

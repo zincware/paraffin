@@ -11,6 +11,13 @@ from paraffin.stage import PipelineStageDC
 from paraffin.utils import get_group
 
 
+class Worker(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    machine: str
+    status: str = "idle"  # idle, busy, offline
+    last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
 class JobDependency(SQLModel, table=True):
     parent_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
     child_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
@@ -230,3 +237,36 @@ def find_cached_job(db: str = "sqlite:///jobs.db", deps_cache: str = "") -> dict
         if res := results.first():
             return res.model_dump()
     return {}
+
+
+def register_worker(name: str, machine: str, db: str = "sqlite:///jobs.db") -> int:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        worker = Worker(name=name, machine=machine)
+        session.add(worker)
+        session.commit()
+        return worker.id
+
+def update_worker(id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        worker = session.exec(select(Worker).where(Worker.id == id)).one()
+        worker.status = status
+        worker.last_seen = datetime.datetime.now()
+        session.add(worker)
+        session.commit()
+
+def close_worker(id: int, db: str = "sqlite:///jobs.db") -> None:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        worker = session.exec(select(Worker).where(Worker.id == id)).one()
+        worker.status = "offline"
+        worker.last_seen = datetime.datetime.now()
+        session.add(worker)
+        session.commit()
+
+def list_workers(db: str = "sqlite:///jobs.db") -> list[dict]:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        workers = session.exec(select(Worker).where(Worker.status != "offline")).all()
+        return [worker.model_dump() for worker in workers]

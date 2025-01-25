@@ -36,12 +36,23 @@ async function fetchElkGraph(experiment: string|null) {
 	return data;
 }
 
+async function fetchWorkers() {
+	const res = await fetch("/api/v1/workers");
+	if (!res.ok) {
+		throw new Error(`HTTP error! Status: ${res.status}`);
+	}
+	const data = await res.json();
+	return data;
+}
+
 function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	// const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
 	const [visibleDepth, setVisibleDepth] = useState(3);
 	const [direction, setDirection] = useState("RIGHT");
+
+	const [lastUpdated, setLastUpdated] = useState(Date.now());
 
 	const [excludedNodes, setExcludedNodes] = useState({}); // {node.id: [excluded children ids]}
 
@@ -55,10 +66,29 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 	);
 
 	useEffect(() => {
+		const interval = setInterval(() => {
+			fetchWorkers().then((workers) => {
+				// iterate all workers, parse `last_seen` and check if newer than lastUpdated.
+				// if so, setLastUpdated to that value.
+				workers.forEach((worker) => {
+					const lastSeen = Date.parse(worker.last_seen);
+					if (lastSeen > lastUpdated) {
+						setLastUpdated(lastSeen);
+						console.log("Updated last seen to", lastSeen);
+					}
+				});
+			});
+		}, 1000);
+		return () => {
+		  clearInterval(interval);
+		};
+	  }, [lastUpdated]);
+
+	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
 			setRawGraph(graph);
 		});
-	}, [experiment]);
+	}, [experiment, lastUpdated]);
 
 	useEffect(() => {
 		// Function to compute excluded nodes by depth
