@@ -213,7 +213,7 @@ def complete_job(
         session.add(job)
         session.commit()
 
-def update_job_status(job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
+def update_job_status(job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db") -> int:
     engine = create_engine(db)
     with Session(engine) as session:
         statement = (
@@ -223,9 +223,12 @@ def update_job_status(job_name: str, experiment_id: int, status: str, db: str = 
         )
         results = session.exec(statement)
         job = results.one()
+        if job.status == "completed":
+            return -1
         job.status = status
         session.add(job)
         session.commit()
+    return 0
 
 def get_job_dump(
     job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
