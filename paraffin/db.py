@@ -77,18 +77,19 @@ def save_graph_to_db(
                     break
             status = "pending"
             # check if the deps_hash is already in the database
-            cached = (
-                len(
-                    session.exec(
-                        select(Job).where(Job.deps_hash == node.deps_hash)
-                    ).all()
-                )
-                > 0
-            )
-            if cached:
-                status = "cached"
+            # TODO: the deps_hash we are getting sometimes seems to be wrong
+            #   and is using input files from the dvc run cache or something...
+            # cached = (
+            #     len(
+            #         session.exec(
+            #             select(Job).where(Job.deps_hash == node.deps_hash)
+            #         ).all()
+            #     )
+            #     > 0
+            # )
+            # if cached:
+            #     status = "cached"
             if not node.changed:
-                print(f"Skipping {node.name} because it has not changed.")
                 status = "completed"
 
             job = Job(
@@ -158,6 +159,8 @@ def get_job(
     queues: list | None = None,
     worker: str = "",
     machine: str = "",
+    experiment: str | None = None,
+    job_name: str | None = None,
 ) -> dict | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
@@ -168,6 +171,10 @@ def get_job(
         statement = select(Job).where(
             or_(Job.status == "pending", Job.status == "cached")
         )
+        if experiment:
+            statement = statement.where(Job.experiment_id == experiment)
+        if job_name:
+            statement = statement.where(Job.name == job_name)
         if queues:
             statement = statement.where(Job.queue.in_(queues))
         results = session.exec(statement)
@@ -232,3 +239,13 @@ def get_stdout_stderr(
         results = session.exec(statement)
         job = results.one()
         return job.model_dump()
+
+
+def find_cached_job(db: str = "sqlite:///jobs.db", deps_cache: str = "") -> dict:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        statement = select(Job).where(Job.deps_hash == deps_cache)
+        results = session.exec(statement)
+        if res := results.first():
+            return res.model_dump()
+    return {}

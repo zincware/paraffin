@@ -73,6 +73,11 @@ def get_stage_graph(names) -> nx.DiGraph:
     mapping = {}
     with fs.repo.lock:
         for node in nx.topological_sort(subgraph):
+            # TODO: consider trying to not use `node.save` but
+            #  simply read the `dvc.yaml` file
+            #  and hash the respective files yourself?
+            #  this could very much come with a noticeable performance decrease
+            #  as I think DVC is doing some caching and stuff
             node.save(allow_missing=True, run_cache=False)
             status = _local_status(fs.repo, targets=[node.name], check_updates=True)
             if len(status) > 0:
