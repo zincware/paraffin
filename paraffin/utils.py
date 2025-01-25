@@ -2,15 +2,17 @@ import fnmatch
 import logging
 import pathlib
 from collections import defaultdict
+import json
 
 import dvc.api
 import networkx as nx
 import yaml
+from paraffin.stage import PipelineStageDC
 
 log = logging.getLogger(__name__)
 
 
-def get_subgraph_with_predecessors(graph, nodes, reverse=False):
+def get_subgraph_with_predecessors(graph, nodes) -> nx.DiGraph:
     """
     Generate a subgraph containing the specified nodes and all their predecessors.
 
@@ -21,8 +23,6 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
     nodes: Iterable
         An iterable of nodes to be included in the subgraph along with
         their predecessors.
-    reverse: bool, optional
-        If True, the resulting subgraph will be reversed. Default is False.
 
     Returns
     -------
@@ -37,13 +37,10 @@ def get_subgraph_with_predecessors(graph, nodes, reverse=False):
         predecessors = nx.ancestors(graph, node)
         nodes_to_include.update(predecessors)
 
-    # Create the subgraph with the selected nodes
-    if reverse:
-        return graph.subgraph(nodes_to_include).reverse(copy=True)
     return graph.subgraph(nodes_to_include).copy()
 
 
-def get_stage_graph(names, glob=False) -> nx.DiGraph:
+def get_stage_graph(names) -> nx.DiGraph:
     """
     Generates a subgraph of stages from a DVC repository based on provided names.
 
@@ -51,8 +48,6 @@ def get_stage_graph(names, glob=False) -> nx.DiGraph:
     ----------
     names: list
         A list of stage names to filter the graph nodes.
-    glob: bool, optional
-        If True, uses glob pattern matching for names. Defaults to False.
 
     Returns
     -------
@@ -63,19 +58,23 @@ def get_stage_graph(names, glob=False) -> nx.DiGraph:
     graph = fs.repo.index.graph.reverse(copy=True)
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
     if names is not None and len(names) > 0:
-        if glob:
-            nodes = [
+        nodes = [
                 x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
             ]
-        else:
-            nodes = [x for x in nodes if x.name in names]
 
     subgraph = get_subgraph_with_predecessors(graph, nodes)
 
     # remove all nodes that do not have a name
     subgraph = nx.subgraph_view(subgraph, filter_node=lambda x: hasattr(x, "name"))
 
-    return subgraph
+    mapping = {}
+    with fs.repo.lock:
+        for node in subgraph.nodes:
+            status = node.status(check_updates=True)
+            
+            mapping[node] = PipelineStageDC(stage=node, status=json.dumps(status.get(node.name, [])))
+    
+    return nx.relabel_nodes(subgraph, mapping, copy=True)
 
 
 def get_changed_stages(subgraph) -> list:

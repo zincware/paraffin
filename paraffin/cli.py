@@ -6,6 +6,8 @@ import webbrowser
 import dvc.api
 import typer
 import uvicorn
+import git
+import socket
 from dvc.stage.serialize import to_single_stage_lockfile
 
 from paraffin.db import complete_job, get_job, save_graph_to_db, set_job_deps_lock
@@ -71,20 +73,26 @@ def submit(
     names: t.Optional[list[str]] = typer.Argument(
         None, help="Stage names to run. If not specified, run all stages."
     ),
-    verbose: bool = typer.Option(False, help="Verbose output."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
     check: bool = typer.Option(True, help="Check if stages are changed."),
 ):
     """Run DVC stages in parallel."""
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
-    log.debug("Getting stage graph")
-    graph = get_stage_graph(names=names, glob=True)
-    if check:
-        changed = get_changed_stages(graph)
+    # check if the repo has a commit
+    repo = git.Repo(search_parent_directories=True)
+    if not repo.head.is_valid():
+        log.error("Unable to create experiment inside a GIT repository without commits.")
     else:
-        changed = [node.name for node in graph.nodes]
-    print(f"Changed stages: {changed}")
-    print(f"Submitting {graph}")
+        commit = repo.head.commit
+        try:
+            origin = repo.remotes.origin.url
+        except AttributeError:
+            origin = "local"
+            log.debug(f"Creating new experiment based on commit '{commit}'")
+
+    log.debug("Getting stage graph")
+    graph = get_stage_graph(names=names)
     custom_queues = get_custom_queue()
-    save_graph_to_db(graph, queues=custom_queues, changed=changed)
+    save_graph_to_db(graph, queues=custom_queues, commit=commit.hexsha, origin=origin, machine=socket.gethostname())

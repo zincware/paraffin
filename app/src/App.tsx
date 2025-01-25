@@ -14,6 +14,7 @@ import {
 
 import "@xyflow/react/dist/style.css";
 import { Card, Button } from "react-bootstrap";
+import Table from "react-bootstrap/Table";
 import { FaPlus, FaMinus, FaArrowRight, FaArrowDown } from "react-icons/fa";
 import GraphStateNode from "./GraphStateNode";
 import GraphNodeGroup from "./GraphNodeGroup";
@@ -22,8 +23,8 @@ import "./App.css";
 
 const elk = new ELK();
 
-async function fetchElkGraph() {
-	const res = await fetch("/api/v1/graph");
+async function fetchElkGraph(experiment: string) {
+	const res = await fetch("/api/v1/graph" + "?experiment=" + experiment);
 	if (!res.ok) {
 		throw new Error(`HTTP error! Status: ${res.status}`);
 	}
@@ -32,7 +33,7 @@ async function fetchElkGraph() {
 	return data;
 }
 
-function LayoutFlow() {
+function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	// const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
@@ -51,11 +52,13 @@ function LayoutFlow() {
 	);
 
 	useEffect(() => {
-		console.log("fetching graph");
-		fetchElkGraph().then((graph) => {
+		if (experiment === null) {
+			return;
+		}
+		fetchElkGraph(experiment).then((graph) => {
 			setRawGraph(graph);
 		});
-	}, []);
+	}, [experiment]);
 
 	useEffect(() => {
 		// Function to compute excluded nodes by depth
@@ -294,12 +297,89 @@ function LayoutFlow() {
 		</>
 	);
 }
-const App = () => (
-	<ReactFlowProvider>
-		<Card style={{ width: "100%", height: "85vh" }}>
-			<LayoutFlow />
-		</Card>
-	</ReactFlowProvider>
-);
+
+const ExperimentSelector = ({
+	setExperiment,
+}: { setExperiment: (experiment: string) => void }) => {
+	interface Experiment {
+		created_at: string;
+		base: string;
+		origin: string;
+		id: string;
+		machine: string;
+	}
+
+	const [availableExperiments, setAvailableExperiments] = useState<
+		Experiment[]
+	>([]);
+
+	useEffect(() => {
+		fetch("/api/v1/experiments")
+			.then((res) => res.json())
+			.then((data) => {
+				setAvailableExperiments(data);
+			});
+	}, []);
+
+	useEffect(() => {
+		if (availableExperiments.length === 1) {
+			setExperiment(availableExperiments[0].id);
+		}
+	}, [availableExperiments]);
+
+	return (
+		<div>
+			<h1>Experiment Selector</h1>
+			{availableExperiments.length === 0 && (
+				<p>No experiments found for the current commit.</p>
+			)}
+			<Table striped bordered hover>
+				<thead>
+					<tr>
+						<th>Created At</th>
+						<th>Base</th>
+						<th>Origin</th>
+						<th>Machine</th>
+					</tr>
+				</thead>
+				<tbody>
+					{availableExperiments.map((experiment) => (
+						<tr key={experiment.id}>
+							<td>{experiment.created_at}</td>
+							<td>{experiment.base}</td>
+							<td>{experiment.origin}</td>
+							<td>{experiment.machine}</td>
+							<td>
+								<Button onClick={() => setExperiment(experiment.id)}>
+									Select
+								</Button>
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</Table>
+
+			{/* {availableExperiments.map((experiment) => (
+				<Button key={experiment} onClick={() => setExperiment(experiment)}>
+					{experiment.created_at}
+				</Button>
+			))} */}
+		</div>
+	);
+};
+
+const App = () => {
+	const [experiment, setExperiment] = useState<string | null>(null);
+
+	return experiment === null ? (
+		<ExperimentSelector setExperiment={setExperiment} />
+	) : (
+		<ReactFlowProvider>
+			<Card style={{ width: "100%", height: "85vh" }}>
+				<LayoutFlow experiment={experiment} />
+			</Card>
+		</ReactFlowProvider>
+	);
+};
 
 export default App;
