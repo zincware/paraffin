@@ -81,6 +81,8 @@ def worker(
             fs = dvc.api.DVCFileSystem(url=None, rev=None)
             # This will search the DB and not rely on DVC run cache to determine if the job is cached
             #  so this can easily work across directories
+
+             # TODO: this can be the cause for a lock issue!
             with fs.repo.lock:
                 stage = fs.repo.stage.collect(job_obj["name"])[0]
                 stage.save(allow_missing=True, run_cache=False)
@@ -98,6 +100,7 @@ def worker(
             log.info(f"Running job '{job_obj['name']}'")
             # TODO: we need to ensure that all deps nodes are checked out!
             #  this will be important when clone / push.
+             # TODO: this can be the cause for a lock issue!
             result = subprocess.run(
                 f"dvc repro -s {job_obj['name']}", shell=True, capture_output=True
             )
@@ -115,6 +118,7 @@ def worker(
             else:
                 # get the stage_lock
                 fs = dvc.api.DVCFileSystem(url=None, rev=None)
+                # TODO: this can be the cause for a lock issue!
                 with fs.repo.lock:
                     stage = fs.repo.stage.collect(job_obj["name"])[0]
                     stage.save()

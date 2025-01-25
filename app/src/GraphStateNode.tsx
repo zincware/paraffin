@@ -34,6 +34,10 @@ interface NodeData {
 	worker: string;
 }
 
+const updateNodeStauts = (name: string, experiment: string) => {
+	fetch("/api/v1/job/update" + "?experiment=" + experiment + "&name=" + name)
+};
+
 // TODO: on the edge between the nodes, show infos on which attributes are connected.
 //  this can later be edited to build the graph in the paraffin ui.
 
@@ -181,6 +185,9 @@ ${data.node.deps_hash}
 					<Button variant="secondary" onClick={handleClose}>
 						Close
 					</Button>
+					{/* TODO: refresh the page */}
+					<Button onClick={() => updateNodeStauts(data.node.id, experiment)}
+					>Retry</Button>
 				</Modal.Footer>
 			</Modal>
 		</>

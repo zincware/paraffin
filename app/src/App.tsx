@@ -142,6 +142,11 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 						if (edge.targets[0] === node.id) {
 							edge.targets[0] = parent.id;
 						}
+						// Remove self-references
+						if (edge.sources[0] === edge.targets[0]) {
+							edge.sources = [];
+							edge.targets = [];
+						}
 					});
 					return null;
 				}

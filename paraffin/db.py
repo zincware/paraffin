@@ -44,8 +44,8 @@ class Job(SQLModel, table=True):
     stdout: str = ""  # stdout output
     started_at: Optional[datetime.datetime] = None
     finished_at: Optional[datetime.datetime] = None
-    machine: str = ""  # Machine where the job was executed
-    worker: str = ""  # Worker that executed the job
+    machine: str = ""  # Machine where the job was executed # TODO: get from worker
+    worker: str = ""  # Worker that executed the job # TODO: use foreign key
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -213,6 +213,19 @@ def complete_job(
         session.add(job)
         session.commit()
 
+def update_job_status(job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        statement = (
+            select(Job)
+            .where(Job.experiment_id == experiment_id)
+            .where(Job.name == job_name)
+        )
+        results = session.exec(statement)
+        job = results.one()
+        job.status = status
+        session.add(job)
+        session.commit()
 
 def get_job_dump(
     job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
