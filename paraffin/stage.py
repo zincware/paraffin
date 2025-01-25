@@ -1,13 +1,15 @@
 """Container for a DVC stage."""
 
 import dataclasses
-from dvc.stage import PipelineStage
 import json
+
+from dvc.stage import PipelineStage
+
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class PipelineStageDC:
     """Container for a DVC stage."""
-    
+
     stage: PipelineStage
     status: str
 
@@ -15,12 +17,12 @@ class PipelineStageDC:
     def changed(self) -> bool:
         """Check if the stage has changed."""
         return json.loads(self.status) != []
-    
+
     @property
     def name(self) -> str:
         """Return the name of the stage."""
         return self.stage.name
-    
+
     @property
     def cmd(self) -> str:
         """Return the command of the stage."""

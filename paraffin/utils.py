@@ -1,12 +1,13 @@
 import fnmatch
+import json
 import logging
 import pathlib
 from collections import defaultdict
-import json
 
 import dvc.api
 import networkx as nx
 import yaml
+
 from paraffin.stage import PipelineStageDC
 
 log = logging.getLogger(__name__)
@@ -59,8 +60,8 @@ def get_stage_graph(names) -> nx.DiGraph:
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
     if names is not None and len(names) > 0:
         nodes = [
-                x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
-            ]
+            x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
+        ]
 
     subgraph = get_subgraph_with_predecessors(graph, nodes)
 
@@ -75,12 +76,18 @@ def get_stage_graph(names) -> nx.DiGraph:
             for pred in nx.ancestors(graph, node):
                 if pred in mapping:
                     if mapping[pred].changed:
-                        status[node.name] = status.get(node.name, []) + ["changed by upstream"]
-                        log.debug(f"Stage {node.name} is changed by upstream stage {pred.name}")
+                        status[node.name] = status.get(node.name, []) + [
+                            "changed by upstream"
+                        ]
+                        log.debug(
+                            f"Stage {node.name} is changed by upstream stage {pred.name}"
+                        )
                         break
-            
-            mapping[node] = PipelineStageDC(stage=node, status=json.dumps(status.get(node.name, [])))
-    
+
+            mapping[node] = PipelineStageDC(
+                stage=node, status=json.dumps(status.get(node.name, []))
+            )
+
     return nx.relabel_nodes(subgraph, mapping, copy=True)
 
 

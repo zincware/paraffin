@@ -1,24 +1,27 @@
+import datetime
 import fnmatch
 import json
 from typing import List, Optional
-from paraffin.stage import PipelineStageDC
-import datetime
 
 import networkx as nx
 from dvc.stage.cache import _get_cache_hash
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+
+from paraffin.stage import PipelineStageDC
 
 
 class JobDependency(SQLModel, table=True):
     parent_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
     child_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
 
+
 class Experiment(SQLModel, table=True):
-    id : Optional[int] = Field(default=None, primary_key=True)
-    base: str # Commit this experiment is based on
-    origin: str = "local" # Origin of the repository, e.g. https://...
-    machine: str = "local" # Machine where the experiment was submitted from
+    id: Optional[int] = Field(default=None, primary_key=True)
+    base: str  # Commit this experiment is based on
+    origin: str = "local"  # Origin of the repository, e.g. https://...
+    machine: str = "local"  # Machine where the experiment was submitted from
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
 
 class Job(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -52,7 +55,9 @@ class Job(SQLModel, table=True):
     )
 
 
-def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str) -> None:
+def save_graph_to_db(
+    graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str
+) -> None:
     engine = create_engine("sqlite:///jobs.db")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
@@ -78,7 +83,9 @@ def save_graph_to_db(graph: nx.DiGraph, queues: dict[str, str], commit: str, ori
             # add dependencies
             for parent in graph.predecessors(node):
                 parent_job = session.exec(
-                    select(Job).where(Job.experiment_id == experiment.id).where(Job.name == parent.name)
+                    select(Job)
+                    .where(Job.experiment_id == experiment.id)
+                    .where(Job.name == parent.name)
                 ).one()
                 session.add(JobDependency(parent_id=parent_job.id, child_id=job.id))
 
@@ -90,6 +97,7 @@ def list_experiments(db: str = "sqlite:///jobs.db", commit: str = "HEAD") -> lis
     with Session(engine) as session:
         exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
         return [exp.model_dump() for exp in exps]
+
 
 def db_to_graph(db: str = "sqlite:///jobs.db", experiment_id: int = 1) -> nx.DiGraph:
     engine = create_engine(db)
@@ -177,7 +185,12 @@ def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
 
 
 def complete_job(
-    job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed", stderr: str = "", stdout: str = ""
+    job_id: int,
+    lock: dict,
+    db: str = "sqlite:///jobs.db",
+    status: str = "completed",
+    stderr: str = "",
+    stdout: str = "",
 ):
     engine = create_engine(db)
     with Session(engine) as session:
@@ -190,7 +203,6 @@ def complete_job(
         job.stdout = stdout
         session.add(job)
         session.commit()
-
 
 
 def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
@@ -217,10 +229,16 @@ def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
         return nodes, edges
 
 
-def get_stdout_stderr(job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db") -> dict[str, str]:
+def get_stdout_stderr(
+    job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
+) -> dict[str, str]:
     engine = create_engine(db)
     with Session(engine) as session:
-        statement = select(Job).where(Job.experiment_id == experiment_id).where(Job.name == job_name)
+        statement = (
+            select(Job)
+            .where(Job.experiment_id == experiment_id)
+            .where(Job.name == job_name)
+        )
         results = session.exec(statement)
         job = results.one()
         return {"stdout": job.stdout, "stderr": job.stderr}

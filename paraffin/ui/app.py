@@ -1,12 +1,12 @@
 from pathlib import Path
 
+import git
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from paraffin.db import db_to_graph, list_experiments, get_stdout_stderr
+from paraffin.db import db_to_graph, get_stdout_stderr, list_experiments
 from paraffin.utils import build_elk_hierarchy
-import git
 
 FILE = Path(__file__)
 
@@ -24,13 +24,15 @@ app.mount(
 def read_root():
     return RedirectResponse(url="/ui/index.html")
 
+
 @app.get("/api/v1/experiments")
-def read_experiments(commit: str|None = None):
+def read_experiments(commit: str | None = None):
     if commit is None:
         repo = git.Repo(search_parent_directories=True)
         commit = repo.head.commit.hexsha
 
     return list_experiments(commit=commit)
+
 
 @app.get("/api/v1/graph")
 def read_graph(experiment: str):
@@ -41,6 +43,7 @@ def read_graph(experiment: str):
 @app.get("/api/v1/spawn")
 def spawn():
     pass  # run paraffin worker
+
 
 @app.get("/api/v1/job")
 def read_job(name: str, experiment: int):
