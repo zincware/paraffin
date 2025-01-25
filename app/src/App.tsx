@@ -16,6 +16,7 @@ import { Card } from "react-bootstrap";
 import GraphStateNode from "./GraphStateNode";
 import GraphNodeGroup from "./GraphNodeGroup";
 import GraphContext from "./GraphContext";
+import "./App.css";
 
 const elk = new ELK();
 
@@ -33,8 +34,7 @@ function LayoutFlow() {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
-	const [visibleDepth, setVisibleDepth] = useState(999);
-	const { fitView } = useReactFlow();
+	const [visibleDepth, setVisibleDepth] = useState(2);
 
 	const [rawGraph, setRawGraph] = useState(null);
 
@@ -55,34 +55,30 @@ function LayoutFlow() {
 	useEffect(() => {
 		if (rawGraph) {
 			const rawGraphCopy = JSON.parse(JSON.stringify(rawGraph));
-			// Set layout options for ELK
-			rawGraphCopy.layoutOptions = {
-				"elk.algorithm": "force", // Algorithm for layout (change if needed)
-				// Additional layout options can be uncommented as needed:
-				// "elk.direction": "TB", // Top-to-Bottom layout
-				// "elk.layered.spacing.nodeNodeBetweenLayers": 100, // Vertical spacing
-				// "elk.layered.spacing.nodeNode": 300, // Horizontal spacing
-				// "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES", // Reduce crossings
-			};
 
 			const availableNodeIds = new Set();
 
-			const processNodes = (node) => {
-				// Exclude hidden nodes
-				// Exclude nodes beyond the visible depth
-
+			const processNodes = (node, parent) => {
 				if (hiddenNodes.includes(node.id)) {
+					// find all edges and set the source to the parent
+					rawGraphCopy.edges.forEach((edge) => {
+						if (edge.sources[0] === node.id) {
+							edge.sources[0] = parent.id;
+						}
+					});
 					return null;
 				}
 
 				// Assign default dimensions
-				node.width = 250;
+				node.width = 280;
 				node.height = 150;
 
 				// Process children recursively
 				if (node.children) {
+					node.labels = [{ text: node.id, width: 100, height: 100 }];
+					// node.height = 3000;
 					node.children = node.children
-						.map((child) => processNodes(child)) // Increment depth for children
+						.map((child) => processNodes(child, node)) // Increment depth for children
 						.filter((child) => child !== null); // Remove hidden children
 				}
 
@@ -94,7 +90,7 @@ function LayoutFlow() {
 
 			// Process top-level nodes
 			rawGraphCopy.children = rawGraphCopy.children
-				.map((node) => processNodes(node)) // Start at depth 0 for top-level nodes
+				.map((node) => processNodes(node, null)) // Start at depth 0 for top-level nodes
 				.filter((node) => node !== null); // Remove hidden top-level nodes
 
 			rawGraphCopy.edges = rawGraphCopy.edges.filter((edge) => {
@@ -104,12 +100,30 @@ function LayoutFlow() {
 				);
 			});
 
+			console.log("rawGraphCopy", rawGraphCopy);
+
 			// Run the ELK layout
-			elk.layout(rawGraphCopy).then((layoutedGraph) => {
-				setElkGraph(layoutedGraph); // Update the layouted graph state
-			});
+			elk
+				.layout(rawGraphCopy, {
+					layoutOptions: {
+						"elk.algorithm": "layered", // Change to "box" if necessary
+						"elk.layered.spacing.nodeNodeBetweenLayers": "50", // Adjust spacing as needed
+						// "org.eclipse.elk.spacing.labelLabel": "100",
+						"elk.spacing.componentComponent": "100", // Ensures proper spacing between disconnected components
+						"elk.direction": "RIGHT",
+						"org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN",
+						// "org.eclipse.elk.nodeLabels.placement": "V_CENTER",
+						"elk.padding": "[top=75,left=12,bottom=12,right=12]",
+					},
+					// logging: true,
+					// measureExecutionTime: true,
+				})
+				.then((layoutedGraph) => {
+					console.log("layoutedGraph", layoutedGraph);
+					setElkGraph(layoutedGraph); // Update the layouted graph state
+				});
 		}
-	}, [rawGraph, hiddenNodes, visibleDepth]); // Added `hiddenNodes` as a dependency
+	}, [rawGraph, hiddenNodes, visibleDepth]);
 
 	// Process ELK layout and update React Flow nodes and edges
 	useEffect(() => {
@@ -187,11 +201,8 @@ function LayoutFlow() {
 			// Update React Flow state
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
-
-			// Fit the view to include all nodes
-			fitView();
 		}
-	}, [elkGraph, setNodes, setEdges, fitView, hiddenNodes]);
+	}, [elkGraph, setNodes, setEdges, hiddenNodes]);
 
 	return (
 		<GraphContext.Provider value={{ setHiddenNodes, visibleDepth }}>
@@ -202,7 +213,6 @@ function LayoutFlow() {
 				onEdgesChange={onEdgesChange}
 				nodeTypes={nodeTypes}
 				minZoom={0.1}
-				fitView
 			>
 				{/* <Panel position="top-right">
 				<button onClick={() => onLayout({ direction: "DOWN" })}>

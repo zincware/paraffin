@@ -45,12 +45,12 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 			>
 				<Handle
 					type="target"
-					position={Position.Top}
+					position={Position.Left}
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
 				<Handle
 					type="source"
-					position={Position.Bottom}
+					position={Position.Right}
 					id="a"
 					style={{ background: "black", borderRadius: "50%" }}
 				/>

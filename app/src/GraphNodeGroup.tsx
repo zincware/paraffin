@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { Handle, Position } from "@xyflow/react";
 import Card from "react-bootstrap/Card";
 import { GraphNode } from "./types";
-import { BsArrowsAngleContract } from "react-icons/bs";
+import { BsArrowsAngleContract, BsArrowsAngleExpand } from "react-icons/bs";
 import { Button } from "react-bootstrap";
 import GraphContext from "./GraphContext";
 
@@ -61,12 +61,12 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 			>
 				<Handle
 					type="target"
-					position={Position.Top}
+					position={Position.Left}
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
 				<Handle
 					type="source"
-					position={Position.Bottom}
+					position={Position.Right}
 					id="a"
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
@@ -74,32 +74,62 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 					style={{
 						width: data.node.width,
 						height: data.node.height,
-						borderRadius: "8px",
-						boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+						borderRadius: "10px",
+						boxShadow: "0 6px 12px rgba(0, 0, 0, 0.15)",
 						overflow: "hidden",
-						border: `6px solid grey`,
-						backgroundColor: "rgba(255, 255, 255, 0.1)",
-						// add backdrop filter blur
-						// backdropFilter: "blur(10px)",
+						border: "3px solid #ddd",
+						background: "linear-gradient(135deg, #f9f9f9, #eaeaea)",
+						display: "flex",
+						flexDirection: "column",
 					}}
 				>
-					<Card.Body style={{ padding: "10px" }}>
-						<Card.Title
+					{/* Header */}
+					<Card.Header
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							background: "#f5f5f5",
+							padding: "10px 15px",
+							fontSize: "1.1rem",
+							fontWeight: "600",
+							borderBottom: "1px solid #ddd",
+						}}
+					>
+						<span style={{ color: "#333" }}>{data.node.id}</span>
+						<Button
+							variant="light"
 							style={{
 								fontSize: "1rem",
-								marginBottom: "10px",
-								textAlign: "center",
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								padding: "6px 8px",
+								boxShadow: "none",
 							}}
+							onClick={onCollapse}
 						>
-							{data.node.id}
-							<Button
-								variant="light"
-								style={{ float: "right" }}
-								onClick={onCollapse}
-							>
+							{excludedNodes.length === 0 ? (
 								<BsArrowsAngleContract />
-							</Button>
-						</Card.Title>
+							) : (
+								<BsArrowsAngleExpand />
+							)}
+						</Button>
+					</Card.Header>
+					{/* Body */}
+					<Card.Body
+						style={{
+							padding: "15px",
+							fontSize: "0.9rem",
+							color: "#555",
+							flex: "1",
+						}}
+					>
+						<Card.Text style={{ marginBottom: "0" }}>
+							{excludedNodes.length > 0 && (
+								<span>{excludedNodes.length} children hidden</span>
+							)}
+						</Card.Text>
 					</Card.Body>
 				</Card>
 			</div>
