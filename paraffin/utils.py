@@ -5,10 +5,10 @@ import pathlib
 from collections import defaultdict
 
 import dvc.api
-from dvc.stage.serialize import to_single_stage_lockfile
-from dvc.repo.status import _local_status
 import networkx as nx
 import yaml
+from dvc.repo.status import _local_status
+from dvc.stage.serialize import to_single_stage_lockfile
 
 from paraffin.stage import PipelineStageDC
 
@@ -91,7 +91,9 @@ def get_stage_graph(names) -> nx.DiGraph:
                         break
 
             mapping[node] = PipelineStageDC(
-                stage=node, status=json.dumps(status.get(node.name, [])), lock=json.dumps(lock)
+                stage=node,
+                status=json.dumps(status.get(node.name, [])),
+                lock=json.dumps(lock),
             )
 
     return nx.relabel_nodes(subgraph, mapping, copy=True)

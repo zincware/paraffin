@@ -7,7 +7,6 @@ from dvc.stage import PipelineStage
 from dvc.stage.cache import _get_cache_hash
 
 
-
 @dataclasses.dataclass(frozen=True, eq=True)
 class PipelineStageDC:
     """Container for a DVC stage."""
@@ -30,13 +29,13 @@ class PipelineStageDC:
     def cmd(self) -> str:
         """Return the command of the stage."""
         return self.stage.cmd
-    
+
     @property
     def deps_lock(self) -> dict:
         """Return the hash of the dependencies."""
         lock = json.loads(self.lock)
         return {k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]}
-    
+
     @property
     def deps_hash(self) -> str:
         """Return the hash of the dependencies."""

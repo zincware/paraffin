@@ -39,7 +39,7 @@ interface NodeData {
 
 function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
-	const [nodeData, setNodeData] = useState<NodeData>({}); // nodeData.stdout / stderr / 
+	const [nodeData, setNodeData] = useState<NodeData>({}); // nodeData.stdout / stderr /
 	const [show, setShow] = useState(false);
 	const { excludedNodes, setExcludedNodes, experiment } = useContext(GraphContext);
 

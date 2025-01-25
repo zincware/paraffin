@@ -4,9 +4,8 @@ import json
 from typing import List, Optional
 
 import networkx as nx
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select, or_
 from dvc.stage.cache import _get_cache_hash
-
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_, select
 
 from paraffin.stage import PipelineStageDC
 
@@ -78,9 +77,14 @@ def save_graph_to_db(
                     break
             status = "pending"
             # check if the deps_hash is already in the database
-            cached = len(session.exec(
-                select(Job).where(Job.deps_hash == node.deps_hash)
-            ).all()) > 0
+            cached = (
+                len(
+                    session.exec(
+                        select(Job).where(Job.deps_hash == node.deps_hash)
+                    ).all()
+                )
+                > 0
+            )
             if cached:
                 status = "cached"
             if not node.changed:
@@ -149,14 +153,21 @@ def get_group(name: str) -> list[str]:
     return parts[:-1]
 
 
-def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None, worker: str = "", machine: str = "") -> dict | None:
+def get_job(
+    db: str = "sqlite:///jobs.db",
+    queues: list | None = None,
+    worker: str = "",
+    machine: str = "",
+) -> dict | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
     """
     engine = create_engine(db)
     with Session(engine) as session:
         # Fetch jobs with 'pending' status, eagerly loading their parents
-        statement = select(Job).where(or_(Job.status == "pending", Job.status == "cached"))
+        statement = select(Job).where(
+            or_(Job.status == "pending", Job.status == "cached")
+        )
         if queues:
             statement = statement.where(Job.queue.in_(queues))
         results = session.exec(statement)
@@ -200,7 +211,9 @@ def complete_job(
         job.finished_at = datetime.datetime.now()
         # We only write the deps_hash to the database once the job has finished successfully!
         if status == "completed":
-            reduced_lock = {k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]}
+            reduced_lock = {
+                k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]
+            }
             job.deps_hash = _get_cache_hash(reduced_lock, key=True)
         session.add(job)
         session.commit()
