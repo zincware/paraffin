@@ -7,12 +7,14 @@ import {
 	ReactFlowProvider,
 	useNodesState,
 	useEdgesState,
-	useReactFlow,
 	Controls,
+	Panel,
+	Position,
 } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
-import { Card } from "react-bootstrap";
+import { Card, Button } from "react-bootstrap";
+import { FaPlus, FaMinus, FaArrowRight, FaArrowDown } from "react-icons/fa";
 import GraphStateNode from "./GraphStateNode";
 import GraphNodeGroup from "./GraphNodeGroup";
 import GraphContext from "./GraphContext";
@@ -33,8 +35,11 @@ async function fetchElkGraph() {
 function LayoutFlow() {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-	const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
-	const [visibleDepth, setVisibleDepth] = useState(2);
+	// const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
+	const [visibleDepth, setVisibleDepth] = useState(3);
+	const [direction, setDirection] = useState("RIGHT");
+
+	const [excludedNodes, setExcludedNodes] = useState({}); // {node.id: [excluded children ids]}
 
 	const [rawGraph, setRawGraph] = useState(null);
 
@@ -53,17 +58,56 @@ function LayoutFlow() {
 	}, []);
 
 	useEffect(() => {
-		if (rawGraph) {
-			const rawGraphCopy = JSON.parse(JSON.stringify(rawGraph));
+		// Function to compute excluded nodes by depth
+		const computeExcludedNodesByDepth = (
+			node,
+			parent = "root",
+			depth = 0,
+			excluded = {},
+		) => {
+			if (!excluded[parent]) {
+				excluded[parent] = [];
+			}
 
+			// Exclude nodes beyond the visible depth
+			if (depth > visibleDepth) {
+				excluded[parent].push(node.id);
+			}
+
+			// Process children recursively
+			if (node.children) {
+				node.children.forEach((child) => {
+					computeExcludedNodesByDepth(child, node.id, depth + 1, excluded);
+				});
+			}
+
+			return excluded;
+		};
+
+		// Calculate excluded nodes when rawGraph or visibleDepth changes
+		if (rawGraph) {
+			const newExcludedNodes = computeExcludedNodesByDepth(rawGraph);
+			setExcludedNodes(newExcludedNodes); // Trigger update of excluded nodes
+		}
+	}, [rawGraph, visibleDepth]); // Recalculate excluded nodes when rawGraph or visibleDepth change
+
+	useEffect(() => {
+		if (rawGraph && excludedNodes) {
+			const rawGraphCopy = JSON.parse(JSON.stringify(rawGraph));
 			const availableNodeIds = new Set();
 
+			// Function to process nodes based on visibility and children
 			const processNodes = (node, parent) => {
+				const hiddenNodes = excludedNodes[parent?.id] || [];
+
+				// Skip hidden nodes and rewire their edges
 				if (hiddenNodes.includes(node.id)) {
-					// find all edges and set the source to the parent
 					rawGraphCopy.edges.forEach((edge) => {
 						if (edge.sources[0] === node.id) {
 							edge.sources[0] = parent.id;
+						}
+						if (edge.targets[0] === node.id) {
+							edge.targets[0] = parent.id;
 						}
 					});
 					return null;
@@ -73,26 +117,24 @@ function LayoutFlow() {
 				node.width = 280;
 				node.height = 150;
 
-				// Process children recursively
+				// Recursively process children
 				if (node.children) {
 					node.labels = [{ text: node.id, width: 100, height: 100 }];
-					// node.height = 3000;
 					node.children = node.children
-						.map((child) => processNodes(child, node)) // Increment depth for children
+						.map((child) => processNodes(child, node))
 						.filter((child) => child !== null); // Remove hidden children
 				}
 
-				// Track node IDs that are still available
 				availableNodeIds.add(node.id);
-
 				return node;
 			};
 
 			// Process top-level nodes
 			rawGraphCopy.children = rawGraphCopy.children
-				.map((node) => processNodes(node, null)) // Start at depth 0 for top-level nodes
+				.map((node) => processNodes(node, null))
 				.filter((node) => node !== null); // Remove hidden top-level nodes
 
+			// Filter edges to only include those with visible source/target nodes
 			rawGraphCopy.edges = rawGraphCopy.edges.filter((edge) => {
 				return (
 					availableNodeIds.has(edge.sources[0]) &&
@@ -106,30 +148,27 @@ function LayoutFlow() {
 			elk
 				.layout(rawGraphCopy, {
 					layoutOptions: {
-						"elk.algorithm": "layered", // Change to "box" if necessary
-						"elk.layered.spacing.nodeNodeBetweenLayers": "50", // Adjust spacing as needed
-						// "org.eclipse.elk.spacing.labelLabel": "100",
-						"elk.spacing.componentComponent": "100", // Ensures proper spacing between disconnected components
-						"elk.direction": "RIGHT",
+						"elk.algorithm": "layered",
+						"elk.layered.spacing.nodeNodeBetweenLayers": "50",
+						"elk.spacing.componentComponent": "100",
+						"elk.direction": direction,
 						"org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN",
-						// "org.eclipse.elk.nodeLabels.placement": "V_CENTER",
 						"elk.padding": "[top=75,left=12,bottom=12,right=12]",
 					},
-					// logging: true,
-					// measureExecutionTime: true,
 				})
 				.then((layoutedGraph) => {
 					console.log("layoutedGraph", layoutedGraph);
 					setElkGraph(layoutedGraph); // Update the layouted graph state
 				});
 		}
-	}, [rawGraph, hiddenNodes, visibleDepth]);
+	}, [rawGraph, excludedNodes, direction]); // Re-run this effect when rawGraph or excludedNodes change
 
 	// Process ELK layout and update React Flow nodes and edges
 	useEffect(() => {
 		if (elkGraph) {
 			// Recursively extract nodes from ELK graph
 			const extractNodesAndEdges = (graph, currentDepth: number = 0) => {
+				const hiddenNodes = excludedNodes[graph.id] || [];
 				const resultNodes = [];
 				const resultEdges = [];
 
@@ -156,6 +195,13 @@ function LayoutFlow() {
 						if (graph.id !== "root") {
 							node.parentId = graph.id;
 						}
+						if (direction === "DOWN") {
+							node.data.sourcePosition = Position.Bottom;
+							node.data.targetPosition = Position.Top;
+						} else {
+							node.data.sourcePosition = Position.Right;
+							node.data.targetPosition = Position.Left;
+						}
 
 						resultNodes.push(node);
 						const { nodes: subNodes, edges: subEdges } = extractNodesAndEdges(
@@ -166,7 +212,7 @@ function LayoutFlow() {
 						resultEdges.push(...subEdges);
 					} else {
 						// Individual node
-						resultNodes.push({
+						let node = {
 							id: child.id,
 							position: {
 								x: child.x,
@@ -175,10 +221,18 @@ function LayoutFlow() {
 							type: "graphstatenode",
 							data: { node: child },
 							style: { width: child.width, height: child.height },
-							parentId: graph.id,
-							sourcePosition: "right",
-							targetPosition: "left",
-						});
+						};
+						if (direction === "DOWN") {
+							node.data.sourcePosition = Position.Bottom;
+							node.data.targetPosition = Position.Top;
+						} else {
+							node.data.sourcePosition = Position.Right;
+							node.data.targetPosition = Position.Left;
+						}
+						if (graph.id !== "root") {
+							node.parentId = graph.id;
+						}
+						resultNodes.push(node);
 					}
 				});
 
@@ -202,31 +256,42 @@ function LayoutFlow() {
 			setNodes(layoutedNodes);
 			setEdges(layoutedEdges);
 		}
-	}, [elkGraph, setNodes, setEdges, hiddenNodes]);
+	}, [elkGraph, setNodes, setEdges, direction]);
 
 	return (
-		<GraphContext.Provider value={{ setHiddenNodes, visibleDepth }}>
-			<ReactFlow
-				nodes={nodes}
-				edges={edges}
-				onNodesChange={onNodesChange}
-				onEdgesChange={onEdgesChange}
-				nodeTypes={nodeTypes}
-				minZoom={0.1}
-			>
-				{/* <Panel position="top-right">
-				<button onClick={() => onLayout({ direction: "DOWN" })}>
-					vertical layout
-				</button>
+		<>
+			<GraphContext.Provider value={{ excludedNodes, setExcludedNodes }}>
+				<ReactFlow
+					nodes={nodes}
+					edges={edges}
+					onNodesChange={onNodesChange}
+					onEdgesChange={onEdgesChange}
+					nodeTypes={nodeTypes}
+					minZoom={0.01}
+				>
+					<Panel position="top-right">
+						<Button onClick={() => setVisibleDepth(visibleDepth + 1)}>
+							<FaPlus />
+						</Button>
 
-				<button onClick={() => onLayout({ direction: "RIGHT" })}>
-					horizontal layout
-				</button>
-			</Panel> */}
-				<Controls />
-				<Background />
-			</ReactFlow>
-		</GraphContext.Provider>
+						<Button onClick={() => setVisibleDepth(visibleDepth - 1)}>
+							<FaMinus />
+						</Button>
+						{direction === "RIGHT" ? (
+							<Button onClick={() => setDirection("DOWN")}>
+								<FaArrowDown />
+							</Button>
+						) : (
+							<Button onClick={() => setDirection("RIGHT")}>
+								<FaArrowRight />
+							</Button>
+						)}
+					</Panel>
+					<Controls />
+					<Background />
+				</ReactFlow>
+			</GraphContext.Provider>
+		</>
 	);
 }
 const App = () => (

@@ -20,35 +20,35 @@ interface GraphStateNodeProps {
 //  this can later be edited to build the graph in the paraffin ui.
 
 function GraphNodeGroup({ data }: GraphStateNodeProps) {
-	const { setHiddenNodes, visibleDepth } = useContext(GraphContext);
-
-	const [excludedNodes, setExcludedNodes] = useState<string[]>([]);
-
-	// TODO: there still seems to be an issue with children of children
+	const { excludedNodes, setExcludedNodes } = useContext(GraphContext);
+	// TODO: no need for visibleDepth, no need to keep using setHiddenNodes
 
 	useEffect(() => {
-		if (data.depth >= visibleDepth) {
-			const children = data.node.children.map((child) => String(child.id));
-			setExcludedNodes(children);
-			setHiddenNodes((prev) => [...prev, ...children]);
-		}
-	}, []);
+		console.log("excludedNodes", excludedNodes);
+	}, [excludedNodes]);
 
 	const onCollapse = useCallback(() => {
 		// if excluded nodes length is 0
-		if (excludedNodes.length === 0) {
+		if (
+			excludedNodes?.[data.node.id]?.length === 0 ||
+			!excludedNodes[data.node.id]
+		) {
 			// set the children of the group as hidden
 			const children = data.node.children.map((child) => String(child.id));
-			setExcludedNodes(children);
-			setHiddenNodes((prev) => [...prev, ...children]);
+			setExcludedNodes((prev) => ({ ...prev, [data.node.id]: children }));
+			// setHiddenNodes((prev) => [...prev, ...children]);
 		} else {
 			// remove the children from the hidden nodes
-			setHiddenNodes((prev) =>
-				prev.filter((node) => !excludedNodes.includes(node)),
-			);
-			setExcludedNodes([]);
+			// setHiddenNodes((prev) =>
+			// 	prev.filter((node) => !excludedNodes[data.node.id].includes(node))
+			// );
+			setExcludedNodes((prev) => {
+				const newExcludedNodes = { ...prev };
+				delete newExcludedNodes[data.node.id];
+				return newExcludedNodes;
+			});
 		}
-	}, [excludedNodes, setHiddenNodes, data.node.children]);
+	}, [excludedNodes, data.node.children, setExcludedNodes]);
 
 	return (
 		<>
@@ -61,12 +61,12 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 			>
 				<Handle
 					type="target"
-					position={Position.Left}
+					position={data.targetPosition}
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
 				<Handle
 					type="source"
-					position={Position.Right}
+					position={data.sourcePosition}
 					id="a"
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
@@ -109,7 +109,9 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 							}}
 							onClick={onCollapse}
 						>
-							{excludedNodes.length === 0 ? (
+							{/* {excludedNodes.length === 0 ? ( */}
+							{excludedNodes?.[data.node.id]?.length === 0 ||
+							!excludedNodes[data.node.id] ? (
 								<BsArrowsAngleContract />
 							) : (
 								<BsArrowsAngleExpand />
@@ -126,8 +128,13 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 						}}
 					>
 						<Card.Text style={{ marginBottom: "0" }}>
-							{excludedNodes.length > 0 && (
-								<span>{excludedNodes.length} children hidden</span>
+							{excludedNodes?.[data.node.id]?.length > 0 && (
+								// TODO: this has to be recursive
+								// if the subnode is hidden, the children won't show up though
+								//  need a fix
+								<span>
+									{excludedNodes[data.node.id].length} children hidden
+								</span>
 							)}
 						</Card.Text>
 					</Card.Body>

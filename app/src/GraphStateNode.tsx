@@ -29,6 +29,8 @@ const statusColors: { [key: string]: string } = {
 function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
 
+	console.log("data", data);
+
 	useEffect(() => {
 		setColor(statusColors[data.node.status] || statusColors.default);
 	}, [data.node.status]);
@@ -45,12 +47,12 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 			>
 				<Handle
 					type="target"
-					position={Position.Left}
+					position={data.targetPosition}
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
 				<Handle
 					type="source"
-					position={Position.Right}
+					position={data.sourcePosition}
 					id="a"
 					style={{ background: "black", borderRadius: "50%" }}
 				/>
