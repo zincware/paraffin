@@ -4,7 +4,6 @@ import dataclasses
 import json
 
 from dvc.stage import PipelineStage
-from dvc.stage.cache import _get_cache_hash
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -28,4 +27,3 @@ class PipelineStageDC:
     def cmd(self) -> str:
         """Return the command of the stage."""
         return self.stage.cmd
-

@@ -8,7 +8,6 @@ import dvc.api
 import networkx as nx
 import yaml
 from dvc.repo.status import _local_status
-from dvc.stage.serialize import to_single_stage_lockfile
 
 from paraffin.stage import PipelineStageDC
 

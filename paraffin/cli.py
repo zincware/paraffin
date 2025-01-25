@@ -76,7 +76,9 @@ def worker(
             deps_hash = _get_cache_hash(reduced_lock, key=True)
             cached_job = find_cached_job(deps_cache=deps_hash)
             if cached_job:
-                log.info(f"Job '{job_obj['name']}' is cached and dvc.lock is available.")
+                log.info(
+                    f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+                )
 
         log.info(f"Running job '{job_obj['name']}'")
         # TODO: we need to ensure that all deps nodes are checked out!

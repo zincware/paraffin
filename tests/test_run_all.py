@@ -120,7 +120,6 @@ def test_run_selection_glob(proj01, caplog):
     result = runner.invoke(app, ["worker"])
     assert result.exit_code == 0
 
-
     assert check_finished(
         ["A_X_ParamsToOuts", "A_X_ParamsToOuts_1", "A_X_AddNodeNumbers"]
     )
