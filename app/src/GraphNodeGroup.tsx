@@ -1,5 +1,5 @@
-import { useCallback, useContext, useEffect, useState } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { useCallback, useContext, useEffect } from "react";
+import { Handle } from "@xyflow/react";
 import Card from "react-bootstrap/Card";
 import { GraphNode } from "./types";
 import { BsArrowsAngleContract, BsArrowsAngleExpand } from "react-icons/bs";
@@ -20,12 +20,9 @@ interface GraphStateNodeProps {
 //  this can later be edited to build the graph in the paraffin ui.
 
 function GraphNodeGroup({ data }: GraphStateNodeProps) {
-	const { excludedNodes, setExcludedNodes } = useContext(GraphContext);
+	const { excludedNodes, setExcludedNodes, experiment } =
+		useContext(GraphContext);
 	// TODO: no need for visibleDepth, no need to keep using setHiddenNodes
-
-	useEffect(() => {
-		console.log("excludedNodes", excludedNodes);
-	}, [excludedNodes]);
 
 	const onCollapse = useCallback(() => {
 		// if excluded nodes length is 0

@@ -69,8 +69,15 @@ def get_stage_graph(names) -> nx.DiGraph:
 
     mapping = {}
     with fs.repo.lock:
-        for node in subgraph.nodes:
+        for node in nx.topological_sort(subgraph):
             status = node.status(check_updates=True)
+
+            for pred in nx.ancestors(graph, node):
+                if pred in mapping:
+                    if mapping[pred].changed:
+                        status[node.name] = status.get(node.name, []) + ["changed by upstream"]
+                        log.debug(f"Stage {node.name} is changed by upstream stage {pred.name}")
+                        break
             
             mapping[node] = PipelineStageDC(stage=node, status=json.dumps(status.get(node.name, [])))
     

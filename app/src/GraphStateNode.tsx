@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { useState, useEffect, useContext } from "react";
+import { Handle } from "@xyflow/react";
 import Card from "react-bootstrap/Card";
 import { FaSpinner } from "react-icons/fa";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
 import Markdown from "react-markdown";
 import { GraphNode } from "./types";
+import GraphContext from "./GraphContext";
 
 interface GraphStateNodeProps {
 	data: {
@@ -28,14 +29,32 @@ const statusColors: { [key: string]: string } = {
 
 function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
+	const [nodeData, setNodeData] = useState({}); // nodeData.stdout / stderr
+	const [show, setShow] = useState(false);
+	const { excludedNodes, setExcludedNodes, experiment } =
+		useContext(GraphContext);
 
-	console.log("data", data);
+	// TODO: fetch all node data here and not via the graph!
+	const fetchNodeData = async () => {
+		const res = await fetch(
+			"/api/v1/job" + "?experiment=" + experiment + "&name=" + data.node.name,
+		);
+		if (!res.ok) {
+			throw new Error(`HTTP error! Status: ${res.status}`);
+		}
+		const decodedRes = await res.json();
+		setNodeData(decodedRes);
+	};
+
+	useEffect(() => {
+		if (show) {
+			fetchNodeData();
+		}
+	}, [show]);
 
 	useEffect(() => {
 		setColor(statusColors[data.node.status] || statusColors.default);
 	}, [data.node.status]);
-
-	const [show, setShow] = useState(false);
 
 	const handleClose = () => setShow(false);
 	const handleShow = () => setShow(true);
@@ -104,7 +123,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 			</div>
 			<Modal show={show} onHide={handleClose} size="lg">
 				<Modal.Header closeButton>
-					<Modal.Title>{data.node.label}</Modal.Title>
+					<Modal.Title>{data.node.id}</Modal.Title>
 				</Modal.Header>
 				<Modal.Body>
 					<Markdown>
@@ -124,6 +143,18 @@ ${data.node.deps_hash}
 `}
 						{/* TODO: show node-meta.json if requested */}
 					</Markdown>
+					{nodeData.stdout && (
+						<>
+							<h5>STDOUT</h5>
+							<pre>{nodeData.stdout}</pre>
+						</>
+					)}
+					{nodeData.stderr && (
+						<>
+							<h5>STDERR</h5>
+							<pre>{nodeData.stderr}</pre>
+						</>
+					)}
 				</Modal.Body>
 				<Modal.Footer>
 					<Button variant="secondary" onClick={handleClose}>

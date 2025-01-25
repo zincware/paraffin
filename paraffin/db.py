@@ -30,6 +30,8 @@ class Job(SQLModel, table=True):
     deps_lock: str = ""  # JSON string of lockfile for the dependencies
     deps_hash: str = ""  # Hash of the dependencies
     experiment_id: Optional[int] = Field(foreign_key="experiment.id")
+    stderr: str = ""  # stderr output
+    stdout: str = ""  # stdout output
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -138,7 +140,6 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict |
 
         # Process each job to check if all parents are completed
         for job in results:
-            print(len(job.parents))
             if all(parent.status == "completed" for parent in job.parents):
                 job.status = "running"
                 session.add(job)
@@ -176,7 +177,7 @@ def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
 
 
 def complete_job(
-    job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed"
+    job_id: int, lock: dict, db: str = "sqlite:///jobs.db", status: str = "completed", stderr: str = "", stdout: str = ""
 ):
     engine = create_engine(db)
     with Session(engine) as session:
@@ -185,8 +186,11 @@ def complete_job(
         job = results.one()
         job.status = status
         job.lock = json.dumps(lock)
+        job.stderr = stderr
+        job.stdout = stdout
         session.add(job)
         session.commit()
+
 
 
 def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
@@ -211,3 +215,12 @@ def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
             for parent in job.parents:
                 edges.append({"source": str(parent.id), "target": str(job.id)})
         return nodes, edges
+
+
+def get_stdout_stderr(job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db") -> dict[str, str]:
+    engine = create_engine(db)
+    with Session(engine) as session:
+        statement = select(Job).where(Job.experiment_id == experiment_id).where(Job.name == job_name)
+        results = session.exec(statement)
+        job = results.one()
+        return {"stdout": job.stdout, "stderr": job.stderr}

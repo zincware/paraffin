@@ -15,7 +15,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Card, Button } from "react-bootstrap";
 import Table from "react-bootstrap/Table";
-import { FaPlus, FaMinus, FaArrowRight, FaArrowDown } from "react-icons/fa";
+import { FaPlus, FaMinus, FaArrowRight, FaArrowDown, FaRedo } from "react-icons/fa";
+
 import GraphStateNode from "./GraphStateNode";
 import GraphNodeGroup from "./GraphNodeGroup";
 import GraphContext from "./GraphContext";
@@ -23,13 +24,15 @@ import "./App.css";
 
 const elk = new ELK();
 
-async function fetchElkGraph(experiment: string) {
+async function fetchElkGraph(experiment: string|null) {
+	if (experiment === null) {
+		return;
+	}
 	const res = await fetch("/api/v1/graph" + "?experiment=" + experiment);
 	if (!res.ok) {
 		throw new Error(`HTTP error! Status: ${res.status}`);
 	}
 	const data = await res.json();
-	console.log("data", data);
 	return data;
 }
 
@@ -52,9 +55,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 	);
 
 	useEffect(() => {
-		if (experiment === null) {
-			return;
-		}
 		fetchElkGraph(experiment).then((graph) => {
 			setRawGraph(graph);
 		});
@@ -145,8 +145,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 				);
 			});
 
-			console.log("rawGraphCopy", rawGraphCopy);
-
 			// Run the ELK layout
 			elk
 				.layout(rawGraphCopy, {
@@ -160,7 +158,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 					},
 				})
 				.then((layoutedGraph) => {
-					console.log("layoutedGraph", layoutedGraph);
 					setElkGraph(layoutedGraph); // Update the layouted graph state
 				});
 		}
@@ -263,7 +260,9 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 
 	return (
 		<>
-			<GraphContext.Provider value={{ excludedNodes, setExcludedNodes }}>
+			<GraphContext.Provider
+				value={{ excludedNodes, setExcludedNodes, experiment }}
+			>
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
@@ -279,6 +278,9 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 
 						<Button onClick={() => setVisibleDepth(visibleDepth - 1)}>
 							<FaMinus />
+						</Button>
+						<Button onClick={() => fetchElkGraph(experiment).then((graph) => {setRawGraph(graph);})}>
+							<FaRedo />
 						</Button>
 						{direction === "RIGHT" ? (
 							<Button onClick={() => setDirection("DOWN")}>
