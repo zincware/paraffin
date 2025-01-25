@@ -1,10 +1,10 @@
+import datetime
 import logging
 import socket
 import subprocess
+import time
 import typing as t
 import webbrowser
-import time
-import datetime
 
 import dvc.api
 import git
@@ -13,7 +13,15 @@ import uvicorn
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
 
-from paraffin.db import complete_job, find_cached_job, get_job, save_graph_to_db, register_worker, update_worker, close_worker
+from paraffin.db import (
+    close_worker,
+    complete_job,
+    find_cached_job,
+    get_job,
+    register_worker,
+    save_graph_to_db,
+    update_worker,
+)
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph
 
@@ -68,12 +76,16 @@ def worker(
             # now we want to compute another stage.save() to check if the stage is changed
 
             if job_obj is None:
-                remaining_seconds = timeout - (datetime.datetime.now() - last_seen).seconds
+                remaining_seconds = (
+                    timeout - (datetime.datetime.now() - last_seen).seconds
+                )
                 if remaining_seconds <= 0:
                     log.info("Timeout reached - exiting.")
                     break
                 time.sleep(1)
-                log.info(f"No more job found - sleeping until closing in {remaining_seconds} seconds")
+                log.info(
+                    f"No more job found - sleeping until closing in {remaining_seconds} seconds"
+                )
                 continue
             last_seen = datetime.datetime.now()
 
@@ -82,13 +94,15 @@ def worker(
             # This will search the DB and not rely on DVC run cache to determine if the job is cached
             #  so this can easily work across directories
 
-             # TODO: this can be the cause for a lock issue!
+            # TODO: this can be the cause for a lock issue!
             with fs.repo.lock:
                 stage = fs.repo.stage.collect(job_obj["name"])[0]
                 stage.save(allow_missing=True, run_cache=False)
                 stage_lock = to_single_stage_lockfile(stage, with_files=True)
                 reduced_lock = {
-                    k: v for k, v in stage_lock.items() if k in ["params", "deps", "cmd"]
+                    k: v
+                    for k, v in stage_lock.items()
+                    if k in ["params", "deps", "cmd"]
                 }
                 deps_hash = _get_cache_hash(reduced_lock, key=True)
                 cached_job = find_cached_job(deps_cache=deps_hash)
@@ -100,7 +114,7 @@ def worker(
             log.info(f"Running job '{job_obj['name']}'")
             # TODO: we need to ensure that all deps nodes are checked out!
             #  this will be important when clone / push.
-             # TODO: this can be the cause for a lock issue!
+            # TODO: this can be the cause for a lock issue!
             result = subprocess.run(
                 f"dvc repro -s {job_obj['name']}", shell=True, capture_output=True
             )

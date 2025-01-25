@@ -18,6 +18,7 @@ class Worker(SQLModel, table=True):
     status: str = "idle"  # idle, busy, offline
     last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
+
 class JobDependency(SQLModel, table=True):
     parent_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
     child_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
@@ -213,7 +214,10 @@ def complete_job(
         session.add(job)
         session.commit()
 
-def update_job_status(job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db") -> int:
+
+def update_job_status(
+    job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db"
+) -> int:
     engine = create_engine(db)
     with Session(engine) as session:
         statement = (
@@ -229,6 +233,7 @@ def update_job_status(job_name: str, experiment_id: int, status: str, db: str = 
         session.add(job)
         session.commit()
     return 0
+
 
 def get_job_dump(
     job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
@@ -263,6 +268,7 @@ def register_worker(name: str, machine: str, db: str = "sqlite:///jobs.db") -> i
         session.commit()
         return worker.id
 
+
 def update_worker(id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
     engine = create_engine(db)
     with Session(engine) as session:
@@ -272,6 +278,7 @@ def update_worker(id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
         session.add(worker)
         session.commit()
 
+
 def close_worker(id: int, db: str = "sqlite:///jobs.db") -> None:
     engine = create_engine(db)
     with Session(engine) as session:
@@ -280,6 +287,7 @@ def close_worker(id: int, db: str = "sqlite:///jobs.db") -> None:
         worker.last_seen = datetime.datetime.now()
         session.add(worker)
         session.commit()
+
 
 def list_workers(db: str = "sqlite:///jobs.db") -> list[dict]:
     engine = create_engine(db)

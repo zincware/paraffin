@@ -5,7 +5,13 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from paraffin.db import db_to_graph, get_job_dump, list_experiments, list_workers, update_job_status
+from paraffin.db import (
+    db_to_graph,
+    get_job_dump,
+    list_experiments,
+    list_workers,
+    update_job_status,
+)
 from paraffin.utils import build_elk_hierarchy
 
 FILE = Path(__file__)
@@ -54,7 +60,10 @@ def read_job(name: str, experiment: int):
 def read_workers():
     return list_workers()
 
+
 # update_job_status
 @app.get("/api/v1/job/update")
 def update_job(name: str, experiment: int, status: str = "pending"):
-    return update_job_status(job_name=name, experiment_id=int(experiment), status=status)
+    return update_job_status(
+        job_name=name, experiment_id=int(experiment), status=status
+    )
