@@ -4,8 +4,9 @@ import json
 from typing import List, Optional
 
 import networkx as nx
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select, or_
 from dvc.stage.cache import _get_cache_hash
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
+
 
 from paraffin.stage import PipelineStageDC
 
@@ -30,11 +31,14 @@ class Job(SQLModel, table=True):
     status: str = "pending"  # pending, running, completed, failed
     queue: str = "default"  # Queue name(s)
     lock: str = ""  # JSON string of lockfile for the stage
-    deps_lock: str = ""  # JSON string of lockfile for the dependencies
     deps_hash: str = ""  # Hash of the dependencies
     experiment_id: Optional[int] = Field(foreign_key="experiment.id")
     stderr: str = ""  # stderr output
     stdout: str = ""  # stdout output
+    started_at: Optional[datetime.datetime] = None
+    finished_at: Optional[datetime.datetime] = None
+    machine: str = ""  # Machine where the job was executed
+    worker: str = ""  # Worker that executed the job
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -72,12 +76,24 @@ def save_graph_to_db(
                 if fnmatch.fnmatch(node.name, pattern):
                     queue = q
                     break
+            status = "pending"
+            # check if the deps_hash is already in the database
+            cached = len(session.exec(
+                select(Job).where(Job.deps_hash == node.deps_hash)
+            ).all()) > 0
+            if cached:
+                status = "cached"
+            if not node.changed:
+                print(f"Skipping {node.name} because it has not changed.")
+                status = "completed"
+
             job = Job(
                 cmd=node.cmd,
                 name=node.name,
                 queue=queue,
-                status="pending" if node.changed else "completed",
+                status=status,
                 experiment_id=experiment.id,
+                lock=node.lock,
             )
             session.add(job)
             # add dependencies
@@ -114,7 +130,6 @@ def db_to_graph(db: str = "sqlite:///jobs.db", experiment_id: int = 1) -> nx.DiG
                     "status": job.status,
                     "queue": job.queue,
                     "lock": json.loads(job.lock) if job.lock else None,
-                    "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
                     "deps_hash": job.deps_hash,
                     "group": get_group(job.name),
                 },
@@ -134,14 +149,14 @@ def get_group(name: str) -> list[str]:
     return parts[:-1]
 
 
-def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict | None:
+def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None, worker: str = "", machine: str = "") -> dict | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
     """
     engine = create_engine(db)
     with Session(engine) as session:
         # Fetch jobs with 'pending' status, eagerly loading their parents
-        statement = select(Job).where(Job.status == "pending")
+        statement = select(Job).where(or_(Job.status == "pending", Job.status == "cached"))
         if queues:
             statement = statement.where(Job.queue.in_(queues))
         results = session.exec(statement)
@@ -150,6 +165,9 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict |
         for job in results:
             if all(parent.status == "completed" for parent in job.parents):
                 job.status = "running"
+                job.started_at = datetime.datetime.now()
+                job.worker = worker
+                job.machine = machine
                 session.add(job)
                 session.commit()
                 return {
@@ -160,28 +178,6 @@ def get_job(db: str = "sqlite:///jobs.db", queues: list | None = None) -> dict |
                     "status": job.status,
                 }
     return None
-
-
-def set_job_deps_lock(job_id: int, lock: dict, db: str = "sqlite:///jobs.db"):
-    engine = create_engine(db)
-
-    reduced_lock = {}
-
-    if x := lock.get("cmd"):
-        reduced_lock["cmd"] = x
-    if x := lock.get("params"):
-        reduced_lock["params"] = x
-    if x := lock.get("deps"):
-        reduced_lock["deps"] = x
-
-    with Session(engine) as session:
-        statement = select(Job).where(Job.id == job_id)
-        results = session.exec(statement)
-        job = results.one()
-        job.deps_lock = json.dumps(reduced_lock)
-        job.deps_hash = _get_cache_hash(reduced_lock)
-        session.add(job)
-        session.commit()
 
 
 def complete_job(
@@ -201,32 +197,13 @@ def complete_job(
         job.lock = json.dumps(lock)
         job.stderr = stderr
         job.stdout = stdout
+        job.finished_at = datetime.datetime.now()
+        # We only write the deps_hash to the database once the job has finished successfully!
+        if status == "completed":
+            reduced_lock = {k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]}
+            job.deps_hash = _get_cache_hash(reduced_lock, key=True)
         session.add(job)
         session.commit()
-
-
-def get_nodes_and_edges(db: str = "sqlite:///jobs.db") -> tuple[list, list]:
-    engine = create_engine(db)
-    with Session(engine) as session:
-        jobs = session.exec(select(Job)).all()
-        nodes = []
-        edges = []
-        for job in jobs:
-            nodes.append(
-                {
-                    "id": str(job.id),
-                    "label": job.name,
-                    "status": job.status,
-                    "queue": job.queue,
-                    "lock": json.loads(job.lock) if job.lock else None,
-                    "deps_lock": json.loads(job.deps_lock) if job.deps_lock else None,
-                    "deps_hash": job.deps_hash,
-                    "group": get_group(job.name),
-                }
-            )
-            for parent in job.parents:
-                edges.append({"source": str(parent.id), "target": str(job.id)})
-        return nodes, edges
 
 
 def get_stdout_stderr(
@@ -241,4 +218,4 @@ def get_stdout_stderr(
         )
         results = session.exec(statement)
         job = results.one()
-        return {"stdout": job.stdout, "stderr": job.stderr}
+        return job.model_dump()

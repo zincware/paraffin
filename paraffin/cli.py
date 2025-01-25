@@ -10,7 +10,7 @@ import typer
 import uvicorn
 from dvc.stage.serialize import to_single_stage_lockfile
 
-from paraffin.db import complete_job, get_job, save_graph_to_db, set_job_deps_lock
+from paraffin.db import complete_job, get_job, save_graph_to_db
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph
 
@@ -35,6 +35,7 @@ def worker(
         envvar="PARAFFIN_QUEUES",
         help="Comma separated list of queues to listen on.",
     ),
+    name: str = typer.Option("default", "--name", "-n", help="Worker name."),
 ):
     """Start a Celery worker."""
     queues = queues.split(",")
@@ -42,18 +43,11 @@ def worker(
     logging.basicConfig(level=logging.INFO)
     log.info(f"Listening on queues: {queues}")
     while True:
-        job = get_job(queues=queues)
+        job = get_job(queues=queues, worker=name, machine=socket.gethostname())
         if job is None:
             # TODO: timeout
             log.info("No more job found - exiting.")
             return
-
-        fs = dvc.api.DVCFileSystem(url=None, rev=None)
-        with fs.repo.lock:
-            stage = fs.repo.stage.collect(job["name"])[0]
-            stage.save(allow_missing=True)
-        stage_lock = to_single_stage_lockfile(stage, with_files=True)
-        set_job_deps_lock(job["id"], stage_lock)
 
         result = subprocess.run(
             f"dvc repro -s {job['name']}", shell=True, capture_output=True
@@ -114,6 +108,7 @@ def submit(
 
     log.debug("Getting stage graph")
     graph = get_stage_graph(names=names)
+
     custom_queues = get_custom_queue()
     save_graph_to_db(
         graph,

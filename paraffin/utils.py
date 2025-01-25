@@ -5,6 +5,8 @@ import pathlib
 from collections import defaultdict
 
 import dvc.api
+from dvc.stage.serialize import to_single_stage_lockfile
+from dvc.repo.status import _local_status
 import networkx as nx
 import yaml
 
@@ -71,7 +73,11 @@ def get_stage_graph(names) -> nx.DiGraph:
     mapping = {}
     with fs.repo.lock:
         for node in nx.topological_sort(subgraph):
-            status = node.status(check_updates=True)
+            node.save(allow_missing=True, run_cache=False)
+            status = _local_status(fs.repo, targets=[node.name], check_updates=True)
+            if len(status) > 0:
+                print(f"Stage {node.name} is changed")
+            lock = to_single_stage_lockfile(node, with_files=True)
 
             for pred in nx.ancestors(graph, node):
                 if pred in mapping:
@@ -85,7 +91,7 @@ def get_stage_graph(names) -> nx.DiGraph:
                         break
 
             mapping[node] = PipelineStageDC(
-                stage=node, status=json.dumps(status.get(node.name, []))
+                stage=node, status=json.dumps(status.get(node.name, [])), lock=json.dumps(lock)
             )
 
     return nx.relabel_nodes(subgraph, mapping, copy=True)

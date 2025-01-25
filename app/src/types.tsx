@@ -5,7 +5,6 @@ export type GraphNode = {
 	status: string;
 	queue: string;
 	lock: object;
-	deps_lock: object;
 	deps_hash: string;
 	group: string[];
 };

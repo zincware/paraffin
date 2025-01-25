@@ -21,18 +21,27 @@ const statusColors: { [key: string]: string } = {
 	running: "blue",
 	completed: "green",
 	failed: "red",
-	default: "white",
+	cached: "purple",
+	default: "orange",
 };
+
+interface NodeData {
+	stdout: string;
+	stderr: string;
+	started_at: string;
+	finished_at: string;
+	machine: string;
+	worker: string;
+}
 
 // TODO: on the edge between the nodes, show infos on which attributes are connected.
 //  this can later be edited to build the graph in the paraffin ui.
 
 function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
-	const [nodeData, setNodeData] = useState({}); // nodeData.stdout / stderr
+	const [nodeData, setNodeData] = useState<NodeData>({}); // nodeData.stdout / stderr / 
 	const [show, setShow] = useState(false);
-	const { excludedNodes, setExcludedNodes, experiment } =
-		useContext(GraphContext);
+	const { excludedNodes, setExcludedNodes, experiment } = useContext(GraphContext);
 
 	// TODO: fetch all node data here and not via the graph!
 	const fetchNodeData = async () => {
@@ -128,13 +137,13 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 				<Modal.Body>
 					<Markdown>
 						{`
-  #### DVC Stage Lock
+#### Run this Node
+~~~
+paraffin worker --job ${data.node.id} --experiment ${experiment}
+~~~
+#### DVC Stage Lock
 ~~~dict
 ${JSON.stringify(data.node.lock, null, 4)}
-~~~
-#### DVC Stage Dependencies Lock
-~~~dict
-${JSON.stringify(data.node.deps_lock, null, 4)}
 ~~~
 #### DVC Stage Dependencies Hash
 ~~~
@@ -155,6 +164,18 @@ ${data.node.deps_hash}
 							<pre>{nodeData.stderr}</pre>
 						</>
 					)}
+					{nodeData.worker && (
+						<>
+							<h5>Worker</h5>
+							<pre>{nodeData.worker}@{nodeData.machine}</pre>
+							<h5>Started At</h5>
+							<pre>{nodeData.started_at}</pre>
+							<h5>Finished At</h5>
+							<pre>{nodeData.finished_at}</pre>
+						</>
+					)}
+
+
 				</Modal.Body>
 				<Modal.Footer>
 					<Button variant="secondary" onClick={handleClose}>
