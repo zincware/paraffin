@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from paraffin.db import db_to_graph, get_stdout_stderr, list_experiments
+from paraffin.db import db_to_graph, get_job_dump, list_experiments
 from paraffin.utils import build_elk_hierarchy
 
 FILE = Path(__file__)
@@ -47,4 +47,4 @@ def spawn():
 
 @app.get("/api/v1/job")
 def read_job(name: str, experiment: int):
-    return get_stdout_stderr(job_name=name, experiment_id=int(experiment))
+    return get_job_dump(job_name=name, experiment_id=int(experiment))

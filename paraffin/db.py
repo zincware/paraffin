@@ -8,6 +8,7 @@ from dvc.stage.cache import _get_cache_hash
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_, select
 
 from paraffin.stage import PipelineStageDC
+from paraffin.utils import get_group
 
 
 class JobDependency(SQLModel, table=True):
@@ -134,15 +135,6 @@ def db_to_graph(db: str = "sqlite:///jobs.db", experiment_id: int = 1) -> nx.DiG
     return graph
 
 
-def get_group(name: str) -> list[str]:
-    """Extract the group from the job name."""
-    parts = name.split("_")
-    # check if parts[-1] is a number
-    if parts[-1].isdigit():
-        return parts[:-2]
-    return parts[:-1]
-
-
 def get_job(
     db: str = "sqlite:///jobs.db",
     queues: list | None = None,
@@ -215,7 +207,7 @@ def complete_job(
         session.commit()
 
 
-def get_stdout_stderr(
+def get_job_dump(
     job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
 ) -> dict[str, str]:
     engine = create_engine(db)

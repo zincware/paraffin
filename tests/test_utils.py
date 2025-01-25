@@ -1,4 +1,4 @@
-from paraffin.db import get_group
+from paraffin.utils import get_group
 
 
 def test_get_group():

@@ -92,27 +92,6 @@ def get_stage_graph(names) -> nx.DiGraph:
     return nx.relabel_nodes(subgraph, mapping, copy=True)
 
 
-def get_changed_stages(subgraph) -> list:
-    fs = dvc.api.DVCFileSystem(url=None, rev=None)
-    repo = fs.repo
-    names = [x.name for x in subgraph.nodes]
-    log.debug(f"Checking status for stages: {names}")
-    changed = list(repo.status(targets=names))
-    graph = fs.repo.index.graph.reverse(copy=True)
-    # find all downstream stages and add them to the changed list
-    # Issue with changed stages is, if any upstream stage was changed
-    # then we need to run ALL downstream stages, because
-    # dvc status does not know / tell us because the immediate
-    # upstream stage was unchanged at the point of checking.
-
-    for name in changed:
-        stage = next(x for x in graph.nodes if hasattr(x, "name") and x.name == name)
-        for node in nx.descendants(graph, stage):
-            changed.append(node.name)
-    # TODO: split into definitely changed and maybe changed stages
-    return changed
-
-
 def get_custom_queue():
     try:
         with pathlib.Path("paraffin.yaml").open() as f:
@@ -183,3 +162,12 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
     }
 
     return elk_graph
+
+
+def get_group(name: str) -> list[str]:
+    """Extract the group from the job name."""
+    parts = name.split("_")
+    # check if parts[-1] is a number
+    if parts[-1].isdigit():
+        return parts[:-2]
+    return parts[:-1]
