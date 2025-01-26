@@ -53,7 +53,7 @@ interface ElkSettingsProps {
 	layoutOptions: Record<string, any>; // Flexible key-value pair object
 	setLayoutOptions: (options: Record<string, any>) => void;
   }
-  
+
   const ElkSettings: React.FC<ElkSettingsProps> = ({ layoutOptions, setLayoutOptions }) => {
 
 	const inputFormRef = useRef<HTMLTextAreaElement>(null);

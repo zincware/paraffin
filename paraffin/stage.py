@@ -2,18 +2,18 @@
 
 import dataclasses
 import json
-
-from dvc.stage import PipelineStage
-import dvc.api
-import time
-
-from dvc.stage.cache import _get_cache_hash
-from dvc.stage.serialize import to_single_stage_lockfile
-from dvc.lock import LockError
 import logging
 import subprocess
+import time
+
+import dvc.api
+from dvc.lock import LockError
+from dvc.stage import PipelineStage
+from dvc.stage.cache import _get_cache_hash
+from dvc.stage.serialize import to_single_stage_lockfile
 
 log = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class PipelineStageDC:
@@ -38,7 +38,7 @@ class PipelineStageDC:
         return self.stage.cmd
 
 
-def retry(times, exceptions, delay: float=0):
+def retry(times, exceptions, delay: float = 0):
     """
     Retry Decorator
     Retries the wrapped function/method `times` times if the exceptions listed
@@ -48,6 +48,7 @@ def retry(times, exceptions, delay: float=0):
     :param Exceptions: Lists of exceptions that trigger a retry attempt
     :type Exceptions: Tuple of Exceptions
     """
+
     def decorator(func):
         def newfn(*args, **kwargs):
             attempt = 0
@@ -59,7 +60,9 @@ def retry(times, exceptions, delay: float=0):
                     log.warning(f"Caught exception {e} - retrying {attempt}/{times}")
                     time.sleep(delay)
             return func(*args, **kwargs)
+
         return newfn
+
     return decorator
 
 
@@ -71,12 +74,10 @@ def get_lock(name: str) -> tuple[dict, str]:
         stage.save(allow_missing=True, run_cache=False)
         stage_lock = to_single_stage_lockfile(stage, with_files=True)
         reduced_lock = {
-            k: v
-            for k, v in stage_lock.items()
-            if k in ["params", "deps", "cmd"]
+            k: v for k, v in stage_lock.items() if k in ["params", "deps", "cmd"]
         }
         deps_hash = _get_cache_hash(reduced_lock, key=True)
-    
+
     return stage_lock, deps_hash
 
 
@@ -107,15 +108,16 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
     return_code = popen.wait()
     return return_code, "".join(stdout_lines), "".join(stderr_lines)
 
+
 @retry(3, (LockError,), delay=0.5)
 def repro(name: str) -> tuple[int, str, str]:
     """Reproduce a DVC stage.
-    
+
     Parameters
     ----------
         name : str
             The name of the stage to reproduce.
-    
+
     Returns
     -------
         Tuple[int, str, str]
@@ -125,7 +127,9 @@ def repro(name: str) -> tuple[int, str, str]:
     stderr_lines = []
 
     # Run the main repro command
-    return_code, repro_stdout, repro_stderr = run_command(["dvc", "repro", "--single-item", name])
+    return_code, repro_stdout, repro_stderr = run_command(
+        ["dvc", "repro", "--single-item", name]
+    )
     stdout_lines.append(repro_stdout)
     stderr_lines.append(repro_stderr)
 
@@ -142,7 +146,7 @@ def repro(name: str) -> tuple[int, str, str]:
                 stdout_lines.append(commit_stdout)
                 stderr_lines.append(commit_stderr)
                 if commit_code == 0:
-                    return_code = 0 # we were able to commit the lock
+                    return_code = 0  # we were able to commit the lock
                     break
             except subprocess.CalledProcessError:
                 time.sleep(0.5)

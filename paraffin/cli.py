@@ -1,7 +1,6 @@
 import datetime
 import logging
 import socket
-import subprocess
 import time
 import typing as t
 import webbrowser
@@ -19,9 +18,9 @@ from paraffin.db import (
     save_graph_to_db,
     update_worker,
 )
+from paraffin.stage import get_lock, repro
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph
-from paraffin.stage import get_lock, repro
 
 log = logging.getLogger(__name__)
 
@@ -89,7 +88,7 @@ def worker(
 
             update_worker(worker_id, status="running")
 
-            # This will search the DB and not rely on DVC run cache to determine if 
+            # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
             _, deps_hash = get_lock(job_obj["name"])
             cached_job = find_cached_job(deps_cache=deps_hash)
@@ -110,7 +109,7 @@ def worker(
                     status="failed",
                     lock={},
                     stdout=stdout,
-                    stderr=stderr
+                    stderr=stderr,
                 )
             else:
                 stage_lock, _ = get_lock(job_obj["name"])
