@@ -25,7 +25,7 @@ pip install paraffin
 
 ## Usage
 
-### `paraffin submit`
+### paraffin submit
 You can submit your current DVC workflow to a database file `paraffin.db` for later execution.
 
 > [!TIP]
@@ -34,14 +34,21 @@ You can submit your current DVC workflow to a database file `paraffin.db` for la
 paraffin submit C_AddNodeNumbers "A*"
 ```
 
-### `paraffin worker`
+### paraffin worker
 A submitted job will be executed by paraffin workers.
 To start a worker you can run `paraffin worker`.
 The worker will pick up all the jobs in the workeres queue and close once finished.
 
-### `paraffin ui`
+```bash
+paraffin worker
+```
+
+### paraffin ui
 Paraffin ships with a web application for visualizing the progress.
-You can start it using `paraffin ui`.
+You can start it using
+```bash
+paraffin ui
+```
 
 ## Queue Labels
 
