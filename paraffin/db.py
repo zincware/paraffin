@@ -70,7 +70,7 @@ class Job(SQLModel, table=True):
 def save_graph_to_db(
     graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str
 ) -> None:
-    engine = create_engine("sqlite:///jobs.db")
+    engine = create_engine("sqlite:///paraffin.db")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         experiment = Experiment(base=commit, origin=origin, machine=machine)
@@ -111,14 +111,14 @@ def save_graph_to_db(
         session.commit()
 
 
-def list_experiments(db: str = "sqlite:///jobs.db", commit: str = "HEAD") -> list[dict]:
+def list_experiments(db: str = "sqlite:///paraffin.db", commit: str = "HEAD") -> list[dict]:
     engine = create_engine(db)
     with Session(engine) as session:
         exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
         return [exp.model_dump() for exp in exps]
 
 
-def db_to_graph(db: str = "sqlite:///jobs.db", experiment_id: int = 1) -> nx.DiGraph:
+def db_to_graph(db: str = "sqlite:///paraffin.db", experiment_id: int = 1) -> nx.DiGraph:
     engine = create_engine(db)
     with Session(engine) as session:
         # TODO: select the correct experiment!
@@ -144,7 +144,7 @@ def db_to_graph(db: str = "sqlite:///jobs.db", experiment_id: int = 1) -> nx.DiG
 
 
 def get_job(
-    db: str = "sqlite:///jobs.db",
+    db: str = "sqlite:///paraffin.db",
     queues: list | None = None,
     worker: str = "",
     machine: str = "",
@@ -190,7 +190,7 @@ def get_job(
 def complete_job(
     job_id: int,
     lock: dict,
-    db: str = "sqlite:///jobs.db",
+    db: str = "sqlite:///paraffin.db",
     status: str = "completed",
     stderr: str = "",
     stdout: str = "",
@@ -216,7 +216,7 @@ def complete_job(
 
 
 def update_job_status(
-    job_name: str, experiment_id: int, status: str, db: str = "sqlite:///jobs.db"
+    job_name: str, experiment_id: int, status: str, db: str = "sqlite:///paraffin.db"
 ) -> int:
     engine = create_engine(db)
     with Session(engine) as session:
@@ -236,7 +236,7 @@ def update_job_status(
 
 
 def get_job_dump(
-    job_name: str, experiment_id: int, db: str = "sqlite:///jobs.db"
+    job_name: str, experiment_id: int, db: str = "sqlite:///paraffin.db"
 ) -> dict[str, str]:
     engine = create_engine(db)
     with Session(engine) as session:
@@ -250,7 +250,7 @@ def get_job_dump(
         return job.model_dump()
 
 
-def find_cached_job(db: str = "sqlite:///jobs.db", deps_cache: str = "") -> dict:
+def find_cached_job(db: str = "sqlite:///paraffin.db", deps_cache: str = "") -> dict:
     engine = create_engine(db)
     with Session(engine) as session:
         statement = select(Job).where(Job.deps_hash == deps_cache)
@@ -260,7 +260,7 @@ def find_cached_job(db: str = "sqlite:///jobs.db", deps_cache: str = "") -> dict
     return {}
 
 
-def register_worker(name: str, machine: str, db: str = "sqlite:///jobs.db") -> int:
+def register_worker(name: str, machine: str, db: str = "sqlite:///paraffin.db") -> int:
     engine = create_engine(db)
     with Session(engine) as session:
         worker = Worker(name=name, machine=machine)
@@ -269,7 +269,7 @@ def register_worker(name: str, machine: str, db: str = "sqlite:///jobs.db") -> i
         return worker.id
 
 
-def update_worker(id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
+def update_worker(id: int, status: str, db: str = "sqlite:///paraffin.db") -> None:
     engine = create_engine(db)
     with Session(engine) as session:
         worker = session.exec(select(Worker).where(Worker.id == id)).one()
@@ -279,7 +279,7 @@ def update_worker(id: int, status: str, db: str = "sqlite:///jobs.db") -> None:
         session.commit()
 
 
-def close_worker(id: int, db: str = "sqlite:///jobs.db") -> None:
+def close_worker(id: int, db: str = "sqlite:///paraffin.db") -> None:
     engine = create_engine(db)
     with Session(engine) as session:
         worker = session.exec(select(Worker).where(Worker.id == id)).one()
@@ -289,7 +289,7 @@ def close_worker(id: int, db: str = "sqlite:///jobs.db") -> None:
         session.commit()
 
 
-def list_workers(db: str = "sqlite:///jobs.db") -> list[dict]:
+def list_workers(db: str = "sqlite:///paraffin.db") -> list[dict]:
     engine = create_engine(db)
     with Session(engine) as session:
         workers = session.exec(select(Worker).where(Worker.status != "offline")).all()

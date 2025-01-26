@@ -171,3 +171,19 @@ def get_group(name: str) -> list[str]:
     if parts[-1].isdigit():
         return parts[:-2]
     return parts[:-1]
+
+
+def update_gitignore(line: str):
+    """Add a line to the .gitignore file."""
+    gitignore = pathlib.Path(".gitignore")
+    if not gitignore.exists():
+        gitignore.touch()
+
+    with gitignore.open("r") as f:
+        lines = f.readlines()
+
+    if line not in lines:
+        lines.append(line)
+
+    with gitignore.open("w") as f:
+        f.writelines(lines)

@@ -20,7 +20,7 @@ from paraffin.db import (
 )
 from paraffin.stage import get_lock, repro
 from paraffin.ui.app import app as webapp
-from paraffin.utils import get_custom_queue, get_stage_graph
+from paraffin.utils import get_custom_queue, get_stage_graph, update_gitignore
 
 log = logging.getLogger(__name__)
 
@@ -140,7 +140,6 @@ def submit(
         None, help="Stage names to run. If not specified, run all stages."
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
-    check: bool = typer.Option(True, help="Check if stages are changed."),
 ):
     """Run DVC stages in parallel."""
     if verbose:
@@ -165,6 +164,7 @@ def submit(
     graph = get_stage_graph(names=names)
 
     custom_queues = get_custom_queue()
+    update_gitignore(line="paraffin.db")
     save_graph_to_db(
         graph,
         queues=custom_queues,
