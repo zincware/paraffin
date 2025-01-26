@@ -111,14 +111,18 @@ def save_graph_to_db(
         session.commit()
 
 
-def list_experiments(db: str = "sqlite:///paraffin.db", commit: str = "HEAD") -> list[dict]:
+def list_experiments(
+    db: str = "sqlite:///paraffin.db", commit: str = "HEAD"
+) -> list[dict]:
     engine = create_engine(db)
     with Session(engine) as session:
         exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
         return [exp.model_dump() for exp in exps]
 
 
-def db_to_graph(db: str = "sqlite:///paraffin.db", experiment_id: int = 1) -> nx.DiGraph:
+def db_to_graph(
+    db: str = "sqlite:///paraffin.db", experiment_id: int = 1
+) -> nx.DiGraph:
     engine = create_engine(db)
     with Session(engine) as session:
         # TODO: select the correct experiment!
