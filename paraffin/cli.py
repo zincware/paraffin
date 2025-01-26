@@ -6,12 +6,9 @@ import time
 import typing as t
 import webbrowser
 
-import dvc.api
 import git
 import typer
 import uvicorn
-from dvc.stage.cache import _get_cache_hash
-from dvc.stage.serialize import to_single_stage_lockfile
 
 from paraffin.db import (
     close_worker,
@@ -24,6 +21,7 @@ from paraffin.db import (
 )
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph
+from paraffin.stage import get_lock, repro
 
 log = logging.getLogger(__name__)
 
@@ -90,59 +88,38 @@ def worker(
             last_seen = datetime.datetime.now()
 
             update_worker(worker_id, status="running")
-            fs = dvc.api.DVCFileSystem(url=None, rev=None)
-            # This will search the DB and not rely on DVC run cache to determine if the job is cached
-            #  so this can easily work across directories
 
-            # TODO: this can be the cause for a lock issue!
-            with fs.repo.lock:
-                stage = fs.repo.stage.collect(job_obj["name"])[0]
-                stage.save(allow_missing=True, run_cache=False)
-                stage_lock = to_single_stage_lockfile(stage, with_files=True)
-                reduced_lock = {
-                    k: v
-                    for k, v in stage_lock.items()
-                    if k in ["params", "deps", "cmd"]
-                }
-                deps_hash = _get_cache_hash(reduced_lock, key=True)
-                cached_job = find_cached_job(deps_cache=deps_hash)
-                if cached_job:
-                    log.info(
-                        f"Job '{job_obj['name']}' is cached and dvc.lock is available."
-                    )
+            # This will search the DB and not rely on DVC run cache to determine if 
+            #  the job is cached so this can easily work across directories
+            _, deps_hash = get_lock(job_obj["name"])
+            cached_job = find_cached_job(deps_cache=deps_hash)
+            if cached_job:
+                log.info(
+                    f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+                )
 
             log.info(f"Running job '{job_obj['name']}'")
             # TODO: we need to ensure that all deps nodes are checked out!
             #  this will be important when clone / push.
             # TODO: this can be the cause for a lock issue!
-            result = subprocess.run(
-                f"dvc repro -s {job_obj['name']}", shell=True, capture_output=True
-            )
+            returncode, stdout, stderr = repro(job_obj["name"])
 
-            if result.returncode != 0:
-                log.error(f"Failed to run job '{job_obj['name']}'")
-                log.error(result.stderr.decode())
+            if returncode != 0:
                 complete_job(
                     job_obj["id"],
                     status="failed",
                     lock={},
-                    stdout=result.stdout.decode(),
-                    stderr=result.stderr.decode(),
+                    stdout=stdout,
+                    stderr=stderr
                 )
             else:
-                # get the stage_lock
-                fs = dvc.api.DVCFileSystem(url=None, rev=None)
-                # TODO: this can be the cause for a lock issue!
-                with fs.repo.lock:
-                    stage = fs.repo.stage.collect(job_obj["name"])[0]
-                    stage.save()
-                stage_lock = to_single_stage_lockfile(stage, with_files=True)
+                stage_lock, _ = get_lock(job_obj["name"])
                 complete_job(
                     job_obj["id"],
                     status="completed",
                     lock=stage_lock,
-                    stdout=result.stdout.decode(),
-                    stderr=result.stderr.decode(),
+                    stdout=stdout,
+                    stderr=stderr,
                 )
             job_obj = None
             update_worker(worker_id, status="idle")

@@ -1,6 +1,6 @@
 // import { initialNodes, initialEdges } from './initialElements.js';
 import ELK from "elkjs/lib/elk.bundled.js";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
 	Background,
 	ReactFlow,
@@ -11,6 +11,10 @@ import {
 	Panel,
 	Position,
 } from "@xyflow/react";
+
+import InputGroup from 'react-bootstrap/InputGroup';
+import Form from 'react-bootstrap/Form';
+
 
 import "@xyflow/react/dist/style.css";
 import { Card, Button } from "react-bootstrap";
@@ -45,6 +49,43 @@ async function fetchWorkers() {
 	return data;
 }
 
+interface ElkSettingsProps {
+	layoutOptions: Record<string, any>; // Flexible key-value pair object
+	setLayoutOptions: (options: Record<string, any>) => void;
+  }
+  
+  const ElkSettings: React.FC<ElkSettingsProps> = ({ layoutOptions, setLayoutOptions }) => {
+
+	const inputFormRef = useRef<HTMLTextAreaElement>(null);
+
+	const submitForm = () => {
+		if (inputFormRef.current) {
+			try {
+				const newOptions = JSON.parse(inputFormRef.current.value);
+				setLayoutOptions(newOptions);
+			} catch (e) {
+				console.error("Error parsing JSON", e);
+			}
+		}
+	}
+
+	return (
+		<>
+		<InputGroup>
+			<Form.Control
+			ref={inputFormRef}
+			defaultValue={JSON.stringify(layoutOptions, null, 2)}
+			as="textarea"
+			rows={10}
+			/>
+			<Button variant="outline-secondary" id="button-addon1" onClick={submitForm}>
+          Submit
+        </Button>
+		</InputGroup>
+		</>
+	)
+}
+
 function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -59,6 +100,12 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [rawGraph, setRawGraph] = useState(null);
 
 	const [elkGraph, setElkGraph] = useState(null);
+
+	const [layoutOptions, setLayoutOptions] = useState({
+		"elk.algorithm": "layered",
+		"org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN",
+		"elk.padding": "[top=75,left=12,bottom=12,right=12]"
+	  });
 
 	const nodeTypes = useMemo(
 		() => ({ graphstatenode: GraphStateNode, graphnodegroup: GraphNodeGroup }),
@@ -78,7 +125,7 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 					}
 				});
 			});
-		}, 1000);
+		}, 5000);
 		return () => {
 		  clearInterval(interval);
 		};
@@ -184,19 +231,15 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 			elk
 				.layout(rawGraphCopy, {
 					layoutOptions: {
-						"elk.algorithm": "layered",
-						"elk.layered.spacing.nodeNodeBetweenLayers": "50",
-						"elk.spacing.componentComponent": "100",
+						...layoutOptions,
 						"elk.direction": direction,
-						"org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN",
-						"elk.padding": "[top=75,left=12,bottom=12,right=12]",
 					},
 				})
 				.then((layoutedGraph) => {
 					setElkGraph(layoutedGraph); // Update the layouted graph state
 				});
 		}
-	}, [rawGraph, excludedNodes, direction]); // Re-run this effect when rawGraph or excludedNodes change
+	}, [rawGraph, excludedNodes, direction, layoutOptions]); // Re-run this effect when rawGraph or excludedNodes change
 
 	// Process ELK layout and update React Flow nodes and edges
 	useEffect(() => {
@@ -331,6 +374,7 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 					<Background />
 				</ReactFlow>
 			</GraphContext.Provider>
+			{/* <ElkSettings layoutOptions={layoutOptions} setLayoutOptions={setLayoutOptions} /> */}
 		</>
 	);
 }
