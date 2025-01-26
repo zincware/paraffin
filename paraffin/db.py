@@ -209,7 +209,8 @@ def complete_job(
         job.stderr = stderr
         job.stdout = stdout
         job.finished_at = datetime.datetime.now()
-        # We only write the deps_hash to the database once the job has finished successfully!
+        # We only write the deps_hash to the database
+        #  once the job has finished successfully!
         if status == "completed":
             reduced_lock = {
                 k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]

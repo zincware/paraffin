@@ -70,8 +70,6 @@ def worker(
                 job_name=job,
             )
 
-            # now we want to compute another stage.save() to check if the stage is changed
-
             if job_obj is None:
                 remaining_seconds = (
                     timeout - (datetime.datetime.now() - last_seen).seconds
@@ -81,7 +79,8 @@ def worker(
                     break
                 time.sleep(1)
                 log.info(
-                    f"No more job found - sleeping until closing in {remaining_seconds} seconds"
+                    "No more job found"
+                    f" - sleeping until closing in {remaining_seconds} seconds"
                 )
                 continue
             last_seen = datetime.datetime.now()

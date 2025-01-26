@@ -79,9 +79,6 @@ def get_stage_graph(names) -> nx.DiGraph:
                         status[node.name] = status.get(node.name, []) + [
                             "changed by upstream"
                         ]
-                        log.debug(
-                            f"Stage {node.name} is changed by upstream stage {pred.name}"
-                        )
                         break
 
             mapping[node] = PipelineStageDC(
@@ -144,9 +141,9 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
         return result
 
     # Collect nodes in the root group (group = [])
-    root_nodes = [
-        node for node in graph.nodes if not graph.nodes[node].get("group", [])
-    ]
+    # root_nodes = [
+    #     node for node in graph.nodes if not graph.nodes[node].get("group", [])
+    # ]
 
     elk_graph = {
         "id": "root",
