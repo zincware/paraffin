@@ -26,6 +26,7 @@ def proj_path(tmp_path, request) -> pathlib.Path:
     os.chdir(tmp_path)
     git.Repo.init()
     dvc.cli.main(["init"])
+    git.Repo().index.commit("Initial commit")
 
     return tmp_path
 

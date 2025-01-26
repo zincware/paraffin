@@ -1,64 +1,10 @@
-import networkx as nx
-
-from paraffin.utils import dag_to_levels
+from paraffin.utils import get_group
 
 
-def test_dag_to_levels_1():
-    """
-    ```mermaid
-    flowchart TD
-        A --> C
-        B --> C
-    ```
-    """
-    digraph = nx.DiGraph()
-    digraph.add_edges_from([("A", "C"), ("B", "C")])
-    levels = dag_to_levels(digraph)
-
-    assert levels == {0: ["A", "B"], 1: ["C"]}
-
-
-def test_dag_to_levels_2():
-    """
-    ```mermaid
-    flowchart TD
-        A --> B --> C
-    ```
-    """
-    digraph = nx.DiGraph()
-    digraph.add_edges_from([("A", "B"), ("B", "C")])
-    levels = dag_to_levels(digraph)
-
-    assert levels == {0: ["A"], 1: ["B"], 2: ["C"]}
-
-
-def test_dag_to_levels_3():
-    """
-    ```mermaid
-    flowchart TD
-        A --> B --> C
-        A --> C
-    ```
-    """
-    digraph = nx.DiGraph()
-    digraph.add_edges_from([("A", "B"), ("B", "C"), ("A", "C")])
-    levels = dag_to_levels(digraph)
-
-    assert levels == {0: ["A"], 1: ["B"], 2: ["C"]}
-
-
-def test_dag_to_levles_4():
-    """
-    ```mermaid
-    flowchart TD
-        A --> D
-        B --> D
-        B --> E
-        C --> E
-    ```
-    """
-    digraph = nx.DiGraph()
-    digraph.add_edges_from([("A", "D"), ("B", "D"), ("B", "E"), ("C", "E")])
-    levels = dag_to_levels(digraph)
-
-    assert levels == {0: ["A", "B", "C"], 1: ["D", "E"]}
+def test_get_group():
+    assert get_group("Node") == []
+    assert get_group("Node_1") == []
+    assert get_group("grp_Node") == ["grp"]
+    assert get_group("grp_Node_1") == ["grp"]
+    assert get_group("grp_a_Node") == ["grp", "a"]
+    assert get_group("grp_a_Node_1") == ["grp", "a"]

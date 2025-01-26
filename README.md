@@ -2,12 +2,6 @@
 [![PyPI version](https://badge.fury.io/py/paraffin.svg)](https://badge.fury.io/py/paraffin)
 [![Discord](https://img.shields.io/discord/1034511611802689557)](https://discord.gg/7ncfwhsnm4)
 
-> [!WARNING]
-> [celery](https://github.com/celery/celery) can not handle large workflows and will crash your computer.
-> See https://github.com/celery/celery/issues/9475.
-> Therefore, `paraffin` should **currently not** be used for large workflows.
-> We are working on a solution without relying on `celery`.
-
 # paraffin
 
 Paraffin, derived from the Latin phrase `parum affinis` meaning
@@ -31,55 +25,30 @@ pip install paraffin
 
 ## Usage
 
-The `paraffin submit` command mirrors `dvc repro`, enabling you to queue and execute your entire pipeline or selected stages with parallelization.
-If no parameters are specified, the entire graph will be queued and executed via `dvc repro --single-item`.
+### paraffin submit
+You can submit your current DVC workflow to a database file `paraffin.db` for later execution.
+
+> [!TIP]
+> The paraffin submit command supports globing patterns.
+```bash
+paraffin submit C_AddNodeNumbers "A*"
+```
+
+### paraffin worker
+A submitted job will be executed by paraffin workers.
+To start a worker you can run `paraffin worker`.
+The worker will pick up all the jobs in the workeres queue and close once finished.
 
 ```bash
-paraffin submit <stage name> <stage name> ... <stage name>
-# Example: run with a maximum of 4 parallel jobs
-paraffin worker --concurrency=4
+paraffin worker
 ```
 
-### Parallel Execution
-Due to limitations in Celery’s graph handling (see [Celery discussion](https://github.com/celery/celery/discussions/9376)), complete parallelization is not always achievable. Paraffin will display parallel-ready stages in a flowchart format.
-All stages are visualized in a [Mermaid](https://mermaid.js.org/) flowchart.
-
-```mermaid
-flowchart TD
-        subgraph Level0:1
-                A_X_ParamsToOuts
-                A_X_ParamsToOuts_1
-                A_Y_ParamsToOuts
-                A_Y_ParamsToOuts_1
-        end
-        subgraph Level0:2
-                A_X_AddNodeNumbers
-                A_Y_AddNodeNumbers
-        end
-        subgraph Level0:3
-                A_SumNodeAttributes
-        end
-        Level0:1 --> Level0:2
-        Level0:2 --> Level0:3
-        subgraph Level1:1
-                B_X_ParamsToOuts
-                B_X_ParamsToOuts_1
-                B_Y_ParamsToOuts
-                B_Y_ParamsToOuts_1
-        end
-        subgraph Level1:2
-                B_X_AddNodeNumbers
-                B_Y_AddNodeNumbers
-        end
-        subgraph Level1:3
-                B_SumNodeAttributes
-        end
-        Level1:1 --> Level1:2
-        Level1:2 --> Level1:3
+### paraffin ui
+Paraffin ships with a web application for visualizing the progress.
+You can start it using
+```bash
+paraffin ui
 ```
-
-
-
 
 ## Queue Labels
 
@@ -93,9 +62,9 @@ queue:
 ```
 Then, start a worker with specified queues, such as celery (default) and AQueue:
 ```bash
-paraffin worker -q AQueue,celery
+paraffin worker -q AQueue,default
 ```
-All `stages` not assigned to a queue in `paraffin.yaml` will default to the `celery` queue.
+All `stages` not assigned to a queue in `paraffin.yaml` will default to the `default` queue.
 
 
 > [!TIP]

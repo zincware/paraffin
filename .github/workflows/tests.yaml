@@ -34,6 +34,10 @@ jobs:
       - name: Install package
         run: |
           poetry install --no-interaction
+      - name: build frontend
+        run: |
+          npm install -g bun
+          cd app && bun install && bun vite build && cd ..
       - name: Setup git user
         run: |
           git config --global user.name "John Doe"
