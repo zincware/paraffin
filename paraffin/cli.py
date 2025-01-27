@@ -102,7 +102,9 @@ def worker(
                     # TODO: we need to ensure that all deps nodes are checked out!
                     #  this will be important when clone / push.
                     # TODO: this can be the cause for a lock issue!
-                    log.warning(f"Unable to checkout GIT tracked files for job '{job_obj['name']}'")
+                    log.warning(
+                        f"Unable to checkout GIT tracked files for job '{job_obj['name']}'"
+                    )
                     log.info(f"Running job '{job_obj['name']}'")
                     returncode, stdout, stderr = repro(job_obj["name"])
             else:
