@@ -152,7 +152,7 @@ def lock_input_ref_output() -> tuple[dict, dict, dict]:
     Returns
     -------
     tuple[dict, dict, dict]
-        Input hash only contains the lock of a not-yet exectued stage but
+        Input hash only contains the lock of a not-yet executed stage but
         with the deps and params.
         Ref hash contains the lock of a stage that has been executed and
         is being loaded from the database.

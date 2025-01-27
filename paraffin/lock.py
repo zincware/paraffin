@@ -50,14 +50,16 @@ def clean_lock(raw: dict) -> dict:
 
 def transform_lock(inp: dict, ref: dict) -> dict:
     """
-    Transform the input lock based on the reference lock to produce the correct output lock.
+    Transform the input lock based on the reference lock to
+    produce the correct output lock.
 
     Parameters
     ----------
     inp : dict
         The input lock containing `cmd`, `params`, and `deps`.
     ref : dict
-        The reference lock containing information about executed stages and their outputs.
+        The reference lock containing information about executed stages 
+        and their outputs.
 
     Returns
     -------
