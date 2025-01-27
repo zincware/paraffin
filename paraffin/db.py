@@ -138,7 +138,7 @@ def db_to_graph(
                     "queue": job.queue,
                     "lock": json.loads(job.lock) if job.lock else None,
                     "deps_hash": job.deps_hash,
-                    "group": get_group(job.name),
+                    "group": get_group(job.name)[0],
                 },
             )
             for parent in job.parents:

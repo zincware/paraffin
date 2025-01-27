@@ -161,13 +161,13 @@ def build_elk_hierarchy(graph: nx.DiGraph, node_width=100, node_height=50):
     return elk_graph
 
 
-def get_group(name: str) -> list[str]:
+def get_group(name: str) -> tuple[list[str], str]:
     """Extract the group from the job name."""
     parts = name.split("_")
     # check if parts[-1] is a number
     if parts[-1].isdigit():
-        return parts[:-2]
-    return parts[:-1]
+        return parts[:-2], "_".join(parts[-2:])
+    return parts[:-1], parts[-1]
 
 
 def update_gitignore(line: str):
@@ -184,3 +184,49 @@ def update_gitignore(line: str):
 
     with gitignore.open("w") as f:
         f.writelines(lines)
+
+
+def replace_node_working_dir(path: str | pathlib.Path, ref_nwd: str | pathlib.Path, inp_nwd: str | pathlib.Path) -> pathlib.Path:
+    """
+    Replace the reference node working directory (ref_nwd) in the given path
+    with the input node working directory (inp_nwd), ignoring common prefixes.
+
+    Parameters
+    ----------
+    path : str | Path
+        The original path containing the ref_nwd.
+    ref_nwd : str | Path
+        The reference node working directory to be replaced.
+    inp_nwd : str | Path
+        The input node working directory to replace ref_nwd with.
+
+    Returns
+    -------
+    Path
+        The updated path with ref_nwd replaced by inp_nwd.
+    """
+    # Convert inputs to Path objects
+    original_path = pathlib.Path(path)
+    ref_nwd_path = pathlib.Path(ref_nwd)
+    inp_nwd_path = pathlib.Path(inp_nwd)
+
+    # Convert paths to relative strings for better matching
+    ref_nwd_parts = ref_nwd_path.parts
+    inp_nwd_parts = inp_nwd_path.parts
+    path_parts = original_path.parts
+
+    # Find where `ref_nwd` starts in `path`
+    try:
+        ref_index = path_parts.index(ref_nwd_parts[0])
+        # Ensure the full `ref_nwd` matches
+        if path_parts[ref_index : ref_index + len(ref_nwd_parts)] == ref_nwd_parts:
+            # Replace the `ref_nwd` part with `inp_nwd`
+            new_parts = (
+                path_parts[:ref_index] + inp_nwd_parts + path_parts[ref_index + len(ref_nwd_parts) :]
+            )
+            return pathlib.Path(*new_parts)
+    except ValueError:
+        pass
+
+    # If `ref_nwd` is not found, raise an error
+    raise ValueError(f"Reference nwd '{ref_nwd}' not found in '{path}'.")

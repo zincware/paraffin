@@ -1,4 +1,6 @@
 import re
+from paraffin.utils import get_group, replace_node_working_dir
+from pathlib import Path
 
 
 def detect_zntrack(lock: dict) -> bool:
@@ -51,11 +53,51 @@ def clean_lock(raw: dict) -> dict:
     return exp
 
 
-def update_lock(lock: dict, node_name: str) -> dict:
-    """Update an existing lock with the new node name.
-
-    If a cleaned lock hash is found in the database,
-    take the respective lock and replace node name
-    and nwd with the new node name.
+def transform_lock(inp: dict, ref: dict) -> dict:
     """
-    return lock
+    Transform the input lock based on the reference lock to produce the correct output lock.
+
+    Parameters
+    ----------
+    inp : dict
+        The input lock containing `cmd`, `params`, and `deps`.
+    ref : dict
+        The reference lock containing information about executed stages and their outputs.
+
+    Returns
+    -------
+    dict
+        The transformed lock that merges information from the input and reference.
+    """
+    # Extract the node name from `cmd` in the input lock
+    inp_node_name_match = re.search(r"--name\s+([\w_]+)", inp["cmd"])
+    if inp_node_name_match:
+        inp_node_name = inp_node_name_match.group(1)
+    else:
+        raise ValueError("Node name not found in the input lock.")
+    # Extract the node name from `cmd` in the reference lock
+    ref_node_name_match = re.search(r"--name\s+([\w_]+)", ref["cmd"])
+    if ref_node_name_match:
+        ref_node_name = ref_node_name_match.group(1)
+    else:
+        raise ValueError("Node name not found in the reference lock.")
+
+    # Detect groups
+    inp_groups, isolated_inp_node_name = get_group(inp_node_name)
+    ref_groups, isolated_ref_node_name = get_group(ref_node_name)
+
+    inp_nwd = Path(*inp_groups, isolated_inp_node_name)
+    ref_nwd = Path(*ref_groups, isolated_ref_node_name)
+
+    # Transform the `outs` field using the reference lock
+    outs = []
+    for ref_out in ref.get("outs", []):
+        # update the ref_nwd with the input nwd
+        ref_out_path = Path(ref_out["path"])
+        updated_out_path = replace_node_working_dir(ref_out_path, ref_nwd, inp_nwd)
+        ref_out["path"] = updated_out_path.as_posix()
+        outs.append(ref_out)
+
+
+    inp["outs"] = outs
+    return inp

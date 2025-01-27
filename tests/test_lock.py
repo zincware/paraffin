@@ -1,7 +1,7 @@
 import pytest
 
 from dvc.stage.cache import _get_cache_hash
-from paraffin.lock import clean_lock
+from paraffin.lock import clean_lock, transform_lock
 
 
 @pytest.fixture()
@@ -167,6 +167,81 @@ def lock_a_b() -> tuple[dict, dict]:
 
     return a, b
 
+@pytest.fixture()
+def lock_input_ref_output() -> tuple[dict, dict, dict]:
+    """
+    Returns
+    -------
+    tuple[dict, dict, dict]
+        Input hash only contains the lock of a not-yet exectued stage but
+        with the deps and params.
+        Ref hash contains the lock of a stage that has been executed and
+        is being loaded from the database.
+        Output hash is the expected new lock from the input that should
+        be written to "dvc.lock" to load the correct data.
+    """
+    inp = {
+        "cmd": "zntrack run package.MyNode --name grp_MyNode",
+        "params": {"params.yaml": {"grp_MyNode": {"params": 644999}}},
+        "deps": [
+            {
+                "path": "nodes/ParamsToOuts/outs.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ]
+    }
+
+    ref = {
+        "cmd": "zntrack run package.MyNode --name MyNode_1",
+        "params": {"params.yaml": {"MyNode_1": {"params": 644999}}},
+        "deps": [
+            {
+                "path": "nodes/SomeNodeA/ParamsToOuts_1/outs.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+        "outs": [
+            {
+                "path": "nodes/MyNode_1/node-meta.json",
+                "hash": "md5",
+                "md5": "461013724d26fce139a6586d6635b42c",
+            },
+            {
+                "path": "nodes/MyNode_1/sum.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+    }
+
+    out = {
+        "cmd": "zntrack run package.MyNode --name grp_MyNode",
+        "params": {"params.yaml": {"grp_MyNode": {"params": 644999}}},
+        "deps": [
+            {
+                "path": "nodes/ParamsToOuts/outs.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+        "outs": [
+            {
+                "path": "nodes/grp/MyNode/node-meta.json",
+                "hash": "md5",
+                "md5": "461013724d26fce139a6586d6635b42c",
+            },
+            {
+                "path": "nodes/grp/MyNode/sum.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+    }
+
+    return inp, ref, out
+
 
 def test_cache_hash(lock01):
     assert (
@@ -201,3 +276,8 @@ def test_clean_lockAB(lock_a_b):
 
     assert clean_a == clean_b
     assert _get_cache_hash(clean_a, key=False) == _get_cache_hash(clean_b, key=False)
+
+
+def test_transform_lock01(lock_input_ref_output):
+    inp, ref, out = lock_input_ref_output
+    assert transform_lock(inp, ref) == out
