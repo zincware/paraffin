@@ -89,8 +89,10 @@ def worker(
 
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
-            stage_lock, deps_hash = get_lock(job_obj["name"])
-            cached_job = find_cached_job(deps_cache=deps_hash)
+            cached_job = False
+            if job_obj["cache"]:
+                stage_lock, deps_hash = get_lock(job_obj["name"])
+                cached_job = find_cached_job(deps_cache=deps_hash)
             if cached_job:
                 log.info(
                     f"Job '{job_obj['name']}' is cached and dvc.lock is available."
@@ -152,6 +154,11 @@ def submit(
         None, help="Stage names to run. If not specified, run all stages."
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
+    cache: bool = typer.Option(
+        True,
+        help="Use the paraffin cache in addition to the DVC cache"
+        " to checkout cached jobs.",
+    ),
 ):
     """Run DVC stages in parallel."""
     if verbose:
@@ -183,4 +190,5 @@ def submit(
         commit=commit.hexsha,
         origin=origin,
         machine=socket.gethostname(),
+        cache=cache,
     )

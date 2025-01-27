@@ -48,6 +48,7 @@ class Job(SQLModel, table=True):
     finished_at: Optional[datetime.datetime] = None
     machine: str = ""  # Machine where the job was executed # TODO: get from worker
     worker: str = ""  # Worker that executed the job # TODO: use foreign key
+    cache: bool = False # Use the paraffin cache for this job
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -69,7 +70,7 @@ class Job(SQLModel, table=True):
 
 
 def save_graph_to_db(
-    graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str
+    graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str, cache: bool
 ) -> None:
     engine = create_engine("sqlite:///paraffin.db")
     SQLModel.metadata.create_all(engine)
@@ -93,6 +94,7 @@ def save_graph_to_db(
                 queue=queue,
                 status=status,
                 experiment_id=experiment.id,
+                cache=cache,
             )
             # if completed, we can look for the lock and deps_hash
             if status == "completed":
@@ -188,6 +190,7 @@ def get_job(
                     "cmd": job.cmd,
                     "queue": job.queue,
                     "status": job.status,
+                    "cache": job.cache,
                 }
     return None
 
