@@ -20,7 +20,12 @@ from paraffin.db import (
 )
 from paraffin.stage import checkout, get_lock, repro
 from paraffin.ui.app import app as webapp
-from paraffin.utils import get_custom_queue, get_stage_graph, update_gitignore, detect_zntrack
+from paraffin.utils import (
+    detect_zntrack,
+    get_custom_queue,
+    get_stage_graph,
+    update_gitignore,
+)
 
 log = logging.getLogger(__name__)
 

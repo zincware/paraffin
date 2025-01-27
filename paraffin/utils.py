@@ -239,4 +239,3 @@ def replace_node_working_dir(
 def detect_zntrack(lock: dict) -> bool:
     """Detect if the lock is a ZnTrack lock."""
     return "zntrack" in lock.get("cmd", "")
-

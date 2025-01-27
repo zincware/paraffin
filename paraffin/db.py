@@ -48,7 +48,7 @@ class Job(SQLModel, table=True):
     finished_at: Optional[datetime.datetime] = None
     machine: str = ""  # Machine where the job was executed # TODO: get from worker
     worker: str = ""  # Worker that executed the job # TODO: use foreign key
-    cache: bool = False # Use the paraffin cache for this job
+    cache: bool = False  # Use the paraffin cache for this job
 
     # Relationships
     parents: List["Job"] = Relationship(
@@ -70,7 +70,12 @@ class Job(SQLModel, table=True):
 
 
 def save_graph_to_db(
-    graph: nx.DiGraph, queues: dict[str, str], commit: str, origin: str, machine: str, cache: bool
+    graph: nx.DiGraph,
+    queues: dict[str, str],
+    commit: str,
+    origin: str,
+    machine: str,
+    cache: bool,
 ) -> None:
     engine = create_engine("sqlite:///paraffin.db")
     SQLModel.metadata.create_all(engine)
