@@ -186,7 +186,9 @@ def update_gitignore(line: str):
         f.writelines(lines)
 
 
-def replace_node_working_dir(path: str | pathlib.Path, ref_nwd: str | pathlib.Path, inp_nwd: str | pathlib.Path) -> pathlib.Path:
+def replace_node_working_dir(
+    path: str | pathlib.Path, ref_nwd: str | pathlib.Path, inp_nwd: str | pathlib.Path
+) -> pathlib.Path:
     """
     Replace the reference node working directory (ref_nwd) in the given path
     with the input node working directory (inp_nwd), ignoring common prefixes.
@@ -222,7 +224,9 @@ def replace_node_working_dir(path: str | pathlib.Path, ref_nwd: str | pathlib.Pa
         if path_parts[ref_index : ref_index + len(ref_nwd_parts)] == ref_nwd_parts:
             # Replace the `ref_nwd` part with `inp_nwd`
             new_parts = (
-                path_parts[:ref_index] + inp_nwd_parts + path_parts[ref_index + len(ref_nwd_parts) :]
+                path_parts[:ref_index]
+                + inp_nwd_parts
+                + path_parts[ref_index + len(ref_nwd_parts) :]
             )
             return pathlib.Path(*new_parts)
     except ValueError:

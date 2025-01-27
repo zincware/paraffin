@@ -1,6 +1,7 @@
 import re
-from paraffin.utils import get_group, replace_node_working_dir
 from pathlib import Path
+
+from paraffin.utils import get_group, replace_node_working_dir
 
 
 def detect_zntrack(lock: dict) -> bool:
@@ -97,7 +98,6 @@ def transform_lock(inp: dict, ref: dict) -> dict:
         updated_out_path = replace_node_working_dir(ref_out_path, ref_nwd, inp_nwd)
         ref_out["path"] = updated_out_path.as_posix()
         outs.append(ref_out)
-
 
     inp["outs"] = outs
     return inp

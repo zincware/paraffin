@@ -1,6 +1,6 @@
 import pytest
-
 from dvc.stage.cache import _get_cache_hash
+
 from paraffin.lock import clean_lock, transform_lock
 
 
@@ -167,6 +167,7 @@ def lock_a_b() -> tuple[dict, dict]:
 
     return a, b
 
+
 @pytest.fixture()
 def lock_input_ref_output() -> tuple[dict, dict, dict]:
     """
@@ -189,7 +190,7 @@ def lock_input_ref_output() -> tuple[dict, dict, dict]:
                 "hash": "md5",
                 "md5": "fb6d880180fbf208fab297f75d32c5ce",
             },
-        ]
+        ],
     }
 
     ref = {
