@@ -76,7 +76,7 @@ def save_graph_to_db(
     origin: str,
     machine: str,
     cache: bool,
-    db_url: str
+    db_url: str,
 ) -> None:
     engine = create_engine(db_url)
     SQLModel.metadata.create_all(engine)

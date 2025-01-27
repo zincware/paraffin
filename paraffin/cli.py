@@ -56,7 +56,9 @@ def worker(
     timeout: int = typer.Option(
         0, "--timeout", "-t", help="Timeout in seconds before exiting."
     ),
-    db: str = typer.Option("sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"),
+    db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
 ):
     """Start a Celery worker."""
     queues = queues.split(",")
@@ -169,7 +171,9 @@ def submit(
         help="Use the paraffin cache in addition to the DVC cache"
         " to checkout cached jobs.",
     ),
-    db: str = typer.Option("sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"),
+    db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
 ):
     """Run DVC stages in parallel."""
     if verbose:
