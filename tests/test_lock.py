@@ -48,16 +48,6 @@ def lock01() -> tuple[dict, dict]:
                 "md5": "fb6d880180fbf208fab297f75d32c5ce",
             },
         ],
-        "outs": [
-            {
-                "hash": "md5",
-                "md5": "461013724d26fce139a6586d6635b42c",
-            },
-            {
-                "hash": "md5",
-                "md5": "fb6d880180fbf208fab297f75d32c5ce",
-            },
-        ],
     }
 
     return raw, exp
@@ -86,12 +76,6 @@ def lock02() -> tuple[dict, dict]:
             "cp2k.yaml": {"basis": "DZVP-MOLOPT-SR-GTH"},
             "params.yaml": {"<node-name>": {"params": 644999}},
         },
-        "outs": [
-            {
-                "hash": "md5",
-                "md5": "461013724d0429e139a6586d6635b42c",
-            },
-        ],
     }
 
     return raw, exp
@@ -112,12 +96,6 @@ def lock03() -> tuple[dict, dict]:
 
     exp = {
         "cmd": "zntrack run package.MyNode --name <node-name>",
-        "outs": [
-            {
-                "hash": "md5",
-                "md5": "461013724d0429e139a6586d6635b42c",
-            },
-        ],
     }
 
     return raw, exp
@@ -250,7 +228,7 @@ def test_cache_hash(lock01):
         == _get_cache_hash(lock01[0], key=False)
     )
     assert (
-        "d6ebbacc4cb4482e7ee87d4ed0399d469128bfbb49abab72b65951f687e7c3a6"
+        "10894a16d56e5f45557a481820ce0e188d7570ce900c31c3ddbbb0d325901bf5"
         == _get_cache_hash(lock01[1], key=False)
     )
 

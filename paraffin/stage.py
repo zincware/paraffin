@@ -12,6 +12,8 @@ from dvc.stage import PipelineStage
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
 
+from paraffin.lock import clean_lock
+
 log = logging.getLogger(__name__)
 
 
@@ -73,10 +75,7 @@ def get_lock(name: str) -> tuple[dict, str]:
         stage = fs.repo.stage.collect(name)[0]
         stage.save(allow_missing=True, run_cache=False)
         stage_lock = to_single_stage_lockfile(stage, with_files=True)
-        reduced_lock = {
-            k: v for k, v in stage_lock.items() if k in ["params", "deps", "cmd"]
-        }
-        deps_hash = _get_cache_hash(reduced_lock, key=True)
+        deps_hash = _get_cache_hash(clean_lock(stage_lock), key=False)
 
     return stage_lock, deps_hash
 

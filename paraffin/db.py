@@ -9,6 +9,7 @@ from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_,
 
 from paraffin.stage import PipelineStageDC
 from paraffin.utils import get_group
+from paraffin.lock import clean_lock
 
 
 class Worker(SQLModel, table=True):
@@ -212,10 +213,7 @@ def complete_job(
         # We only write the deps_hash to the database
         #  once the job has finished successfully!
         if status == "completed":
-            reduced_lock = {
-                k: v for k, v in lock.items() if k in ["cmd", "params", "deps"]
-            }
-            job.deps_hash = _get_cache_hash(reduced_lock, key=True)
+            job.deps_hash = _get_cache_hash(clean_lock(lock), key=False)
         session.add(job)
         session.commit()
 

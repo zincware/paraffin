@@ -15,7 +15,7 @@ def clean_lock(raw: dict) -> dict:
     This function removes the "node-name" from the lock file,
     by cleaning: cmd, deps, outs and params.
     """
-    exp = raw.copy()  # Copy the raw dictionary to avoid modifying the original
+    exp = {k: v for k, v in raw.items() if k in ["cmd", "params", "deps"]}
 
     # Extract the node name from the `cmd`
     node_name_match = re.search(r"--name\s+([\w_]+)", raw["cmd"])
@@ -43,12 +43,6 @@ def clean_lock(raw: dict) -> dict:
     if "deps" in exp:
         exp["deps"] = [
             {"hash": dep["hash"], dep["hash"]: dep[dep["hash"]]} for dep in exp["deps"]
-        ]
-
-    # Generalize `outs` by removing `path` keys
-    if "outs" in exp:
-        exp["outs"] = [
-            {"hash": out["hash"], out["hash"]: out[out["hash"]]} for out in exp["outs"]
         ]
 
     return exp

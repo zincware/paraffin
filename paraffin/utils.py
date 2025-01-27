@@ -9,8 +9,6 @@ import networkx as nx
 import yaml
 from dvc.repo.status import _local_status
 
-from paraffin.stage import PipelineStageDC
-
 log = logging.getLogger(__name__)
 
 
@@ -56,6 +54,8 @@ def get_stage_graph(names) -> nx.DiGraph:
     networkx.DiGraph:
         A subgraph containing the specified stages and their predecessors.
     """
+    from paraffin.stage import PipelineStageDC # avoid circular import
+
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
     nodes = [x for x in graph.nodes if hasattr(x, "name")]
