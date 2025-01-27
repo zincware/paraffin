@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import git
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles

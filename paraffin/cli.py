@@ -39,7 +39,9 @@ def ui(
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
-    all: bool = typer.Option(False, help="Show all experiments and not just from the current commit."),
+    all: bool = typer.Option(
+        False, help="Show all experiments and not just from the current commit."
+    ),
 ):
     """Start the Paraffin web UI."""
     if not all:
@@ -48,8 +50,10 @@ def ui(
             commit = repo.head.commit
             os.environ["PARAFFIN_COMMIT"] = commit.hexsha
         except git.InvalidGitRepositoryError:
-            log.warning("Unable to determine the current commit. Showing all experiments.")
-    
+            log.warning(
+                "Unable to determine the current commit. Showing all experiments."
+            )
+
     webbrowser.open(f"http://localhost:{port}")
     os.environ["PARAFFIN_DB"] = db
     uvicorn.run(webapp, host="0.0.0.0", port=port)
