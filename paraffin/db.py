@@ -120,10 +120,13 @@ def save_graph_to_db(
         session.commit()
 
 
-def list_experiments(db_url: str, commit: str = "HEAD") -> list[dict]:
+def list_experiments(db_url: str, commit: str|None) -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
+        if commit is not None:
+            exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
+        else:
+            exps = session.exec(select(Experiment)).all()
         return [exp.model_dump() for exp in exps]
 
 

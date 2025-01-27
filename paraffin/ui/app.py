@@ -33,12 +33,9 @@ def read_root():
 
 
 @app.get("/api/v1/experiments")
-def read_experiments(commit: str | None = None):
-    if commit is None:
-        repo = git.Repo(search_parent_directories=True)
-        commit = repo.head.commit.hexsha
-
+def read_experiments():
     db_url = os.environ["PARAFFIN_DB"]
+    commit = os.getenv("PARAFFIN_COMMIT")
 
     return list_experiments(commit=commit, db_url=db_url)
 
