@@ -20,7 +20,7 @@ from paraffin.db import (
 )
 from paraffin.stage import checkout, get_lock, repro
 from paraffin.ui.app import app as webapp
-from paraffin.utils import get_custom_queue, get_stage_graph, update_gitignore
+from paraffin.utils import get_custom_queue, get_stage_graph, update_gitignore, detect_zntrack
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ def worker(
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
             cached_job = False
-            if job_obj["cache"]:
+            if job_obj["cache"] and detect_zntrack(job_obj):
                 stage_lock, deps_hash = get_lock(job_obj["name"])
                 cached_job = find_cached_job(deps_cache=deps_hash)
             if cached_job:

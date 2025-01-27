@@ -234,3 +234,9 @@ def replace_node_working_dir(
 
     # If `ref_nwd` is not found, raise an error
     raise ValueError(f"Reference nwd '{ref_nwd}' not found in '{path}'.")
+
+
+def detect_zntrack(lock: dict) -> bool:
+    """Detect if the lock is a ZnTrack lock."""
+    return "zntrack" in lock.get("cmd", "")
+

@@ -5,11 +5,6 @@ from pathlib import Path
 from paraffin.utils import get_group, replace_node_working_dir
 
 
-def detect_zntrack(lock: dict) -> bool:
-    """Detect if the lock is a ZnTrack lock."""
-    return "zntrack" in lock.get("cmd", "")
-
-
 def clean_lock(raw: dict) -> dict:
     """Clean the lock file for hashing.
 
