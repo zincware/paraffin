@@ -7,9 +7,9 @@ import networkx as nx
 from dvc.stage.cache import _get_cache_hash
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_, select
 
+from paraffin.lock import clean_lock
 from paraffin.stage import PipelineStageDC
 from paraffin.utils import get_group
-from paraffin.lock import clean_lock
 
 
 class Worker(SQLModel, table=True):

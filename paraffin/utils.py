@@ -54,7 +54,7 @@ def get_stage_graph(names) -> nx.DiGraph:
     networkx.DiGraph:
         A subgraph containing the specified stages and their predecessors.
     """
-    from paraffin.stage import PipelineStageDC # avoid circular import
+    from paraffin.stage import PipelineStageDC  # avoid circular import
 
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     graph = fs.repo.index.graph.reverse(copy=True)
