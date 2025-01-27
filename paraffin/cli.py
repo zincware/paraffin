@@ -8,6 +8,7 @@ import webbrowser
 import git
 import typer
 import uvicorn
+import os
 
 from paraffin.db import (
     close_worker,
@@ -33,9 +34,14 @@ app = typer.Typer()
 
 
 @app.command()
-def ui(port: int = 8000):
+def ui(port: int = 8000, 
+       db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
+):
     """Start the Paraffin web UI."""
     webbrowser.open(f"http://localhost:{port}")
+    os.environ["PARAFFIN_DB"] = db
     uvicorn.run(webapp, host="0.0.0.0", port=port)
 
 

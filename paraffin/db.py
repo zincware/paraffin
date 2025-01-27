@@ -121,18 +121,18 @@ def save_graph_to_db(
 
 
 def list_experiments(
-    db: str = "sqlite:///paraffin.db", commit: str = "HEAD"
+    db_url: str, commit: str = "HEAD"
 ) -> list[dict]:
-    engine = create_engine(db)
+    engine = create_engine(db_url)
     with Session(engine) as session:
         exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
         return [exp.model_dump() for exp in exps]
 
 
 def db_to_graph(
-    db: str = "sqlite:///paraffin.db", experiment_id: int = 1
+    db_url: str, experiment_id: int = 1
 ) -> nx.DiGraph:
-    engine = create_engine(db)
+    engine = create_engine(db_url)
     with Session(engine) as session:
         # TODO: select the correct experiment!
         jobs = session.exec(select(Job).where(Job.experiment_id == experiment_id)).all()
@@ -228,9 +228,9 @@ def complete_job(
 
 
 def update_job_status(
-    job_name: str, experiment_id: int, status: str, db: str = "sqlite:///paraffin.db"
+    job_name: str, experiment_id: int, status: str, db_url: str
 ) -> int:
-    engine = create_engine(db)
+    engine = create_engine(db_url)
     with Session(engine) as session:
         statement = (
             select(Job)
@@ -248,9 +248,9 @@ def update_job_status(
 
 
 def get_job_dump(
-    job_name: str, experiment_id: int, db: str = "sqlite:///paraffin.db"
+    job_name: str, experiment_id: int, db_url: str
 ) -> dict[str, str]:
-    engine = create_engine(db)
+    engine = create_engine(db_url)
     with Session(engine) as session:
         statement = (
             select(Job)
@@ -301,8 +301,8 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def list_workers(db: str = "sqlite:///paraffin.db") -> list[dict]:
-    engine = create_engine(db)
+def list_workers(db_url: str) -> list[dict]:
+    engine = create_engine(db_url)
     with Session(engine) as session:
         workers = session.exec(select(Worker).where(Worker.status != "offline")).all()
         return [worker.model_dump() for worker in workers]
