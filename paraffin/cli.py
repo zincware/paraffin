@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import socket
 import time
 import typing as t
@@ -8,7 +9,6 @@ import webbrowser
 import git
 import typer
 import uvicorn
-import os
 
 from paraffin.db import (
     close_worker,
@@ -34,8 +34,9 @@ app = typer.Typer()
 
 
 @app.command()
-def ui(port: int = 8000, 
-       db: str = typer.Option(
+def ui(
+    port: int = 8000,
+    db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
 ):

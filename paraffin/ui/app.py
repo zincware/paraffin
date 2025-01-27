@@ -1,7 +1,7 @@
+import os
 from pathlib import Path
 
 import git
-import os
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -37,7 +37,7 @@ def read_experiments(commit: str | None = None):
     if commit is None:
         repo = git.Repo(search_parent_directories=True)
         commit = repo.head.commit.hexsha
-    
+
     db_url = os.environ["PARAFFIN_DB"]
 
     return list_experiments(commit=commit, db_url=db_url)

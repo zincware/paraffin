@@ -120,18 +120,14 @@ def save_graph_to_db(
         session.commit()
 
 
-def list_experiments(
-    db_url: str, commit: str = "HEAD"
-) -> list[dict]:
+def list_experiments(db_url: str, commit: str = "HEAD") -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
         exps = session.exec(select(Experiment).where(Experiment.base == commit)).all()
         return [exp.model_dump() for exp in exps]
 
 
-def db_to_graph(
-    db_url: str, experiment_id: int = 1
-) -> nx.DiGraph:
+def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
     engine = create_engine(db_url)
     with Session(engine) as session:
         # TODO: select the correct experiment!
@@ -247,9 +243,7 @@ def update_job_status(
     return 0
 
 
-def get_job_dump(
-    job_name: str, experiment_id: int, db_url: str
-) -> dict[str, str]:
+def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, str]:
     engine = create_engine(db_url)
     with Session(engine) as session:
         statement = (
