@@ -56,18 +56,20 @@ def worker(
     timeout: int = typer.Option(
         0, "--timeout", "-t", help="Timeout in seconds before exiting."
     ),
+    db: str = typer.Option("sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"),
 ):
     """Start a Celery worker."""
     queues = queues.split(",")
     # set the log level
     logging.basicConfig(level=logging.INFO)
-    worker_id = register_worker(name, machine=socket.gethostname())
+    worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
     log.info(f"Listening on queues: {queues}")
 
     last_seen = datetime.datetime.now()
     try:
         while True:
             job_obj = get_job(
+                db_url=db,
                 queues=queues,
                 worker=name,
                 machine=socket.gethostname(),
@@ -90,14 +92,14 @@ def worker(
                 continue
             last_seen = datetime.datetime.now()
 
-            update_worker(worker_id, status="running")
+            update_worker(worker_id, status="running", db_url=db)
 
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
             cached_job = False
             if job_obj["cache"] and detect_zntrack(job_obj):
                 stage_lock, deps_hash = get_lock(job_obj["name"])
-                cached_job = find_cached_job(deps_cache=deps_hash)
+                cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
             if cached_job:
                 log.info(
                     f"Job '{job_obj['name']}' is cached and dvc.lock is available."
@@ -129,6 +131,7 @@ def worker(
                     lock={},
                     stdout=stdout,
                     stderr=stderr,
+                    db_url=db,
                 )
             else:
                 stage_lock, _ = get_lock(job_obj["name"])
@@ -138,9 +141,10 @@ def worker(
                     lock=stage_lock,
                     stdout=stdout,
                     stderr=stderr,
+                    db_url=db,
                 )
             job_obj = None
-            update_worker(worker_id, status="idle")
+            update_worker(worker_id, status="idle", db_url=db)
     finally:
         if job_obj is not None:
             complete_job(
@@ -149,8 +153,9 @@ def worker(
                 lock={},
                 stdout="",
                 stderr="Worker exited.",
+                db_url=db,
             )
-        close_worker(worker_id)
+        close_worker(id=worker_id, db_url=db)
 
 
 @app.command()
@@ -164,6 +169,7 @@ def submit(
         help="Use the paraffin cache in addition to the DVC cache"
         " to checkout cached jobs.",
     ),
+    db: str = typer.Option("sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"),
 ):
     """Run DVC stages in parallel."""
     if verbose:
@@ -196,4 +202,5 @@ def submit(
         origin=origin,
         machine=socket.gethostname(),
         cache=cache,
+        db_url=db,
     )
