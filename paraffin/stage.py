@@ -11,8 +11,11 @@ from dvc.lock import LockError
 from dvc.stage import PipelineStage
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
+from dvc.utils.strictyaml import YAMLValidationError
+import yaml
+from pathlib import Path
 
-from paraffin.lock import clean_lock
+from paraffin.lock import clean_lock, transform_lock
 
 log = logging.getLogger(__name__)
 
@@ -153,4 +156,50 @@ def repro(name: str) -> tuple[int, str, str]:
             raise LockError(f"Unable to commit lock for {name}")
 
     # Combine and return outputs
+    return return_code, "".join(stdout_lines), "".join(stderr_lines)
+
+
+@retry(3, (LockError,), delay=0.5)
+def checkout(stage_lock: dict, cached_job_lock_json: str, name: str)-> tuple[int, str, str]:
+    log.info(f"Checking out job '{name}'")
+    cached_job_lock = json.loads(cached_job_lock_json)
+    output_lock = transform_lock(stage_lock, cached_job_lock)
+
+    stdout_lines = []
+    stderr_lines = []
+
+    lock_file = Path("dvc.lock")
+    if not lock_file.exists():
+        with lock_file.open("w") as f:
+            yaml.dump({
+                "schema": "2.0",
+                "stages": {},
+            }, f)
+
+    fs = dvc.api.DVCFileSystem(url=None, rev=None)
+    with fs.repo.lock:  # this can raise a LockError directly
+
+        with lock_file.open("r") as f:
+            lock = yaml.safe_load(f)
+            lock["stages"][name] = output_lock
+
+        with lock_file.open("w") as f:
+            stdout_lines.append(f"Updating lock file 'dvc.lock' for '{name}'\n")
+            yaml.dump(lock, f)
+
+    # Run the main repro command
+    # We can use force here, because `dvc repro` would also remove the files
+    stdout_lines.append(f"Checking out stage '{name}':\n")
+    return_code, repro_stdout, repro_stderr = run_command(
+        ["dvc", "checkout", "--force", name]
+    )
+
+    if "ERROR: Unable to acquire lock" in repro_stderr:
+        # here we raise a lock error, because the subprocess was 
+        # unable to acquire the lock
+        raise LockError(f"Unable to acquire lock for checking out {name}.")
+
+    stdout_lines.append(repro_stdout)
+    stderr_lines.append(repro_stderr)
+
     return return_code, "".join(stdout_lines), "".join(stderr_lines)

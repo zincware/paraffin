@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from collections import OrderedDict
 
 from paraffin.utils import get_group, replace_node_working_dir
 
@@ -46,6 +47,11 @@ def clean_lock(raw: dict) -> dict:
         ]
 
     return exp
+
+
+def _ordered_dict_to_dict(od: OrderedDict|dict) -> dict:
+    """Convert a nested OrderedDict to a nested dict."""
+    return {k: _ordered_dict_to_dict(v) if isinstance(v, OrderedDict) else v for k, v in od.items()}
 
 
 def transform_lock(inp: dict, ref: dict) -> dict:
@@ -96,4 +102,5 @@ def transform_lock(inp: dict, ref: dict) -> dict:
         outs.append(ref_out)
 
     inp["outs"] = outs
-    return inp
+
+    return _ordered_dict_to_dict(inp)
