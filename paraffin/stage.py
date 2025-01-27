@@ -201,6 +201,17 @@ def checkout(
         # here we raise a lock error, because the subprocess was
         # unable to acquire the lock
         raise LockError(f"Unable to acquire lock for checking out {name}.")
+    
+    # dvc checkout does not raise any error for GIT tracked files
+    # therefore, we run ``dvc status`` to check if the checkout was successful
+    if return_code == 0:
+        return_code, status_stdout, status_stderr = run_command(["dvc", "status", name])
+        stdout_lines.append(status_stdout)
+        stderr_lines.append(status_stderr)
+        if "Data and pipelines are up to date." not in status_stdout:
+            # TODO: we need to run `dvc repro` instead of checkout.
+            return 404, "".join(stdout_lines), "".join(stderr_lines)
+
 
     stdout_lines.append(repro_stdout)
     stderr_lines.append(repro_stderr)
