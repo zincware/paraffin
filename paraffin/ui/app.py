@@ -1,6 +1,6 @@
+import os
 from pathlib import Path
 
-import git
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,17 +32,18 @@ def read_root():
 
 
 @app.get("/api/v1/experiments")
-def read_experiments(commit: str | None = None):
-    if commit is None:
-        repo = git.Repo(search_parent_directories=True)
-        commit = repo.head.commit.hexsha
+def read_experiments():
+    db_url = os.environ["PARAFFIN_DB"]
+    commit = os.getenv("PARAFFIN_COMMIT")
 
-    return list_experiments(commit=commit)
+    return list_experiments(commit=commit, db_url=db_url)
 
 
 @app.get("/api/v1/graph")
 def read_graph(experiment: str):
-    g = db_to_graph(experiment_id=int(experiment))
+    db_url = os.environ["PARAFFIN_DB"]
+
+    g = db_to_graph(experiment_id=int(experiment), db_url=db_url)
     return build_elk_hierarchy(g)
 
 
@@ -53,17 +54,20 @@ def spawn():
 
 @app.get("/api/v1/job")
 def read_job(name: str, experiment: int):
-    return get_job_dump(job_name=name, experiment_id=int(experiment))
+    db_url = os.environ["PARAFFIN_DB"]
+    return get_job_dump(job_name=name, experiment_id=int(experiment), db_url=db_url)
 
 
 @app.get("/api/v1/workers")
 def read_workers():
-    return list_workers()
+    db_url = os.environ["PARAFFIN_DB"]
+    return list_workers(db_url=db_url)
 
 
 # update_job_status
 @app.get("/api/v1/job/update")
 def update_job(name: str, experiment: int, status: str = "pending"):
+    db_url = os.environ["PARAFFIN_DB"]
     return update_job_status(
-        job_name=name, experiment_id=int(experiment), status=status
+        job_name=name, experiment_id=int(experiment), status=status, db_url=db_url
     )
