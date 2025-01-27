@@ -5,15 +5,14 @@ import json
 import logging
 import subprocess
 import time
+from pathlib import Path
 
 import dvc.api
+import yaml
 from dvc.lock import LockError
 from dvc.stage import PipelineStage
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
-from dvc.utils.strictyaml import YAMLValidationError
-import yaml
-from pathlib import Path
 
 from paraffin.lock import clean_lock, transform_lock
 
@@ -160,7 +159,9 @@ def repro(name: str) -> tuple[int, str, str]:
 
 
 @retry(3, (LockError,), delay=0.5)
-def checkout(stage_lock: dict, cached_job_lock_json: str, name: str)-> tuple[int, str, str]:
+def checkout(
+    stage_lock: dict, cached_job_lock_json: str, name: str
+) -> tuple[int, str, str]:
     log.info(f"Checking out job '{name}'")
     cached_job_lock = json.loads(cached_job_lock_json)
     output_lock = transform_lock(stage_lock, cached_job_lock)
@@ -171,14 +172,16 @@ def checkout(stage_lock: dict, cached_job_lock_json: str, name: str)-> tuple[int
     lock_file = Path("dvc.lock")
     if not lock_file.exists():
         with lock_file.open("w") as f:
-            yaml.dump({
-                "schema": "2.0",
-                "stages": {},
-            }, f)
+            yaml.dump(
+                {
+                    "schema": "2.0",
+                    "stages": {},
+                },
+                f,
+            )
 
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     with fs.repo.lock:  # this can raise a LockError directly
-
         with lock_file.open("r") as f:
             lock = yaml.safe_load(f)
             lock["stages"][name] = output_lock
@@ -195,7 +198,7 @@ def checkout(stage_lock: dict, cached_job_lock_json: str, name: str)-> tuple[int
     )
 
     if "ERROR: Unable to acquire lock" in repro_stderr:
-        # here we raise a lock error, because the subprocess was 
+        # here we raise a lock error, because the subprocess was
         # unable to acquire the lock
         raise LockError(f"Unable to acquire lock for checking out {name}.")
 

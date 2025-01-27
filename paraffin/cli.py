@@ -18,7 +18,7 @@ from paraffin.db import (
     save_graph_to_db,
     update_worker,
 )
-from paraffin.stage import get_lock, repro, checkout
+from paraffin.stage import checkout, get_lock, repro
 from paraffin.ui.app import app as webapp
 from paraffin.utils import get_custom_queue, get_stage_graph, update_gitignore
 
@@ -95,9 +95,10 @@ def worker(
                 log.info(
                     f"Job '{job_obj['name']}' is cached and dvc.lock is available."
                 )
-                returncode, stdout, stderr = checkout(stage_lock, cached_job["lock"], job_obj["name"])
+                returncode, stdout, stderr = checkout(
+                    stage_lock, cached_job["lock"], job_obj["name"]
+                )
             else:
-
                 log.info(f"Running job '{job_obj['name']}'")
                 # TODO: we need to ensure that all deps nodes are checked out!
                 #  this will be important when clone / push.
