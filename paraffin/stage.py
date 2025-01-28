@@ -70,7 +70,7 @@ def retry(times, exceptions, delay: float = 0):
     return decorator
 
 
-@retry(3, (LockError,), delay=0.5)
+@retry(10, (LockError,), delay=0.5)
 def get_lock(name: str) -> tuple[dict, str]:
     fs = dvc.api.DVCFileSystem(url=None, rev=None)
     with fs.repo.lock:
@@ -110,7 +110,7 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
     return return_code, "".join(stdout_lines), "".join(stderr_lines)
 
 
-@retry(3, (LockError,), delay=0.5)
+@retry(10, (LockError,), delay=0.5)
 def repro(name: str) -> tuple[int, str, str]:
     """Reproduce a DVC stage.
 
@@ -158,7 +158,7 @@ def repro(name: str) -> tuple[int, str, str]:
     return return_code, "".join(stdout_lines), "".join(stderr_lines)
 
 
-@retry(3, (LockError,), delay=0.5)
+@retry(10, (LockError,), delay=0.5)
 def checkout(
     stage_lock: dict, cached_job_lock_json: str, name: str
 ) -> tuple[int, str, str]:
