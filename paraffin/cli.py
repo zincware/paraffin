@@ -80,7 +80,7 @@ def worker(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
 ):
-    """Start a Celery worker."""
+    """Start a paraffin worker."""
     queues = queues.split(",")
     # set the log level
     logging.basicConfig(level=logging.INFO)
