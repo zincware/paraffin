@@ -145,7 +145,6 @@ def worker(
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
                 returncode, stdout, stderr = repro(job_obj["name"])
-
             if returncode != 0:
                 complete_job(
                     job_obj["id"],

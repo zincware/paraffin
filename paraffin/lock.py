@@ -9,17 +9,19 @@ def clean_lock(raw: dict) -> dict:
     """Clean the lock file for hashing.
 
     This function removes the "node-name" from the lock file,
-    by cleaning: cmd, deps, outs and params.
+    by cleaning: cmd, deps, outs, and params.
     """
     exp = {k: v for k, v in raw.items() if k in ["cmd", "params", "deps"]}
 
     # Extract the node name from the `cmd`
-    node_name_match = re.search(r"--name\s+([\w_]+)", raw["cmd"])
+    cmd_str = " ".join(raw["cmd"]) if isinstance(raw["cmd"], list) else raw["cmd"]
+    node_name_match = re.search(r"--name\s+([\w_]+)", cmd_str)
     node_name = node_name_match.group(1) if node_name_match else None
 
     # Generalize `cmd`: replace the extracted node name with `<node-name>`
     if node_name:
-        exp["cmd"] = raw["cmd"].replace(f"--name {node_name}", "--name <node-name>")
+        generalized_cmd = cmd_str.replace(f"--name {node_name}", "--name <node-name>")
+        exp["cmd"] = [generalized_cmd] if isinstance(raw["cmd"], list) else generalized_cmd
 
     # Generalize `params` if present
     if "params" in exp:

@@ -50,3 +50,6 @@ def test_051(repo):
 
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
+
+    result = runner.invoke(app, "worker")
+    assert result.exit_code == 0

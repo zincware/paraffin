@@ -102,6 +102,25 @@ def lock03() -> tuple[dict, dict]:
 
 
 @pytest.fixture()
+def lock04() -> tuple[dict, dict]:
+    raw = {
+        "cmd": ["zntrack run package.MyNode --name MyNode"],
+        "outs": [
+            {
+                "path": "nodes/MyNode/node-meta.json",
+                "hash": "md5",
+                "md5": "461013724d0429e139a6586d6635b42c",
+            },
+        ],
+    }
+
+    exp = {
+        "cmd": ["zntrack run package.MyNode --name <node-name>"],
+    }
+
+    return raw, exp
+
+@pytest.fixture()
 def lock_a_b() -> tuple[dict, dict]:
     """Two locks that should yield the same hash"""
 
@@ -144,6 +163,9 @@ def lock_a_b() -> tuple[dict, dict]:
     }
 
     return a, b
+
+
+
 
 
 @pytest.fixture()
@@ -245,6 +267,10 @@ def test_clean_lock02(lock02):
 
 def test_clean_lock03(lock03):
     raw, expected = lock03
+    assert clean_lock(raw) == expected
+
+def test_clean_lock04(lock04):
+    raw, expected = lock04
     assert clean_lock(raw) == expected
 
 
