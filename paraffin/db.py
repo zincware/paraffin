@@ -95,7 +95,7 @@ def save_graph_to_db(
             status = "pending" if node.changed else "cached"
 
             job = Job(
-                cmd=node.cmd,
+                cmd=json.dumps(node.cmd),
                 name=node.name,
                 queue=queue,
                 status=status,
@@ -143,7 +143,7 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
                 job.id,
                 **{
                     "name": job.name,
-                    "cmd": job.cmd,
+                    "cmd": json.loads(job.cmd),
                     "status": job.status,
                     "queue": job.queue,
                     "lock": json.loads(job.lock) if job.lock else None,
@@ -194,7 +194,7 @@ def get_job(
                 return {
                     "id": job.id,
                     "name": job.name,
-                    "cmd": job.cmd,
+                    "cmd": json.loads(job.cmd),
                     "queue": job.queue,
                     "status": job.status,
                     "cache": job.cache,
