@@ -122,6 +122,54 @@ def lock04() -> tuple[dict, dict]:
 
 
 @pytest.fixture()
+def lock05() -> tuple[dict, dict]:
+    raw = {
+        "cmd": "zntrack run package.MyNode --name MyNode",
+        "deps": [
+            {
+                "path": "data",
+                "hash": "md5",
+                "files": [
+                    {
+                        "relpath": "data.csv",
+                        "md5": "421109828f8547af8727ca039ebd3d13",
+                        "size": 23,
+                    }
+                ],
+            },
+            {
+                "path": "nodes/MyNode/outs.json",
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+    }
+
+    exp = {
+        "cmd": "zntrack run package.MyNode --name <node-name>",
+        "deps": [
+            {
+                "hash": "md5",
+                "files": [
+                    {
+                        "md5": "421109828f8547af8727ca039ebd3d13",
+                        "relpath": "data.csv",
+                        # relpath should be fine, because it won't contain the node name
+                        "size": 23,
+                    }
+                ],
+            },
+            {
+                "hash": "md5",
+                "md5": "fb6d880180fbf208fab297f75d32c5ce",
+            },
+        ],
+    }
+
+    return raw, exp
+
+
+@pytest.fixture()
 def lock_a_b() -> tuple[dict, dict]:
     """Two locks that should yield the same hash"""
 
@@ -270,6 +318,11 @@ def test_clean_lock03(lock03):
 
 def test_clean_lock04(lock04):
     raw, expected = lock04
+    assert clean_lock(raw) == expected
+
+
+def test_clean_lock05(lock05):
+    raw, expected = lock05
     assert clean_lock(raw) == expected
 
 

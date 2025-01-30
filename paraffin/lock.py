@@ -5,6 +5,42 @@ from pathlib import Path
 from paraffin.utils import get_group, replace_node_working_dir
 
 
+def _extract_node_name(cmd: str) -> str | None:
+    """Extract the node name from the command string."""
+    node_name_match = re.search(r"--name\s+([\w_]+)", cmd)
+    return node_name_match.group(1) if node_name_match else None
+
+
+def _process_params(params: dict, node_name: str | None) -> dict:
+    """Generalize the `params` field by replacing the node name with `<node-name>`."""
+    generalized_params = {}
+    for file, file_params in params.items():
+        generalized_file_params = {}
+        for key, value in file_params.items():
+            # Only replace keys that match the extracted node name
+            if key == node_name:
+                generalized_file_params["<node-name>"] = value
+            else:
+                generalized_file_params[key] = value
+        generalized_params[file] = generalized_file_params
+    return generalized_params
+
+
+def _process_deps(deps: list) -> list:
+    """Generalize the `deps` field by removing the `path` field."""
+    new_deps = []
+    for dep in deps:
+        new_dep = {"hash": dep["hash"]}
+        if "files" in dep:
+            new_dep["files"] = dep["files"]  # Keep `files` structure unchanged
+        if "md5" in dep:
+            new_dep["md5"] = dep["md5"]
+        if "hash" in dep:
+            new_dep["hash"] = dep["hash"]
+        new_deps.append(new_dep)
+    return new_deps
+
+
 def clean_lock(raw: dict) -> dict:
     """Clean the lock file for hashing.
 
@@ -15,11 +51,12 @@ def clean_lock(raw: dict) -> dict:
 
     # Extract the node name from the `cmd`
     cmd_str = " ".join(raw["cmd"]) if isinstance(raw["cmd"], list) else raw["cmd"]
-    node_name_match = re.search(r"--name\s+([\w_]+)", cmd_str)
-    node_name = node_name_match.group(1) if node_name_match else None
+    node_name = _extract_node_name(cmd_str)
 
     # Generalize `cmd`: replace the extracted node name with `<node-name>`
+    #  This only applies to ZnTrack commands.
     if node_name:
+        # TODO: what if the list has more than one element?!
         generalized_cmd = cmd_str.replace(f"--name {node_name}", "--name <node-name>")
         exp["cmd"] = (
             [generalized_cmd] if isinstance(raw["cmd"], list) else generalized_cmd
@@ -27,23 +64,11 @@ def clean_lock(raw: dict) -> dict:
 
     # Generalize `params` if present
     if "params" in exp:
-        generalized_params = {}
-        for file, file_params in exp["params"].items():
-            generalized_file_params = {}
-            for key, value in file_params.items():
-                # Only replace keys that match the extracted node name
-                if key == node_name:
-                    generalized_file_params["<node-name>"] = value
-                else:
-                    generalized_file_params[key] = value
-            generalized_params[file] = generalized_file_params
-        exp["params"] = generalized_params
+        exp["params"] = _process_params(raw["params"], node_name)
 
-    # Generalize `deps` by removing `path` keys
+    # Generalize `deps` by removing `path`, but keeping `files`
     if "deps" in exp:
-        exp["deps"] = [
-            {"hash": dep["hash"], dep["hash"]: dep[dep["hash"]]} for dep in exp["deps"]
-        ]
+        exp["deps"] = _process_deps(raw["deps"])
 
     return exp
 
