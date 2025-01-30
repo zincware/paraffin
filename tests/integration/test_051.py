@@ -1,9 +1,9 @@
+import os
+import subprocess
+
+import git
 import pytest
 import yaml
-import git
-import subprocess
-import os
-
 from typer.testing import CliRunner
 
 from paraffin.cli import app
@@ -11,18 +11,20 @@ from paraffin.cli import app
 runner = CliRunner()
 
 
-DVC_YAML = {"stages": {
-    "00a_syncdata": {
-        "outs": ["output"],
-        "cmd": [
-            """bash -euo pipefail << EOF
+DVC_YAML = {
+    "stages": {
+        "00a_syncdata": {
+            "outs": ["output"],
+            "cmd": [
+                """bash -euo pipefail << EOF
 
 bash src/00_syncdata.sh
 
 EOF"""
-        ]
+            ],
+        }
     }
-}}
+}
 
 
 @pytest.fixture

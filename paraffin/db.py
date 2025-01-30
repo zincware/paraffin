@@ -194,7 +194,7 @@ def get_job(
                 return {
                     "id": job.id,
                     "name": job.name,
-                    "cmd":json.loads(job.cmd),
+                    "cmd": json.loads(job.cmd),
                     "queue": job.queue,
                     "status": job.status,
                     "cache": job.cache,

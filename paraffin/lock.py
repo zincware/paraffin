@@ -21,7 +21,9 @@ def clean_lock(raw: dict) -> dict:
     # Generalize `cmd`: replace the extracted node name with `<node-name>`
     if node_name:
         generalized_cmd = cmd_str.replace(f"--name {node_name}", "--name <node-name>")
-        exp["cmd"] = [generalized_cmd] if isinstance(raw["cmd"], list) else generalized_cmd
+        exp["cmd"] = (
+            [generalized_cmd] if isinstance(raw["cmd"], list) else generalized_cmd
+        )
 
     # Generalize `params` if present
     if "params" in exp:
