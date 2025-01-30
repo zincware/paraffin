@@ -4,12 +4,14 @@ from pathlib import Path
 
 from paraffin.utils import get_group, replace_node_working_dir
 
-def _extract_node_name(cmd: str) -> str|None:
+
+def _extract_node_name(cmd: str) -> str | None:
     """Extract the node name from the command string."""
     node_name_match = re.search(r"--name\s+([\w_]+)", cmd)
     return node_name_match.group(1) if node_name_match else None
 
-def _process_params(params: dict, node_name: str|None) -> dict:
+
+def _process_params(params: dict, node_name: str | None) -> dict:
     """Generalize the `params` field by replacing the node name with `<node-name>`."""
     generalized_params = {}
     for file, file_params in params.items():
@@ -22,6 +24,7 @@ def _process_params(params: dict, node_name: str|None) -> dict:
                 generalized_file_params[key] = value
         generalized_params[file] = generalized_file_params
     return generalized_params
+
 
 def _process_deps(deps: list) -> list:
     """Generalize the `deps` field by removing the `path` field."""
@@ -36,6 +39,7 @@ def _process_deps(deps: list) -> list:
             new_dep["hash"] = dep["hash"]
         new_deps.append(new_dep)
     return new_deps
+
 
 def clean_lock(raw: dict) -> dict:
     """Clean the lock file for hashing.
