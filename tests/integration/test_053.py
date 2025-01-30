@@ -2,9 +2,9 @@
 
 import os
 import subprocess
+
 import git
 import pytest
-
 from typer.testing import CliRunner
 
 from paraffin.cli import app
@@ -45,6 +45,7 @@ if __name__ == "__main__":
 
     proj.build()
 """
+
 
 @pytest.fixture
 def repo(tmp_path):

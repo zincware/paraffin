@@ -131,11 +131,11 @@ def lock05() -> tuple[dict, dict]:
                 "hash": "md5",
                 "files": [
                     {
-                    "relpath": "data.csv",
-                    "md5": "421109828f8547af8727ca039ebd3d13",
-                    "size": 23
+                        "relpath": "data.csv",
+                        "md5": "421109828f8547af8727ca039ebd3d13",
+                        "size": 23,
                     }
-                ]
+                ],
             },
             {
                 "path": "nodes/MyNode/outs.json",
@@ -152,12 +152,12 @@ def lock05() -> tuple[dict, dict]:
                 "hash": "md5",
                 "files": [
                     {
-                    "md5": "421109828f8547af8727ca039ebd3d13",
-                    "relpath": "data.csv",
-    # relpath should be fine, because it won't contain the node name
-                    "size": 23
+                        "md5": "421109828f8547af8727ca039ebd3d13",
+                        "relpath": "data.csv",
+                        # relpath should be fine, because it won't contain the node name
+                        "size": 23,
                     }
-                ]
+                ],
             },
             {
                 "hash": "md5",
@@ -324,6 +324,7 @@ def test_clean_lock04(lock04):
 def test_clean_lock05(lock05):
     raw, expected = lock05
     assert clean_lock(raw) == expected
+
 
 def test_clean_lockAB(lock_a_b):
     a, b = lock_a_b
