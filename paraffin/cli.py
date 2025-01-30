@@ -186,7 +186,7 @@ def submit(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
     cache: bool = typer.Option(
-        True,
+        False,
         help="Use the paraffin cache in addition to the DVC cache"
         " to checkout cached jobs.",
     ),
