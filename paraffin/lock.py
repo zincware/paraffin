@@ -4,7 +4,6 @@ from pathlib import Path
 
 from paraffin.utils import get_group, replace_node_working_dir
 
-
 def clean_lock(raw: dict) -> dict:
     """Clean the lock file for hashing.
 
@@ -39,11 +38,19 @@ def clean_lock(raw: dict) -> dict:
             generalized_params[file] = generalized_file_params
         exp["params"] = generalized_params
 
-    # Generalize `deps` by removing `path` keys
+    # Generalize `deps` by removing `path`, but keeping `files`
     if "deps" in exp:
-        exp["deps"] = [
-            {"hash": dep["hash"], dep["hash"]: dep[dep["hash"]]} for dep in exp["deps"]
-        ]
+        new_deps = []
+        for dep in exp["deps"]:
+            new_dep = {"hash": dep["hash"]}
+            if "files" in dep:
+                new_dep["files"] = dep["files"]  # Keep `files` structure unchanged
+            if "md5" in dep:
+                new_dep["md5"] = dep["md5"]
+            if "hash" in dep:
+                new_dep["hash"] = dep["hash"]
+            new_deps.append(new_dep)
+        exp["deps"] = new_deps
 
     return exp
 
