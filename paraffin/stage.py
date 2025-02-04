@@ -112,10 +112,14 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
 
     # Create threads to read stdout and stderr
     stdout_thread = threading.Thread(
-        target=_stream_reader, args=(process.stdout, print_and_store_stdout), daemon=True
+        target=_stream_reader,
+        args=(process.stdout, print_and_store_stdout),
+        daemon=True,
     )
     stderr_thread = threading.Thread(
-        target=_stream_reader, args=(process.stderr, print_and_store_stderr), daemon=True
+        target=_stream_reader,
+        args=(process.stderr, print_and_store_stderr),
+        daemon=True,
     )
 
     stdout_thread.start()
