@@ -4,6 +4,7 @@ import dataclasses
 import json
 import logging
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -13,7 +14,6 @@ from dvc.lock import LockError
 from dvc.stage import PipelineStage
 from dvc.stage.cache import _get_cache_hash
 from dvc.stage.serialize import to_single_stage_lockfile
-import threading
 
 from paraffin.lock import clean_lock, transform_lock
 
@@ -86,8 +86,9 @@ def get_lock(name: str) -> tuple[dict, str]:
 def stream_reader(pipe, callback):
     """Reads lines from a pipe and calls the callback function."""
     with pipe:
-        for line in iter(pipe.readline, ''):  # Read until EOF
+        for line in iter(pipe.readline, ""):  # Read until EOF
             callback(line)
+
 
 def run_command(command):
     """Runs a command and prints stdout/stderr in real-time, with timeout."""
@@ -96,7 +97,7 @@ def run_command(command):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         bufsize=1,
-        universal_newlines=True
+        universal_newlines=True,
     )
 
     stdout_lines = []
@@ -111,15 +112,17 @@ def run_command(command):
         stderr_lines.append(line)
 
     # Create threads to read stdout and stderr
-    stdout_thread = threading.Thread(target=stream_reader, args=(process.stdout, print_and_store_stdout), daemon=True)
-    stderr_thread = threading.Thread(target=stream_reader, args=(process.stderr, print_and_store_stderr), daemon=True)
+    stdout_thread = threading.Thread(
+        target=stream_reader, args=(process.stdout, print_and_store_stdout), daemon=True
+    )
+    stderr_thread = threading.Thread(
+        target=stream_reader, args=(process.stderr, print_and_store_stderr), daemon=True
+    )
 
     stdout_thread.start()
     stderr_thread.start()
 
-
     return_code = process.wait()  # Ensure process completes
-
 
     stdout_thread.join()
     stderr_thread.join()
