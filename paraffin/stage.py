@@ -3,10 +3,10 @@
 import dataclasses
 import json
 import logging
+import re
 import subprocess
 import time
 from pathlib import Path
-import re
 
 import dvc.api
 import pexpect
@@ -21,7 +21,8 @@ from paraffin.lock import clean_lock, transform_lock
 log = logging.getLogger(__name__)
 
 
-ANSI_ESCAPE = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
 
 @dataclasses.dataclass(frozen=True, eq=True)
 class PipelineStageDC:
@@ -103,7 +104,7 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
                 break  # Stop when no more output
 
             print(line, end="")  # Print output live (preserves colors)
-            stdout_lines.append(ANSI_ESCAPE.sub('', line))  # Capture stdout
+            stdout_lines.append(ANSI_ESCAPE.sub("", line))  # Capture stdout
 
     except pexpect.EOF:
         pass  # Process finished

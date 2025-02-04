@@ -163,7 +163,7 @@ ${data.node.deps_hash}
 							<div style={{ overflowX: 'auto' }}>
 							{nodeData.stdout.split('\n').map((line, index) => (
 								<><Ansi key={index}>{line}</Ansi> <br /></>
-									
+
 								))}
 								</div>
 						</>
