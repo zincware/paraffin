@@ -83,20 +83,19 @@ def get_lock(name: str) -> tuple[dict, str]:
     return stage_lock, deps_hash
 
 
-def stream_reader(pipe, callback):
+def _stream_reader(pipe, callback) -> None:
     """Reads lines from a pipe and calls the callback function."""
     with pipe:
         for line in iter(pipe.readline, ""):  # Read until EOF
             callback(line)
 
 
-def run_command(command):
-    """Runs a command and prints stdout/stderr in real-time, with timeout."""
+def run_command(command: list[str]) -> tuple[int, str, str]:
+    """Run a subprocess command, capturing its stdout, stderr, and return code."""
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        bufsize=1,
         universal_newlines=True,
     )
 
@@ -113,10 +112,10 @@ def run_command(command):
 
     # Create threads to read stdout and stderr
     stdout_thread = threading.Thread(
-        target=stream_reader, args=(process.stdout, print_and_store_stdout), daemon=True
+        target=_stream_reader, args=(process.stdout, print_and_store_stdout), daemon=True
     )
     stderr_thread = threading.Thread(
-        target=stream_reader, args=(process.stderr, print_and_store_stderr), daemon=True
+        target=_stream_reader, args=(process.stderr, print_and_store_stderr), daemon=True
     )
 
     stdout_thread.start()
