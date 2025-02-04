@@ -7,6 +7,7 @@ import Modal from "react-bootstrap/Modal";
 import Markdown from "react-markdown";
 import { GraphNode } from "./types";
 import GraphContext from "./GraphContext";
+import Ansi from "ansi-to-react";
 
 interface GraphStateNodeProps {
 	data: {
@@ -159,13 +160,25 @@ ${data.node.deps_hash}
 					{nodeData.stdout && (
 						<>
 							<h5>STDOUT</h5>
-							<pre>{nodeData.stdout}</pre>
+							<div style={{ overflowX: 'auto' }}>
+							{nodeData.stdout.split('\n').map((line, index) => (
+								<><Ansi key={index}>{line}</Ansi> <br /></>
+									
+								))}
+								</div>
 						</>
 					)}
 					{nodeData.stderr && (
 						<>
 							<h5>STDERR</h5>
-							<pre>{nodeData.stderr}</pre>
+							<div style={{ overflowX: 'auto' }}>
+							{nodeData.stderr.split('\n').map((line, index) => (
+								<>
+									<Ansi key={index}>{line}</Ansi>
+									<br />
+								</>
+								))}
+								</div>
 						</>
 					)}
 					{nodeData.worker && (
