@@ -6,8 +6,9 @@ import logging
 import subprocess
 import time
 from pathlib import Path
-import pexpect
+
 import dvc.api
+import pexpect
 import yaml
 from dvc.lock import LockError
 from dvc.stage import PipelineStage
@@ -84,7 +85,7 @@ def get_lock(name: str) -> tuple[dict, str]:
 
 def run_command(command: list[str]) -> tuple[int, str, str]:
     """Runs a command with PTY support, capturing stdout/stderr while preserving colors and progress bars."""
-    
+
     cmd_str = " ".join(command)  # Convert list to string
     child = pexpect.spawn(cmd_str, encoding="utf-8", timeout=None)
 
@@ -105,10 +106,12 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
         pass  # Process finished
 
     return_code = child.wait()
-    
-    return return_code, "".join(stdout_lines), "".join(stderr_lines)  # stderr is empty (pexpect merges output)
 
-
+    return (
+        return_code,
+        "".join(stdout_lines),
+        "".join(stderr_lines),
+    )  # stderr is empty (pexpect merges output)
 
 
 @retry(10, (LockError,), delay=0.5)
