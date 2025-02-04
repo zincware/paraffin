@@ -1,10 +1,11 @@
 """Test repository with multiple dvc.yaml files."""
-import pytest
-import subprocess
-import yaml
-import os
-import git
 
+import os
+import subprocess
+
+import git
+import pytest
+import yaml
 from typer.testing import CliRunner
 
 from paraffin.cli import app
@@ -22,10 +23,11 @@ dvc_yaml_dict = {
 mkdir -p output && echo "Hello World" > output/hello.txt
 
 EOF"""
-            ]
+            ],
         }
     }
 }
+
 
 @pytest.fixture
 def nested_project(tmp_path):
@@ -45,7 +47,6 @@ def nested_project(tmp_path):
     return tmp_path
 
 
-    
 def test_053(nested_project):
     os.chdir(nested_project)
     # subprocess.check_call(["dvc repro"], shell=True)
@@ -56,5 +57,6 @@ def test_053(nested_project):
     result = runner.invoke(app, "worker")
     assert result.exit_code == 0
 
-    assert (nested_project / "exp1" / "output" / "hello.txt").read_text() == "Hello World\n"
-
+    assert (
+        nested_project / "exp1" / "output" / "hello.txt"
+    ).read_text() == "Hello World\n"
