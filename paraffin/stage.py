@@ -35,7 +35,7 @@ class PipelineStageDC:
     @property
     def name(self) -> str:
         """Return the name of the stage."""
-        return self.stage.name
+        return self.stage.addressing
 
     @property
     def cmd(self) -> str:
