@@ -1562,7 +1562,7 @@ wheels = [
 
 [[package]]
 name = "paraffin"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "." }
 dependencies = [
     { name = "dvc" },
@@ -1590,7 +1590,7 @@ requires-dist = [
 dev = [
     { name = "coverage", specifier = ">=7.6.10" },
     { name = "pytest", specifier = ">=8.3.4" },
-    { name = "zntrack", specifier = ">=0.8.1" },
+    { name = "zntrack", specifier = ">=0.8.2" },
 ]
 
 [[package]]
@@ -2364,7 +2364,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.13.1"
+version = "0.15.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -2372,9 +2372,9 @@ dependencies = [
     { name = "shellingham" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/76/41/49ead3ad3310545e767bcb917c759b026ca9eada5d5c150c2fb6fc555568/typer-0.13.1.tar.gz", hash = "sha256:9d444cb96cc268ce6f8b94e13b4335084cef4c079998a9f4851a90229a3bd25c", size = 98631 }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/ce/dca7b219718afd37a0068f4f2530a727c2b74a8b6e8e0c0080a4c0de4fcd/typer-0.15.1.tar.gz", hash = "sha256:a0588c0a7fa68a1978a069818657778f86abe6ff5ea6abf472f940a08bfe4f0a", size = 99789 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/69/e90a0b4d0c16e095901679216c8ecdc728110c7c54e7b5f43a623bc4c789/typer-0.13.1-py3-none-any.whl", hash = "sha256:5b59580fd925e89463a29d363e0a43245ec02765bde9fb77d39e5d0f29dd7157", size = 44723 },
+    { url = "https://files.pythonhosted.org/packages/d0/cc/0a838ba5ca64dc832aa43f727bd586309846b0ffb2ce52422543e6075e8a/typer-0.15.1-py3-none-any.whl", hash = "sha256:7994fb7b8155b64d3402518560648446072864beefd44aa2dc36972a5972e847", size = 44908 },
 ]
 
 [[package]]
@@ -2734,7 +2734,7 @@ wheels = [
 
 [[package]]
 name = "zntrack"
-version = "0.8.1"
+version = "0.8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dvc" },
@@ -2746,7 +2746,7 @@ dependencies = [
     { name = "znflow" },
     { name = "znjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/0e/272e751cc54061acf82c4589184814cc7cf1ade7b5b6f9fc3ac8e80d88b8/zntrack-0.8.1.tar.gz", hash = "sha256:4f39da4f1db02c6cfc9d516c6d60f1e6705bc427e96423ecbc33ba96da068a55", size = 42013 }
+sdist = { url = "https://files.pythonhosted.org/packages/79/c7/6b96de81c1106b5de63b48ce063c0fac3ae12e1e22d85e46ccfa11f127c0/zntrack-0.8.2.tar.gz", hash = "sha256:f6bc0fb0b2ca7a9cfa833e7bac5867d64d23df006e20ea32219c73f9a7b7b72c", size = 634569 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/63/42cc14c0e01a35a0a3e4dca57c9c355fdebe3d29a08a2a75e24c578698f9/zntrack-0.8.1-py3-none-any.whl", hash = "sha256:7483d08dc6a8c0b9b58754f58d241c38113b51dd3beb62e3041b35ae612fc9b0", size = 52079 },
+    { url = "https://files.pythonhosted.org/packages/17/aa/beef1a6c3207b4811b65673d742862c05955bf17d7b66f49349c022a9499/zntrack-0.8.2-py3-none-any.whl", hash = "sha256:3e76bab8439604071230d97f10969c5355cb4a0cea7f953dd0c4b89cd0b00b53", size = 52747 },
 ]

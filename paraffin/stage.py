@@ -4,6 +4,7 @@ import dataclasses
 import json
 import logging
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -82,9 +83,16 @@ def get_lock(name: str) -> tuple[dict, str]:
     return stage_lock, deps_hash
 
 
+def _stream_reader(pipe, callback) -> None:
+    """Reads lines from a pipe and calls the callback function."""
+    with pipe:
+        for line in iter(pipe.readline, ""):  # Read until EOF
+            callback(line)
+
+
 def run_command(command: list[str]) -> tuple[int, str, str]:
     """Run a subprocess command, capturing its stdout, stderr, and return code."""
-    popen = subprocess.Popen(
+    process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -94,19 +102,34 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
     stdout_lines = []
     stderr_lines = []
 
-    # Read stdout
-    for stdout_line in iter(popen.stdout.readline, ""):
-        print(stdout_line, end="")
-        stdout_lines.append(stdout_line)
-    popen.stdout.close()
+    def print_and_store_stdout(line):
+        print(line, end="")  # Print in real-time
+        stdout_lines.append(line)
 
-    # Read stderr
-    for stderr_line in iter(popen.stderr.readline, ""):
-        print(stderr_line, end="")
-        stderr_lines.append(stderr_line)
-    popen.stderr.close()
+    def print_and_store_stderr(line):
+        print(line, end="")  # Print in real-time
+        stderr_lines.append(line)
 
-    return_code = popen.wait()
+    # Create threads to read stdout and stderr
+    stdout_thread = threading.Thread(
+        target=_stream_reader,
+        args=(process.stdout, print_and_store_stdout),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_stream_reader,
+        args=(process.stderr, print_and_store_stderr),
+        daemon=True,
+    )
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    return_code = process.wait()  # Ensure process completes
+
+    stdout_thread.join()
+    stderr_thread.join()
+
     return return_code, "".join(stdout_lines), "".join(stderr_lines)
 
 
