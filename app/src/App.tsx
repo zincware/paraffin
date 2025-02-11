@@ -100,10 +100,10 @@ const ElkSettings: React.FC<ElkSettingsProps> = ({
 
 interface WorkerInfo {
 	machine: string;
-	last_seen: Date; // Use Date type for timestamps
-	status: "offline" | "idle" | "running"; // Enumerate possible statuses
+	last_seen: Date;
+	status: "offline" | "idle" | "running";
 	id: number;
-	name?: string; // Make name optional
+	name: string;
 }
 
 function LayoutFlow({ experiment }: { experiment: string | null }) {
@@ -142,7 +142,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 				}
 
 				setWorkerInfo((prevWorkerInfo) => {
-					// Create a map of the previous worker info for quick lookup
 					const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
 
 					// Check if any worker has changed
@@ -166,23 +165,19 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 						// If no changes, return the previous worker
 						return prevWorker;
 					});
-
-					// Only update the state if there are changes
 					if (hasChanges) {
 						return updatedWorkers;
 					}
 
-					// If no changes, return the previous state to avoid unnecessary re-renders
 					return prevWorkerInfo;
 				});
 			});
 		}, 5000);
 
-		// Cleanup the interval on component unmount
 		return () => {
 			clearInterval(interval);
 		};
-	}, [workerInfo]); // Dependency array ensures this effect runs when `workerInfo` changes
+	}, [workerInfo]);
 
 	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
