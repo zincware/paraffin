@@ -98,6 +98,7 @@ def get_stage_graph(names: list | None, force: bool, single_item: bool) -> nx.Di
 
     return nx.relabel_nodes(subgraph, mapping, copy=True)
 
+
 def get_custom_queue():
     try:
         with pathlib.Path("paraffin.yaml").open() as f:

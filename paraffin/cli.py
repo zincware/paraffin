@@ -215,7 +215,7 @@ def submit(
     """Run DVC stages in parallel."""
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
-    
+
     if single_item and names is None:
         typer.echo("Cannot use single item without specifying names")
         raise typer.Exit(1)
