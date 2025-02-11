@@ -69,7 +69,8 @@ def get_stage_graph(names: list | None, force: bool, single_item: bool) -> nx.Di
         ]
 
     if single_item:
-        # If single_item is True, only include the specified nodes without their predecessors
+        # If single_item is True, only include the specified
+        # nodes without their predecessors
         subgraph = graph.subgraph(nodes)
     else:
         # Otherwise, include the specified nodes and their predecessors
