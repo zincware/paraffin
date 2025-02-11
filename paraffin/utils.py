@@ -68,7 +68,12 @@ def get_stage_graph(names: list | None, force: bool, single_item: bool) -> nx.Di
             x for x in nodes if any(fnmatch.fnmatch(x.name, name) for name in names)
         ]
 
-    subgraph = get_subgraph_with_predecessors(graph, nodes)
+    if single_item:
+        # If single_item is True, only include the specified nodes without their predecessors
+        subgraph = graph.subgraph(nodes)
+    else:
+        # Otherwise, include the specified nodes and their predecessors
+        subgraph = get_subgraph_with_predecessors(graph, nodes)
 
     # remove all nodes that do not have a name
     subgraph = nx.subgraph_view(subgraph, filter_node=lambda x: hasattr(x, "name"))
@@ -91,14 +96,7 @@ def get_stage_graph(names: list | None, force: bool, single_item: bool) -> nx.Di
                 force=force,
             )
 
-    if single_item:  # TODO: we probably don't need to iterate the entire graph for performance reasons
-        mapping = {
-            k: v
-            for k, v in mapping.items()
-            if any(fnmatch.fnmatch(k.name, name) for name in names)
-        }
     return nx.relabel_nodes(subgraph, mapping, copy=True)
-
 
 def get_custom_queue():
     try:
