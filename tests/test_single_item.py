@@ -1,16 +1,19 @@
-import zntrack
 import random
 
+import zntrack
 from typer.testing import CliRunner
+
 from paraffin.cli import app
 
 runner = CliRunner()
+
 
 class A(zntrack.Node):
     metrics: dict = zntrack.metrics()
 
     def run(self):
         self.metrics = {"random": random.random()}
+
 
 class B(zntrack.Node):
     a: A = zntrack.deps()
@@ -33,7 +36,7 @@ def test_single_item(proj_path):
     assert result.exit_code == 0
     result = runner.invoke(app, "worker")
     # single item submit should fail, as B depends on A which is missing
-    assert "ERROR: failed to reproduce 'B'" in result.stdout 
+    assert "ERROR: failed to reproduce 'B'" in result.stdout
 
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0

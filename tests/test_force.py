@@ -1,10 +1,12 @@
-import zntrack
 import random
 
+import zntrack
 from typer.testing import CliRunner
+
 from paraffin.cli import app
 
 runner = CliRunner()
+
 
 class RNG(zntrack.Node):
     metrics: dict = zntrack.metrics()
