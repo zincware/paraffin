@@ -34,17 +34,6 @@ interface NodeData {
 	worker: string;
 }
 
-const updateNodeStauts = (name: string, experiment: string) => {
-	fetch(
-		"/api/v1/job/update" +
-			"?experiment=" +
-			experiment +
-			"&name=" +
-			name +
-			"&status=pending",
-	);
-};
-
 // TODO: on the edge between the nodes, show infos on which attributes are connected.
 //  this can later be edited to build the graph in the paraffin ui.
 
@@ -194,8 +183,23 @@ ${data.node.deps_hash}
 						Close
 					</Button>
 					{/* TODO: refresh the page */}
-					<Button onClick={() => updateNodeStauts(data.node.id, experiment)}>
+					<Button
+						onClick={() => {
+							fetch(
+								`/api/v1/job/update?experiment=${experiment}&name=${data.node.id}&status=pending`,
+							);
+						}}
+					>
 						Retry
+					</Button>
+					<Button
+						onClick={() => {
+							fetch(
+								`/api/v1/job/update?experiment=${experiment}&name=${data.node.id}&status=pending&force=true`,
+							);
+						}}
+					>
+						Force rerun
 					</Button>
 				</Modal.Footer>
 			</Modal>

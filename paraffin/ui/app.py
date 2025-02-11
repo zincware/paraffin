@@ -66,8 +66,9 @@ def read_workers():
 
 # update_job_status
 @app.get("/api/v1/job/update")
-def update_job(name: str, experiment: int, status: str):
+def update_job(name: str, experiment: int, status: str, force: bool = False):
     db_url = os.environ["PARAFFIN_DB"]
+    print(f"Updating job {name} to {status} in experiment {experiment} with force={force}")
     return update_job_status(
-        job_name=name, experiment_id=int(experiment), status=status, db_url=db_url
+        job_name=name, experiment_id=int(experiment), status=status, db_url=db_url, force=force
     )

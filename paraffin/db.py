@@ -234,7 +234,7 @@ def complete_job(
 
 
 def update_job_status(
-    job_name: str, experiment_id: int, status: str, db_url: str
+    job_name: str, experiment_id: int, status: str, db_url: str, force: bool
 ) -> int:
     engine = create_engine(db_url)
     with Session(engine) as session:
@@ -245,9 +245,11 @@ def update_job_status(
         )
         results = session.exec(statement)
         job = results.one()
-        if job.status == "completed":
+        if job.status == "completed" and not force:
             return -1
         job.status = status
+        if force:
+            job.force = True
         session.add(job)
         session.commit()
     return 0
