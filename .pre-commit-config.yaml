@@ -38,4 +38,4 @@ repos:
     hooks:
     -   id: biome-format # not using check becasue there are lots of things that need fixed
         additional_dependencies: ["@biomejs/biome@1.9.4"]
-        files: ^app/ 
+        files: ^app/
