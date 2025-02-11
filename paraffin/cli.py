@@ -9,6 +9,7 @@ import webbrowser
 import git
 import typer
 import uvicorn
+import threading
 
 from paraffin.db import (
     close_worker,
@@ -32,6 +33,96 @@ log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
+
+def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, db: str, workers: dict):
+    worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
+    workers[worker_id] = None
+    log.info(f"Listening on queues: {queues}")
+
+    last_seen = datetime.datetime.now()
+    while True:
+        job_obj = get_job(
+            db_url=db,
+            queues=queues,
+            worker=name,
+            machine=socket.gethostname(),
+            experiment=experiment,
+            job_name=job,
+        )
+
+        if job_obj is None:
+            remaining_seconds = (
+                timeout - (datetime.datetime.now() - last_seen).seconds
+            )
+            if remaining_seconds <= 0:
+                log.info("Timeout reached - exiting.")
+                break
+            time.sleep(1)
+            log.info(
+                "No more job found"
+                f" - sleeping until closing in {remaining_seconds} seconds"
+            )
+            continue
+        last_seen = datetime.datetime.now()
+
+        update_worker(worker_id, status="running", db_url=db)
+        workers[worker_id] = job_obj["id"]
+
+        # This will search the DB and not rely on DVC run cache to determine if
+        #  the job is cached so this can easily work across directories
+        cached_job = False
+        if job_obj["cache"] and detect_zntrack(job_obj) and not job_obj["force"]:
+            stage_lock, deps_hash = get_lock(job_obj["name"])
+            cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
+        if cached_job:
+            log.info(
+                f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+            )
+            returncode, stdout, stderr = checkout(
+                stage_lock, cached_job["lock"], job_obj["name"]
+            )
+            if returncode == 404:
+                # TODO: we need to ensure that all deps nodes are checked out!
+                #  this will be important when clone / push.
+                # TODO: this can be the cause for a lock issue!
+                log.warning(
+                    "Unable to checkout GIT tracked files"
+                    f" for job '{job_obj['name']}'"
+                )
+                log.info(f"Running job '{job_obj['name']}'")
+                returncode, stdout, stderr = repro(
+                    job_obj["name"], force=job_obj["force"]
+                )  # TODO: this is not tested in CI,
+                #  because it did not raise an error
+        else:
+            log.info(f"Running job '{job_obj['name']}'")
+            # TODO: we need to ensure that all deps nodes are checked out!
+            #  this will be important when clone / push.
+            # TODO: this can be the cause for a lock issue!
+            returncode, stdout, stderr = repro(
+                job_obj["name"], force=job_obj["force"]
+            )
+        if returncode != 0:
+            complete_job(
+                job_obj["id"],
+                status="failed",
+                lock={},
+                stdout=stdout,
+                stderr=stderr,
+                db_url=db,
+            )
+        else:
+            stage_lock, _ = get_lock(job_obj["name"])
+            complete_job(
+                job_obj["id"],
+                status="completed",
+                lock=stage_lock,
+                stdout=stdout,
+                stderr=stderr,
+                db_url=db,
+            )
+        job_obj = None
+        update_worker(worker_id, status="idle", db_url=db)
 
 @app.command()
 def ui(
@@ -79,109 +170,41 @@ def worker(
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
+    jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
 ):
     """Start a paraffin worker."""
     queues = queues.split(",")
     # set the log level
     logging.basicConfig(level=logging.INFO)
-    worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
-    log.info(f"Listening on queues: {queues}")
+    # spawn j worker threads
+    threads = []
 
-    last_seen = datetime.datetime.now()
+    workers = {}
     try:
-        while True:
-            job_obj = get_job(
-                db_url=db,
-                queues=queues,
-                worker=name,
-                machine=socket.gethostname(),
-                experiment=experiment,
-                job_name=job,
+        for i in range(jobs):
+            t = threading.Thread(
+                target=spawn_worker,
+                args=(name, queues, experiment, job, timeout, db, workers),
+                daemon=True,
             )
+            threads.append(t)
+            t.start()
 
-            if job_obj is None:
-                remaining_seconds = (
-                    timeout - (datetime.datetime.now() - last_seen).seconds
-                )
-                if remaining_seconds <= 0:
-                    log.info("Timeout reached - exiting.")
-                    break
-                time.sleep(1)
-                log.info(
-                    "No more job found"
-                    f" - sleeping until closing in {remaining_seconds} seconds"
-                )
-                continue
-            last_seen = datetime.datetime.now()
-
-            update_worker(worker_id, status="running", db_url=db)
-
-            # This will search the DB and not rely on DVC run cache to determine if
-            #  the job is cached so this can easily work across directories
-            cached_job = False
-            if job_obj["cache"] and detect_zntrack(job_obj) and not job_obj["force"]:
-                stage_lock, deps_hash = get_lock(job_obj["name"])
-                cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
-            if cached_job:
-                log.info(
-                    f"Job '{job_obj['name']}' is cached and dvc.lock is available."
-                )
-                returncode, stdout, stderr = checkout(
-                    stage_lock, cached_job["lock"], job_obj["name"]
-                )
-                if returncode == 404:
-                    # TODO: we need to ensure that all deps nodes are checked out!
-                    #  this will be important when clone / push.
-                    # TODO: this can be the cause for a lock issue!
-                    log.warning(
-                        "Unable to checkout GIT tracked files"
-                        f" for job '{job_obj['name']}'"
-                    )
-                    log.info(f"Running job '{job_obj['name']}'")
-                    returncode, stdout, stderr = repro(
-                        job_obj["name"], force=job_obj["force"]
-                    )  # TODO: this is not tested in CI,
-                    #  because it did not raise an error
-            else:
-                log.info(f"Running job '{job_obj['name']}'")
-                # TODO: we need to ensure that all deps nodes are checked out!
-                #  this will be important when clone / push.
-                # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(
-                    job_obj["name"], force=job_obj["force"]
-                )
-            if returncode != 0:
+        for t in threads:
+            t.join()
+    finally:
+        for worker, job_id in workers.items():
+            if job_id is not None:
                 complete_job(
-                    job_obj["id"],
+                    job_id=job_id,
                     status="failed",
                     lock={},
-                    stdout=stdout,
-                    stderr=stderr,
+                    stdout="",
+                    stderr="Worker exited.",
                     db_url=db,
                 )
-            else:
-                stage_lock, _ = get_lock(job_obj["name"])
-                complete_job(
-                    job_obj["id"],
-                    status="completed",
-                    lock=stage_lock,
-                    stdout=stdout,
-                    stderr=stderr,
-                    db_url=db,
-                )
-            job_obj = None
-            update_worker(worker_id, status="idle", db_url=db)
-    finally:
-        if job_obj is not None:
-            complete_job(
-                job_obj["id"],
-                status="failed",
-                lock={},
-                stdout="",
-                stderr="Worker exited.",
-                db_url=db,
-            )
-        close_worker(id=worker_id, db_url=db)
+            close_worker(id=worker, db_url=db)
+    
 
 
 @app.command()
