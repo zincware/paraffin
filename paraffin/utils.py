@@ -40,7 +40,7 @@ def get_subgraph_with_predecessors(graph, nodes) -> nx.DiGraph:
     return graph.subgraph(nodes_to_include).copy()
 
 
-def get_stage_graph(names: list|None, force: bool) -> nx.DiGraph:
+def get_stage_graph(names: list | None, force: bool, single_item: bool) -> nx.DiGraph:
     """
     Generates a subgraph of stages from a DVC repository based on provided names.
 
@@ -48,6 +48,10 @@ def get_stage_graph(names: list|None, force: bool) -> nx.DiGraph:
     ----------
     names: list|None
         A list of stage names to filter the graph nodes.
+    force: bool
+        Force rerun the selected stages
+    single_item: bool
+        only reproduce the names without upstream dependencies
 
     Returns
     -------
@@ -87,6 +91,12 @@ def get_stage_graph(names: list|None, force: bool) -> nx.DiGraph:
                 force=force,
             )
 
+    if single_item:  # TODO: we probably don't need to iterate the entire graph for performance reasons
+        mapping = {
+            k: v
+            for k, v in mapping.items()
+            if any(fnmatch.fnmatch(k.name, name) for name in names)
+        }
     return nx.relabel_nodes(subgraph, mapping, copy=True)
 
 

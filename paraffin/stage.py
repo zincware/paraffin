@@ -155,9 +155,7 @@ def repro(name: str, force: bool) -> tuple[int, str, str]:
     cmd = ["dvc", "repro", "--single-item", name]
     if force:
         cmd.append("--force")
-    return_code, repro_stdout, repro_stderr = run_command(
-        cmd
-    )
+    return_code, repro_stdout, repro_stderr = run_command(cmd)
     stdout_lines.append(repro_stdout)
     stderr_lines.append(repro_stderr)
 

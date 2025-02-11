@@ -144,7 +144,9 @@ def worker(
                 # TODO: we need to ensure that all deps nodes are checked out!
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(job_obj["name"], force=job_obj["force"])
+                returncode, stdout, stderr = repro(
+                    job_obj["name"], force=job_obj["force"]
+                )
             if returncode != 0:
                 complete_job(
                     job_obj["id"],
@@ -213,6 +215,10 @@ def submit(
     """Run DVC stages in parallel."""
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
+    
+    if single_item and names is None:
+        typer.echo("Cannot use single item without specifying names")
+        raise typer.Exit(1)
 
     # check if the repo has a commit
     repo = git.Repo(search_parent_directories=True)
@@ -230,7 +236,7 @@ def submit(
             log.debug(f"Creating new experiment based on commit '{commit}'")
 
     log.debug("Getting stage graph")
-    graph = get_stage_graph(names=names, force=force)
+    graph = get_stage_graph(names=names, force=force, single_item=single_item)
 
     custom_queues = get_custom_queue()
     update_gitignore(line="paraffin.db")
