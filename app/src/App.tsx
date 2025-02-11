@@ -24,7 +24,7 @@ import {
 	FaArrowRight,
 	FaArrowDown,
 	FaRedo,
-	FaPlay
+	FaPlay,
 } from "react-icons/fa";
 
 import GraphStateNode from "./GraphStateNode";
@@ -100,11 +100,11 @@ const ElkSettings: React.FC<ElkSettingsProps> = ({
 
 interface WorkerInfo {
 	machine: string;
-	last_seen: Date;        // Use Date type for timestamps
+	last_seen: Date; // Use Date type for timestamps
 	status: "offline" | "idle" | "running"; // Enumerate possible statuses
 	id: number;
-	name?: string;          // Make name optional
-  }
+	name?: string; // Make name optional
+}
 
 function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -134,55 +134,55 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 
 	useEffect(() => {
 		const interval = setInterval(() => {
-		  fetchWorkers().then((workers: WorkerInfo[]) => {
-			// special case if len(workers) == 0 and workerInfo.length > 0
-			if (workers.length === 0 && workerInfo.length > 0) {
-			  setWorkerInfo([]);
-			  return;
-			}
+			fetchWorkers().then((workers: WorkerInfo[]) => {
+				// special case if len(workers) == 0 and workerInfo.length > 0
+				if (workers.length === 0 && workerInfo.length > 0) {
+					setWorkerInfo([]);
+					return;
+				}
 
-			setWorkerInfo((prevWorkerInfo) => {
-			  // Create a map of the previous worker info for quick lookup
-			  const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
-	  
-			  // Check if any worker has changed
-			  let hasChanges = false;
-			  const updatedWorkers = workers.map((worker) => {
-				const lastSeen = Date.parse(worker.last_seen);
-				const prevWorker = prevWorkerMap.get(worker.id);
-	  
-				// If the worker exists in the previous state and `last_seen` has changed
-				if (prevWorker && Date.parse(prevWorker.last_seen) !== lastSeen) {
-				  hasChanges = true;
-				  return { ...worker, last_seen: lastSeen };
-				}
-	  
-				// If the worker is new, add it to the state
-				if (!prevWorker) {
-				  hasChanges = true;
-				  return worker;
-				}
-	  
-				// If no changes, return the previous worker
-				return prevWorker;
-			  });
-	  
-			  // Only update the state if there are changes
-			  if (hasChanges) {
-				return updatedWorkers;
-			  }
-	  
-			  // If no changes, return the previous state to avoid unnecessary re-renders
-			  return prevWorkerInfo;
+				setWorkerInfo((prevWorkerInfo) => {
+					// Create a map of the previous worker info for quick lookup
+					const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
+
+					// Check if any worker has changed
+					let hasChanges = false;
+					const updatedWorkers = workers.map((worker) => {
+						const lastSeen = Date.parse(worker.last_seen);
+						const prevWorker = prevWorkerMap.get(worker.id);
+
+						// If the worker exists in the previous state and `last_seen` has changed
+						if (prevWorker && Date.parse(prevWorker.last_seen) !== lastSeen) {
+							hasChanges = true;
+							return { ...worker, last_seen: lastSeen };
+						}
+
+						// If the worker is new, add it to the state
+						if (!prevWorker) {
+							hasChanges = true;
+							return worker;
+						}
+
+						// If no changes, return the previous worker
+						return prevWorker;
+					});
+
+					// Only update the state if there are changes
+					if (hasChanges) {
+						return updatedWorkers;
+					}
+
+					// If no changes, return the previous state to avoid unnecessary re-renders
+					return prevWorkerInfo;
+				});
 			});
-		  });
 		}, 5000);
-	  
+
 		// Cleanup the interval on component unmount
 		return () => {
-		  clearInterval(interval);
+			clearInterval(interval);
 		};
-	  }, [workerInfo]); // Dependency array ensures this effect runs when `workerInfo` changes
+	}, [workerInfo]); // Dependency array ensures this effect runs when `workerInfo` changes
 
 	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
@@ -394,9 +394,7 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 			<GraphContext.Provider
 				value={{ excludedNodes, setExcludedNodes, experiment }}
 			>
-				<Button>
-				{workerInfo.length} workers online
-				</Button>
+				<Button>{workerInfo.length} workers online</Button>
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}

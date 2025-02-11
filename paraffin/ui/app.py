@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,9 +14,6 @@ from paraffin.db import (
     update_job_status,
 )
 from paraffin.utils import build_elk_hierarchy
-import subprocess
-from fastapi.responses import StreamingResponse
-import subprocess
 
 FILE = Path(__file__)
 
@@ -50,11 +48,10 @@ def read_graph(experiment: str):
     return build_elk_hierarchy(g)
 
 
-
-
-
 @app.get("/api/v1/spawn")
-def spawn(name: str | None = None, experiment: int | None = None, job: str | None = None):
+def spawn(
+    name: str | None = None, experiment: int | None = None, job: str | None = None
+):
     # Build the command
     cmd = ["paraffin", "worker"]
     if name is not None:
@@ -132,4 +129,3 @@ def update_job(name: str, experiment: int, status: str, force: bool = False):
         db_url=db_url,
         force=force,
     )
-
