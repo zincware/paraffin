@@ -50,6 +50,8 @@ class Job(SQLModel, table=True):
     worker: str = ""  # Worker that executed the job # TODO: use foreign key
     cache: bool = False  # Use the paraffin cache for this job
 
+    force: bool = False  # rerun the job even if cached
+
     # Relationships
     parents: List["Job"] = Relationship(
         link_model=JobDependency,
@@ -101,6 +103,7 @@ def save_graph_to_db(
                 status=status,
                 experiment_id=experiment.id,
                 cache=cache,
+                force=node.force,
             )
             # if completed, we can look for the lock and deps_hash
             if status == "completed":
@@ -191,6 +194,7 @@ def get_job(
                 job.machine = machine
                 session.add(job)
                 session.commit()
+                # TODO: use dataclass or even the Job object directly?
                 return {
                     "id": job.id,
                     "name": job.name,
@@ -198,6 +202,7 @@ def get_job(
                     "queue": job.queue,
                     "status": job.status,
                     "cache": job.cache,
+                    "force": job.force,
                 }
     return None
 
@@ -229,7 +234,7 @@ def complete_job(
 
 
 def update_job_status(
-    job_name: str, experiment_id: int, status: str, db_url: str
+    job_name: str, experiment_id: int, status: str, db_url: str, force: bool
 ) -> int:
     engine = create_engine(db_url)
     with Session(engine) as session:
@@ -240,9 +245,11 @@ def update_job_status(
         )
         results = session.exec(statement)
         job = results.one()
-        if job.status == "completed":
+        if job.status == "completed" and not force:
             return -1
         job.status = status
+        if force:
+            job.force = True
         session.add(job)
         session.commit()
     return 0

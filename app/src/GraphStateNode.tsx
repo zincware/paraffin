@@ -34,10 +34,6 @@ interface NodeData {
 	worker: string;
 }
 
-const updateNodeStauts = (name: string, experiment: string) => {
-	fetch("/api/v1/job/update" + "?experiment=" + experiment + "&name=" + name)
-};
-
 // TODO: on the edge between the nodes, show infos on which attributes are connected.
 //  this can later be edited to build the graph in the paraffin ui.
 
@@ -45,7 +41,8 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 	const [color, setColor] = useState(statusColors.default);
 	const [nodeData, setNodeData] = useState<NodeData>({}); // nodeData.stdout / stderr /
 	const [show, setShow] = useState(false);
-	const { excludedNodes, setExcludedNodes, experiment } = useContext(GraphContext);
+	const { excludedNodes, setExcludedNodes, experiment } =
+		useContext(GraphContext);
 
 	// TODO: fetch all node data here and not via the graph!
 	const fetchNodeData = async () => {
@@ -171,23 +168,39 @@ ${data.node.deps_hash}
 					{nodeData.worker && (
 						<>
 							<h5>Worker</h5>
-							<pre>{nodeData.worker}@{nodeData.machine}</pre>
+							<pre>
+								{nodeData.worker}@{nodeData.machine}
+							</pre>
 							<h5>Started At</h5>
 							<pre>{nodeData.started_at}</pre>
 							<h5>Finished At</h5>
 							<pre>{nodeData.finished_at}</pre>
 						</>
 					)}
-
-
 				</Modal.Body>
 				<Modal.Footer>
 					<Button variant="secondary" onClick={handleClose}>
 						Close
 					</Button>
 					{/* TODO: refresh the page */}
-					<Button onClick={() => updateNodeStauts(data.node.id, experiment)}
-					>Retry</Button>
+					<Button
+						onClick={() => {
+							fetch(
+								`/api/v1/job/update?experiment=${experiment}&name=${data.node.id}&status=pending`,
+							);
+						}}
+					>
+						Retry
+					</Button>
+					<Button
+						onClick={() => {
+							fetch(
+								`/api/v1/job/update?experiment=${experiment}&name=${data.node.id}&status=pending&force=true`,
+							);
+						}}
+					>
+						Force rerun
+					</Button>
 				</Modal.Footer>
 			</Modal>
 		</>

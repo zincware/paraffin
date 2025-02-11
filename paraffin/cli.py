@@ -119,7 +119,7 @@ def worker(
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
             cached_job = False
-            if job_obj["cache"] and detect_zntrack(job_obj):
+            if job_obj["cache"] and detect_zntrack(job_obj) and not job_obj["force"]:
                 stage_lock, deps_hash = get_lock(job_obj["name"])
                 cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
             if cached_job:
@@ -138,13 +138,18 @@ def worker(
                         f" for job '{job_obj['name']}'"
                     )
                     log.info(f"Running job '{job_obj['name']}'")
-                    returncode, stdout, stderr = repro(job_obj["name"])
+                    returncode, stdout, stderr = repro(
+                        job_obj["name"], force=job_obj["force"]
+                    )  # TODO: this is not tested in CI,
+                    #  because it did not raise an error
             else:
                 log.info(f"Running job '{job_obj['name']}'")
                 # TODO: we need to ensure that all deps nodes are checked out!
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(job_obj["name"])
+                returncode, stdout, stderr = repro(
+                    job_obj["name"], force=job_obj["force"]
+                )
             if returncode != 0:
                 complete_job(
                     job_obj["id"],
@@ -193,10 +198,30 @@ def submit(
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="reproduce pipelines, regenerating its results, even if no changes"
+        " were found. See https://dvc.org/doc/command-reference/repro#-f"
+        " for more information.",
+    ),
+    single_item: bool = typer.Option(
+        False,
+        "--single-item",
+        "-s",
+        help="reproduce only a single stage by turning off the recursive search for"
+        " changed dependencies. See https://dvc.org/doc/command-reference/repro#-s"
+        " for more information.",
+    ),
 ):
     """Run DVC stages in parallel."""
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
+
+    if single_item and names is None:
+        typer.echo("Cannot use single item without specifying names")
+        raise typer.Exit(1)
 
     # check if the repo has a commit
     repo = git.Repo(search_parent_directories=True)
@@ -214,7 +239,7 @@ def submit(
             log.debug(f"Creating new experiment based on commit '{commit}'")
 
     log.debug("Getting stage graph")
-    graph = get_stage_graph(names=names)
+    graph = get_stage_graph(names=names, force=force, single_item=single_item)
 
     custom_queues = get_custom_queue()
     update_gitignore(line="paraffin.db")
