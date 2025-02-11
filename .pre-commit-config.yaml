@@ -33,9 +33,8 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
-  # messes with the warning tag in the README right now
-  # - repo: https://github.com/executablebooks/mdformat
-  #   rev: 0.7.18
-  #   hooks:
-  #   - id: mdformat
-  #     args: ["--wrap=80"]
+  - repo: https://github.com/biomejs/pre-commit
+    rev: v0.6.1  # Use the sha / tag you want to point at
+    hooks:
+    -   id: biome-format # not using check becasue there are lots of things that need fixed
+        additional_dependencies: ["@biomejs/biome@1.9.4"]

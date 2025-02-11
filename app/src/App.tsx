@@ -12,14 +12,19 @@ import {
 	Position,
 } from "@xyflow/react";
 
-import InputGroup from 'react-bootstrap/InputGroup';
-import Form from 'react-bootstrap/Form';
-
+import InputGroup from "react-bootstrap/InputGroup";
+import Form from "react-bootstrap/Form";
 
 import "@xyflow/react/dist/style.css";
 import { Card, Button } from "react-bootstrap";
 import Table from "react-bootstrap/Table";
-import { FaPlus, FaMinus, FaArrowRight, FaArrowDown, FaRedo } from "react-icons/fa";
+import {
+	FaPlus,
+	FaMinus,
+	FaArrowRight,
+	FaArrowDown,
+	FaRedo,
+} from "react-icons/fa";
 
 import GraphStateNode from "./GraphStateNode";
 import GraphNodeGroup from "./GraphNodeGroup";
@@ -28,7 +33,7 @@ import "./App.css";
 
 const elk = new ELK();
 
-async function fetchElkGraph(experiment: string|null) {
+async function fetchElkGraph(experiment: string | null) {
 	if (experiment === null) {
 		return;
 	}
@@ -52,10 +57,12 @@ async function fetchWorkers() {
 interface ElkSettingsProps {
 	layoutOptions: Record<string, any>; // Flexible key-value pair object
 	setLayoutOptions: (options: Record<string, any>) => void;
-  }
+}
 
-  const ElkSettings: React.FC<ElkSettingsProps> = ({ layoutOptions, setLayoutOptions }) => {
-
+const ElkSettings: React.FC<ElkSettingsProps> = ({
+	layoutOptions,
+	setLayoutOptions,
+}) => {
 	const inputFormRef = useRef<HTMLTextAreaElement>(null);
 
 	const submitForm = () => {
@@ -67,24 +74,28 @@ interface ElkSettingsProps {
 				console.error("Error parsing JSON", e);
 			}
 		}
-	}
+	};
 
 	return (
 		<>
-		<InputGroup>
-			<Form.Control
-			ref={inputFormRef}
-			defaultValue={JSON.stringify(layoutOptions, null, 2)}
-			as="textarea"
-			rows={10}
-			/>
-			<Button variant="outline-secondary" id="button-addon1" onClick={submitForm}>
-          Submit
-        </Button>
-		</InputGroup>
+			<InputGroup>
+				<Form.Control
+					ref={inputFormRef}
+					defaultValue={JSON.stringify(layoutOptions, null, 2)}
+					as="textarea"
+					rows={10}
+				/>
+				<Button
+					variant="outline-secondary"
+					id="button-addon1"
+					onClick={submitForm}
+				>
+					Submit
+				</Button>
+			</InputGroup>
 		</>
-	)
-}
+	);
+};
 
 function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -104,8 +115,8 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [layoutOptions, setLayoutOptions] = useState({
 		"elk.algorithm": "layered",
 		"org.eclipse.elk.hierarchyHandling": "INCLUDE_CHILDREN",
-		"elk.padding": "[top=75,left=12,bottom=12,right=12]"
-	  });
+		"elk.padding": "[top=75,left=12,bottom=12,right=12]",
+	});
 
 	const nodeTypes = useMemo(
 		() => ({ graphstatenode: GraphStateNode, graphnodegroup: GraphNodeGroup }),
@@ -127,9 +138,9 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 			});
 		}, 5000);
 		return () => {
-		  clearInterval(interval);
+			clearInterval(interval);
 		};
-	  }, [lastUpdated]);
+	}, [lastUpdated]);
 
 	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
@@ -357,7 +368,13 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 						<Button onClick={() => setVisibleDepth(visibleDepth - 1)}>
 							<FaMinus />
 						</Button>
-						<Button onClick={() => fetchElkGraph(experiment).then((graph) => {setRawGraph(graph);})}>
+						<Button
+							onClick={() =>
+								fetchElkGraph(experiment).then((graph) => {
+									setRawGraph(graph);
+								})
+							}
+						>
 							<FaRedo />
 						</Button>
 						{direction === "RIGHT" ? (
