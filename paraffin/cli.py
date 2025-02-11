@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import socket
+import threading
 import time
 import typing as t
 import webbrowser
@@ -9,7 +10,6 @@ import webbrowser
 import git
 import typer
 import uvicorn
-import threading
 
 from paraffin.db import (
     close_worker,
@@ -34,7 +34,9 @@ log = logging.getLogger(__name__)
 app = typer.Typer()
 
 
-def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, db: str, workers: dict):
+def spawn_worker(
+    name: str, queues, experiment: str, job: str, timeout: float, db: str, workers: dict
+):
     worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
     workers[worker_id] = None
     log.info(f"Listening on queues: {queues}")
@@ -51,9 +53,7 @@ def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, d
         )
 
         if job_obj is None:
-            remaining_seconds = (
-                timeout - (datetime.datetime.now() - last_seen).seconds
-            )
+            remaining_seconds = timeout - (datetime.datetime.now() - last_seen).seconds
             if remaining_seconds <= 0:
                 log.info("Timeout reached - exiting.")
                 break
@@ -75,9 +75,7 @@ def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, d
             stage_lock, deps_hash = get_lock(job_obj["name"])
             cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
         if cached_job:
-            log.info(
-                f"Job '{job_obj['name']}' is cached and dvc.lock is available."
-            )
+            log.info(f"Job '{job_obj['name']}' is cached and dvc.lock is available.")
             returncode, stdout, stderr = checkout(
                 stage_lock, cached_job["lock"], job_obj["name"]
             )
@@ -86,8 +84,7 @@ def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, d
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
                 log.warning(
-                    "Unable to checkout GIT tracked files"
-                    f" for job '{job_obj['name']}'"
+                    f"Unable to checkout GIT tracked files for job '{job_obj['name']}'"
                 )
                 log.info(f"Running job '{job_obj['name']}'")
                 returncode, stdout, stderr = repro(
@@ -99,9 +96,7 @@ def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, d
             # TODO: we need to ensure that all deps nodes are checked out!
             #  this will be important when clone / push.
             # TODO: this can be the cause for a lock issue!
-            returncode, stdout, stderr = repro(
-                job_obj["name"], force=job_obj["force"]
-            )
+            returncode, stdout, stderr = repro(job_obj["name"], force=job_obj["force"])
         if returncode != 0:
             complete_job(
                 job_obj["id"],
@@ -123,6 +118,7 @@ def spawn_worker(name: str, queues, experiment: str, job: str, timeout: float, d
             )
         job_obj = None
         update_worker(worker_id, status="idle", db_url=db)
+
 
 @app.command()
 def ui(
@@ -204,7 +200,6 @@ def worker(
                     db_url=db,
                 )
             close_worker(id=worker, db_url=db)
-    
 
 
 @app.command()
