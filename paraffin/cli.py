@@ -138,7 +138,7 @@ def worker(
                         f" for job '{job_obj['name']}'"
                     )
                     log.info(f"Running job '{job_obj['name']}'")
-                    returncode, stdout, stderr = repro(job_obj["name"])
+                    returncode, stdout, stderr = repro(job_obj["name"], force=job_obj["force"]) # TODO: this is not tested in CI, because it did not raise an error
             else:
                 log.info(f"Running job '{job_obj['name']}'")
                 # TODO: we need to ensure that all deps nodes are checked out!
