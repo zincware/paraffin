@@ -130,6 +130,7 @@ function GraphNodeGroup({ data }: GraphStateNodeProps) {
 								// if the subnode is hidden, the children won't show up though
 								//  need a fix
 								<span>
+									{/* TODO: get the state of the children */}
 									{excludedNodes[data.node.id].length} children hidden
 								</span>
 							)}

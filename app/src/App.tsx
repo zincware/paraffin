@@ -24,6 +24,7 @@ import {
 	FaArrowRight,
 	FaArrowDown,
 	FaRedo,
+	FaPlay,
 } from "react-icons/fa";
 
 import GraphStateNode from "./GraphStateNode";
@@ -97,6 +98,14 @@ const ElkSettings: React.FC<ElkSettingsProps> = ({
 	);
 };
 
+interface WorkerInfo {
+	machine: string;
+	last_seen: Date;
+	status: "offline" | "idle" | "running";
+	id: number;
+	name: string;
+}
+
 function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -104,7 +113,7 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 	const [visibleDepth, setVisibleDepth] = useState(3);
 	const [direction, setDirection] = useState("RIGHT");
 
-	const [lastUpdated, setLastUpdated] = useState(Date.now());
+	const [workerInfo, setWorkerInfo] = useState<WorkerInfo[]>([]);
 
 	const [excludedNodes, setExcludedNodes] = useState({}); // {node.id: [excluded children ids]}
 
@@ -125,28 +134,56 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 
 	useEffect(() => {
 		const interval = setInterval(() => {
-			fetchWorkers().then((workers) => {
-				// iterate all workers, parse `last_seen` and check if newer than lastUpdated.
-				// if so, setLastUpdated to that value.
-				workers.forEach((worker) => {
-					const lastSeen = Date.parse(worker.last_seen);
-					if (lastSeen > lastUpdated) {
-						setLastUpdated(lastSeen);
-						console.log("Updated last seen to", lastSeen);
+			fetchWorkers().then((workers: WorkerInfo[]) => {
+				// special case if len(workers) == 0 and workerInfo.length > 0
+				if (workers.length === 0 && workerInfo.length > 0) {
+					setWorkerInfo([]);
+					return;
+				}
+
+				setWorkerInfo((prevWorkerInfo) => {
+					const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
+
+					// Check if any worker has changed
+					let hasChanges = false;
+					const updatedWorkers = workers.map((worker) => {
+						const lastSeen = Date.parse(worker.last_seen);
+						const prevWorker = prevWorkerMap.get(worker.id);
+
+						// If the worker exists in the previous state and `last_seen` has changed
+						if (prevWorker && Date.parse(prevWorker.last_seen) !== lastSeen) {
+							hasChanges = true;
+							return { ...worker, last_seen: lastSeen };
+						}
+
+						// If the worker is new, add it to the state
+						if (!prevWorker) {
+							hasChanges = true;
+							return worker;
+						}
+
+						// If no changes, return the previous worker
+						return prevWorker;
+					});
+					if (hasChanges) {
+						return updatedWorkers;
 					}
+
+					return prevWorkerInfo;
 				});
 			});
 		}, 5000);
+
 		return () => {
 			clearInterval(interval);
 		};
-	}, [lastUpdated]);
+	}, [workerInfo]);
 
 	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
 			setRawGraph(graph);
 		});
-	}, [experiment, lastUpdated]);
+	}, [experiment, workerInfo]);
 
 	useEffect(() => {
 		// Function to compute excluded nodes by depth
@@ -352,6 +389,7 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 			<GraphContext.Provider
 				value={{ excludedNodes, setExcludedNodes, experiment }}
 			>
+				<Button>{workerInfo.length} workers online</Button>
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
@@ -361,6 +399,9 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 					minZoom={0.01}
 				>
 					<Panel position="top-right">
+						<Button onClick={() => fetch("/api/v1/spawn")}>
+							<FaPlay />
+						</Button>
 						<Button onClick={() => setVisibleDepth(visibleDepth + 1)}>
 							<FaPlus />
 						</Button>

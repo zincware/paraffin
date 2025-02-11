@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -48,8 +49,58 @@ def read_graph(experiment: str):
 
 
 @app.get("/api/v1/spawn")
-def spawn():
-    pass  # run paraffin worker
+def spawn(
+    name: str | None = None, experiment: int | None = None, job: str | None = None
+):
+    # Build the command
+    cmd = ["paraffin", "worker"]
+    if name is not None:
+        cmd += ["--name", name]
+    if experiment is not None:
+        cmd += ["--experiment", str(experiment)]
+    if job is not None:
+        cmd += ["--job", job]
+
+    # open subprocess and forget about it
+    subprocess.Popen(cmd)
+    return 0
+
+    # works but is slow
+    # print(f"Running command: {' '.join(cmd)}")
+
+    # # Start the subprocess and capture stdout and stderr
+    # process = subprocess.Popen(
+    #     cmd,
+    #     stdout=subprocess.PIPE,
+    #     stderr=subprocess.PIPE,
+    #     text=True,  # Ensure output is decoded as text
+    #     bufsize=1,  # Line-buffered output
+    #     universal_newlines=True,
+    # )
+
+    # # Define a generator to stream the output
+    # def generate():
+    #     while True:
+    #         # Read stdout line by line
+    #         output = process.stdout.readline()
+    #         if output:
+    #             yield f"stdout: {output}"
+    #         else:
+    #             break
+
+    #         # Read stderr line by line
+    #         error = process.stderr.readline()
+    #         if error:
+    #             yield f"stderr: {error}"
+    #         else:
+    #             break
+
+    #     # Wait for the process to complete
+    #     process.wait()
+    #     yield f"Process completed with return code: {process.returncode}"
+
+    # # Return a StreamingResponse to stream the output
+    # return StreamingResponse(generate(), media_type="text/plain")
 
 
 @app.get("/api/v1/job")
