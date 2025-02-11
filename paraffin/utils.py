@@ -40,13 +40,13 @@ def get_subgraph_with_predecessors(graph, nodes) -> nx.DiGraph:
     return graph.subgraph(nodes_to_include).copy()
 
 
-def get_stage_graph(names) -> nx.DiGraph:
+def get_stage_graph(names: list|None, force: bool) -> nx.DiGraph:
     """
     Generates a subgraph of stages from a DVC repository based on provided names.
 
     Attributes
     ----------
-    names: list
+    names: list|None
         A list of stage names to filter the graph nodes.
 
     Returns
@@ -84,6 +84,7 @@ def get_stage_graph(names) -> nx.DiGraph:
             mapping[node] = PipelineStageDC(
                 stage=node,
                 status=json.dumps(status.get(node.name, [])),
+                force=force,
             )
 
     return nx.relabel_nodes(subgraph, mapping, copy=True)

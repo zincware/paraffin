@@ -26,6 +26,7 @@ class PipelineStageDC:
 
     stage: PipelineStage
     status: str
+    force: bool
 
     @property
     def changed(self) -> bool:
@@ -134,7 +135,7 @@ def run_command(command: list[str]) -> tuple[int, str, str]:
 
 
 @retry(10, (LockError,), delay=0.5)
-def repro(name: str) -> tuple[int, str, str]:
+def repro(name: str, force: bool) -> tuple[int, str, str]:
     """Reproduce a DVC stage.
 
     Parameters
@@ -151,8 +152,11 @@ def repro(name: str) -> tuple[int, str, str]:
     stderr_lines = []
 
     # Run the main repro command
+    cmd = ["dvc", "repro", "--single-item", name]
+    if force:
+        cmd.append("--force")
     return_code, repro_stdout, repro_stderr = run_command(
-        ["dvc", "repro", "--single-item", name]
+        cmd
     )
     stdout_lines.append(repro_stdout)
     stderr_lines.append(repro_stderr)
