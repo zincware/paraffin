@@ -316,7 +316,7 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def list_workers(db_url: str, id: int|None = None) -> list[dict]:
+def list_workers(db_url: str, id: int | None = None) -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
         if id is None:
