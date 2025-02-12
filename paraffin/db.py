@@ -154,7 +154,8 @@ def list_experiments(db_url: str, commit: str | None) -> list[dict]:
 
 def session_to_graph(session: Session, experiment_id: int | None) -> nx.DiGraph:
     """
-    Create a directed graph from jobs in the database session, keeping Job objects as node data.
+    Create a directed graph from jobs in the database session,
+      keeping Job objects as node data.
     """
     statement = select(Job)
     if experiment_id:
@@ -172,7 +173,8 @@ def session_to_graph(session: Session, experiment_id: int | None) -> nx.DiGraph:
 
 def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
     """
-    Create a directed graph from the database for a specific experiment, resolving Job objects to dictionaries.
+    Create a directed graph from the database for a specific experiment,
+      resolving Job objects to dictionaries.
     """
     engine = create_engine(db_url)
     with Session(engine) as session:
@@ -228,7 +230,8 @@ def _fetch_pending_jobs(
     session: Session, experiment: int | None, queues: list | None
 ) -> list:
     """
-    Fetch jobs with 'pending' or 'cached' status, optionally filtered by experiment and queues.
+    Fetch jobs with 'pending' or 'cached' status, optionally 
+    filtered by experiment and queues.
     """
     statement = select(Job).where(or_(Job.status == "pending", Job.status == "cached"))
     if experiment:
