@@ -55,7 +55,9 @@ def spawn_worker(
             )
 
             if job_obj is None:
-                remaining_seconds = timeout - (datetime.datetime.now() - last_seen).seconds
+                remaining_seconds = (
+                    timeout - (datetime.datetime.now() - last_seen).seconds
+                )
                 if remaining_seconds <= 0:
                     log.info("Timeout reached - exiting.")
                     break
@@ -77,7 +79,9 @@ def spawn_worker(
                 stage_lock, deps_hash = get_lock(job_obj["name"])
                 cached_job = find_cached_job(deps_cache=deps_hash, db_url=db)
             if cached_job:
-                log.info(f"Job '{job_obj['name']}' is cached and dvc.lock is available.")
+                log.info(
+                    f"Job '{job_obj['name']}' is cached and dvc.lock is available."
+                )
                 returncode, stdout, stderr = checkout(
                     stage_lock, cached_job["lock"], job_obj["name"]
                 )
@@ -99,7 +103,9 @@ def spawn_worker(
                 # TODO: we need to ensure that all deps nodes are checked out!
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(job_obj["name"], force=job_obj["force"])
+                returncode, stdout, stderr = repro(
+                    job_obj["name"], force=job_obj["force"]
+                )
             if returncode != 0:
                 complete_job(
                     job_obj["id"],
@@ -134,6 +140,7 @@ def spawn_worker(
             )
         close_worker(id=worker_id, db_url=db)
         workers.pop(worker_id)
+
 
 @app.command()
 def ui(
