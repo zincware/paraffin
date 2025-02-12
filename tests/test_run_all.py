@@ -72,6 +72,7 @@ def test_run_all(proj01, caplog):
 
     assert check_finished()
 
+
 def test_run_all_multi_jobs(proj01, caplog):
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
