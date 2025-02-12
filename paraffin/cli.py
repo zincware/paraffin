@@ -155,20 +155,26 @@ def worker(
         envvar="PARAFFIN_QUEUES",
         help="Comma separated list of queues to listen on.",
     ),
-    name: str = typer.Option("default", "--name", "-n", help="Worker name."),
+    name: str = typer.Option(
+        "default", "--name", "-n", help="Specify a custom name for this worker."
+    ),
     job: str | None = typer.Option(None, "--job", "-j", help="Job ID to run."),
     experiment: str | None = typer.Option(
-        None, "--experiment", "-e", help="Experiment ID."
+        None, "--experiment", "-e", help="Experiment ID to run."
     ),
     timeout: int = typer.Option(
-        0, "--timeout", "-t", help="Timeout in seconds before exiting."
+        0,
+        "--timeout",
+        "-t",
+        help="Timeout in seconds before exiting"
+        " the worker if no more jobs are in the queue.",
     ),
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
     jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
 ):
-    """Start a paraffin worker."""
+    """Start a paraffin worker to process the queued DVC stages."""
     queues = queues.split(",")
     # set the log level
     logging.basicConfig(level=logging.INFO)
