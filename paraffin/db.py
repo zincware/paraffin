@@ -183,9 +183,9 @@ def get_job(
             statement = statement.where(Job.name == job_name)
         if queues:
             statement = statement.where(Job.queue.in_(queues))
-        
+
         statement = statement.with_for_update()
-        
+
         results = session.exec(statement)
 
         # Process each job to check if all parents are completed

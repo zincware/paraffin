@@ -5,7 +5,6 @@ import socket
 import threading
 import time
 import typing as t
-import time
 import webbrowser
 
 import git
@@ -195,12 +194,14 @@ def worker(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
     jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
-    delay_between_workers: float = typer.Option(0.1, help="Delay between starting workers.", hidden=True),
+    delay_between_workers: float = typer.Option(
+        0.1, help="Delay between starting workers.", hidden=True
+    ),
 ):
     """Start a paraffin worker to process the queued DVC stages."""
     queues = queues.split(",")
     logging.basicConfig(level=logging.INFO)
-    threads = [] 
+    threads = []
 
     workers = {}
     try:
