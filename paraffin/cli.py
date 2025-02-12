@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import socket
+import threading
 import time
 import typing as t
 import webbrowser
@@ -33,58 +34,11 @@ log = logging.getLogger(__name__)
 app = typer.Typer()
 
 
-@app.command()
-def ui(
-    port: int = 8000,
-    db: str = typer.Option(
-        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
-    ),
-    all: bool = typer.Option(
-        False, help="Show all experiments and not just from the current commit."
-    ),
+def spawn_worker(
+    name: str, queues, experiment: str, job: str, timeout: float, db: str, workers: dict
 ):
-    """Start the Paraffin web UI."""
-    if not all:
-        try:
-            repo = git.Repo(search_parent_directories=True)
-            commit = repo.head.commit
-            os.environ["PARAFFIN_COMMIT"] = commit.hexsha
-        except git.InvalidGitRepositoryError:
-            log.warning(
-                "Unable to determine the current commit. Showing all experiments."
-            )
-
-    webbrowser.open(f"http://localhost:{port}")
-    os.environ["PARAFFIN_DB"] = db
-    uvicorn.run(webapp, host="0.0.0.0", port=port)
-
-
-@app.command()
-def worker(
-    queues: str = typer.Option(
-        "default",
-        "--queues",
-        "-q",
-        envvar="PARAFFIN_QUEUES",
-        help="Comma separated list of queues to listen on.",
-    ),
-    name: str = typer.Option("default", "--name", "-n", help="Worker name."),
-    job: str | None = typer.Option(None, "--job", "-j", help="Job ID to run."),
-    experiment: str | None = typer.Option(
-        None, "--experiment", "-e", help="Experiment ID."
-    ),
-    timeout: int = typer.Option(
-        0, "--timeout", "-t", help="Timeout in seconds before exiting."
-    ),
-    db: str = typer.Option(
-        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
-    ),
-):
-    """Start a paraffin worker."""
-    queues = queues.split(",")
-    # set the log level
-    logging.basicConfig(level=logging.INFO)
     worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
+    workers[worker_id] = None
     log.info(f"Listening on queues: {queues}")
 
     last_seen = datetime.datetime.now()
@@ -115,6 +69,7 @@ def worker(
             last_seen = datetime.datetime.now()
 
             update_worker(worker_id, status="running", db_url=db)
+            workers[worker_id] = job_obj["id"]
 
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
@@ -171,6 +126,7 @@ def worker(
                 )
             job_obj = None
             update_worker(worker_id, status="idle", db_url=db)
+
     finally:
         if job_obj is not None:
             complete_job(
@@ -182,6 +138,97 @@ def worker(
                 db_url=db,
             )
         close_worker(id=worker_id, db_url=db)
+        workers.pop(worker_id)
+
+
+@app.command()
+def ui(
+    port: int = 8000,
+    db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
+    all: bool = typer.Option(
+        False, help="Show all experiments and not just from the current commit."
+    ),
+):
+    """Start the Paraffin web UI."""
+    if not all:
+        try:
+            repo = git.Repo(search_parent_directories=True)
+            commit = repo.head.commit
+            os.environ["PARAFFIN_COMMIT"] = commit.hexsha
+        except git.InvalidGitRepositoryError:
+            log.warning(
+                "Unable to determine the current commit. Showing all experiments."
+            )
+
+    webbrowser.open(f"http://localhost:{port}")
+    os.environ["PARAFFIN_DB"] = db
+    uvicorn.run(webapp, host="0.0.0.0", port=port)
+
+
+@app.command()
+def worker(
+    queues: str = typer.Option(
+        "default",
+        "--queues",
+        "-q",
+        envvar="PARAFFIN_QUEUES",
+        help="Comma separated list of queues to listen on.",
+    ),
+    name: str = typer.Option(
+        "default", "--name", "-n", help="Specify a custom name for this worker."
+    ),
+    job: str | None = typer.Option(None, "--job", "-j", help="Job ID to run."),
+    experiment: str | None = typer.Option(
+        None, "--experiment", "-e", help="Experiment ID to run."
+    ),
+    timeout: int = typer.Option(
+        0,
+        "--timeout",
+        "-t",
+        help="Timeout in seconds before exiting"
+        " the worker if no more jobs are in the queue.",
+    ),
+    db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
+    jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
+    delay_between_workers: float = typer.Option(
+        0.1, help="Delay between starting workers.", hidden=True
+    ),
+):
+    """Start a paraffin worker to process the queued DVC stages."""
+    queues = queues.split(",")
+    logging.basicConfig(level=logging.INFO)
+    threads = []
+
+    workers = {}
+    try:
+        for i in range(jobs):
+            t = threading.Thread(
+                target=spawn_worker,
+                args=(name, queues, experiment, job, timeout, db, workers),
+                daemon=True,
+            )
+            threads.append(t)
+            t.start()
+            time.sleep(delay_between_workers)
+
+        for t in threads:
+            t.join()
+    finally:
+        for worker, job_id in workers.items():
+            if job_id is not None:
+                complete_job(
+                    job_id=job_id,
+                    status="failed",
+                    lock={},
+                    stdout="",
+                    stderr="Worker exited.",
+                    db_url=db,
+                )
+            close_worker(id=worker, db_url=db)
 
 
 @app.command()
