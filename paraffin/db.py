@@ -284,7 +284,8 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
         results = session.exec(statement)
         job = results.one()
         data = job.model_dump()
-        data.update({"worker": job.worker.model_dump()})
+        if job.worker:
+            data.update({"worker": job.worker.model_dump()})
         return data
 
 
