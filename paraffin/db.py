@@ -19,6 +19,9 @@ class Worker(SQLModel, table=True):
     status: str = "idle"  # idle, busy, offline
     last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
+    # Relationships
+    jobs: List["Job"] = Relationship(back_populates="worker")
+
 
 class JobDependency(SQLModel, table=True):
     parent_id: Optional[int] = Field(foreign_key="job.id", primary_key=True)
@@ -31,6 +34,9 @@ class Experiment(SQLModel, table=True):
     origin: str = "local"  # Origin of the repository, e.g. https://...
     machine: str = "local"  # Machine where the experiment was submitted from
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
+    # Relationships
+    jobs: List["Job"] = Relationship(back_populates="experiment")
 
 
 class Job(SQLModel, table=True):
@@ -46,13 +52,13 @@ class Job(SQLModel, table=True):
     stdout: str = ""  # stdout output
     started_at: Optional[datetime.datetime] = None
     finished_at: Optional[datetime.datetime] = None
-    machine: str = ""  # Machine where the job was executed # TODO: get from worker
-    worker: str = ""  # Worker that executed the job # TODO: use foreign key
+    worker_id: Optional[int] = Field(foreign_key="worker.id", default=None)
     cache: bool = False  # Use the paraffin cache for this job
-
     force: bool = False  # rerun the job even if cached
 
     # Relationships
+    experiment: Optional[Experiment] = Relationship(back_populates="jobs")
+    worker: Optional[Worker] = Relationship(back_populates="jobs")
     parents: List["Job"] = Relationship(
         link_model=JobDependency,
         back_populates="children",
@@ -162,9 +168,8 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
 
 def get_job(
     db_url: str,
+    worker_id: int,
     queues: list | None = None,
-    worker: str = "",
-    machine: str = "",
     experiment: str | None = None,
     job_name: str | None = None,
 ) -> dict | None:
@@ -193,8 +198,7 @@ def get_job(
             if all(parent.status == "completed" for parent in job.parents):
                 job.status = "running"
                 job.started_at = datetime.datetime.now()
-                job.worker = worker
-                job.machine = machine
+                job.worker_id = worker_id
                 session.add(job)
                 session.commit()
                 # TODO: use dataclass or even the Job object directly?
@@ -268,7 +272,9 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
         )
         results = session.exec(statement)
         job = results.one()
-        return job.model_dump()
+        data = job.model_dump()
+        data.update({"worker": job.worker.model_dump()})
+        return data
 
 
 def find_cached_job(db_url: str, deps_cache: str = "") -> dict:
