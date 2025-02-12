@@ -25,19 +25,24 @@ pip install paraffin
 
 ## Usage
 
+https://github.com/user-attachments/assets/c248e669-7737-450b-9fd7-5b9b8e82605a
+
 ### paraffin submit
 You can submit your current DVC workflow to a database file `paraffin.db` for later execution.
 
 > [!TIP]
 > The paraffin submit command supports globing patterns.
 ```bash
-paraffin submit C_AddNodeNumbers "A*"
+paraffin submit # submit all stages
+paraffin submit C_AddNodeNumbers "A*" # select which stages to submit
 ```
 
 ### paraffin worker
 A submitted job will be executed by paraffin workers.
 To start a worker you can run `paraffin worker`.
 The worker will pick up all the jobs in the workeres queue and close once finished.
+You can specify the number of stages a worker should process in parallel by using `paraffin worker --jobs <n>`.
+Alternatively, you can start more workers by running the command multiple times.
 
 ```bash
 paraffin worker
@@ -49,6 +54,7 @@ You can start it using
 ```bash
 paraffin ui
 ```
+The UI allows you to visualize the progress in real-time, restart jobs and manage workers.
 
 ## Queue Labels
 
