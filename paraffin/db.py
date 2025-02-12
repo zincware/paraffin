@@ -1,11 +1,20 @@
 import datetime
 import fnmatch
 import json
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
 
 import networkx as nx
 from dvc.stage.cache import _get_cache_hash
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_, select, String
+from sqlmodel import (
+    Field,
+    Relationship,
+    Session,
+    SQLModel,
+    String,
+    create_engine,
+    or_,
+    select,
+)
 
 from paraffin.lock import clean_lock
 from paraffin.stage import PipelineStageDC
@@ -16,7 +25,9 @@ class Worker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     machine: str
-    status: Literal["running", "idle", "offline"] = Field(sa_type=String, default="idle")
+    status: Literal["running", "idle", "offline"] = Field(
+        sa_type=String, default="idle"
+    )
     last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
 
     # Relationships
@@ -316,7 +327,7 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def list_workers(db_url: str, id: int|None = None) -> list[dict]:
+def list_workers(db_url: str, id: int | None = None) -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
         if id is None:
