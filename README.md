@@ -56,6 +56,8 @@ paraffin ui
 ```
 The UI allows you to visualize the progress in real-time, restart jobs and manage workers.
 
+https://github.com/user-attachments/assets/034325fd-7035-434f-9eb8-b47ae4ecbb86
+
 ## Queue Labels
 
 To fine-tune execution, you can assign stages to specific Celery queues, allowing you to manage execution across different environments or hardware setups.
