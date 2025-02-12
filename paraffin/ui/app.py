@@ -110,9 +110,9 @@ def read_job(name: str, experiment: int):
 
 
 @app.get("/api/v1/workers")
-def read_workers():
+def read_workers(id: int|None = None):
     db_url = os.environ["PARAFFIN_DB"]
-    return list_workers(db_url=db_url)
+    return list_workers(db_url=db_url, id=id)
 
 
 # update_job_status

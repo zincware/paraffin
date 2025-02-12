@@ -316,8 +316,17 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def list_workers(db_url: str) -> list[dict]:
+def list_workers(db_url: str, id: int|None = None) -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        workers = session.exec(select(Worker).where(Worker.status != "offline")).all()
-        return [worker.model_dump() for worker in workers]
+        if id is None:
+            statement = select(Worker).where(Worker.status != "offline")
+            workers = session.exec(statement).all()
+        else:
+            workers = session.exec(select(Worker).where(Worker.id == id)).all()
+        data = []
+        for worker in workers:
+            _data = worker.model_dump()
+            _data["jobs"] = [job.id for job in worker.jobs]
+            data.append(_data)
+        return data
