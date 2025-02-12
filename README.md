@@ -35,6 +35,7 @@ You can submit your current DVC workflow to a database file `paraffin.db` for la
 ```bash
 paraffin submit # submit all stages
 paraffin submit C_AddNodeNumbers "A*" # select which stages to submit
+paraffin submit --help # more information
 ```
 
 ### paraffin worker
@@ -46,6 +47,7 @@ Alternatively, you can start more workers by running the command multiple times.
 
 ```bash
 paraffin worker
+paraffin worker --help # more information
 ```
 
 ### paraffin ui
@@ -53,6 +55,7 @@ Paraffin ships with a web application for visualizing the progress.
 You can start it using
 ```bash
 paraffin ui
+paraffin ui --help # more information
 ```
 The UI allows you to visualize the progress in real-time, restart jobs and manage workers.
 

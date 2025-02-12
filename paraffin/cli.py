@@ -5,6 +5,7 @@ import socket
 import threading
 import time
 import typing as t
+import time
 import webbrowser
 
 import git
@@ -85,7 +86,8 @@ def spawn_worker(
                     #  this will be important when clone / push.
                     # TODO: this can be the cause for a lock issue!
                     log.warning(
-                        f"Unable to checkout GIT tracked files for job '{job_obj['name']}'"
+                        "Unable to checkout GIT tracked files"
+                        f" for job '{job_obj['name']}'"
                     )
                     log.info(f"Running job '{job_obj['name']}'")
                     returncode, stdout, stderr = repro(
@@ -186,13 +188,12 @@ def worker(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
     jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
+    delay_between_workers: float = typer.Option(0.1, help="Delay between starting workers.", hidden=True),
 ):
     """Start a paraffin worker to process the queued DVC stages."""
     queues = queues.split(",")
-    # set the log level
     logging.basicConfig(level=logging.INFO)
-    # spawn j worker threads
-    threads = []
+    threads = [] 
 
     workers = {}
     try:
@@ -204,6 +205,7 @@ def worker(
             )
             threads.append(t)
             t.start()
+            time.sleep(delay_between_workers)
 
         for t in threads:
             t.join()
