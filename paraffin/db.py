@@ -199,6 +199,7 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
 
         return resolved_graph
 
+
 def get_job(
     db_url: str,
     worker_id: int,
@@ -222,13 +223,14 @@ def get_job(
                 return _job_to_dict(job)
     return None
 
-def _fetch_pending_jobs(session: Session, experiment: int | None, queues: list | None) -> list:
+
+def _fetch_pending_jobs(
+    session: Session, experiment: int | None, queues: list | None
+) -> list:
     """
     Fetch jobs with 'pending' or 'cached' status, optionally filtered by experiment and queues.
     """
-    statement = select(Job).where(
-        or_(Job.status == "pending", Job.status == "cached")
-    )
+    statement = select(Job).where(or_(Job.status == "pending", Job.status == "cached"))
     if experiment:
         statement = statement.where(Job.experiment_id == experiment)
     if queues:
@@ -236,7 +238,10 @@ def _fetch_pending_jobs(session: Session, experiment: int | None, queues: list |
     statement = statement.with_for_update()
     return session.exec(statement).all()
 
-def _fetch_jobs_by_name(session: Session, experiment: int | None, queues: list | None, job_name: str) -> list:
+
+def _fetch_jobs_by_name(
+    session: Session, experiment: int | None, queues: list | None, job_name: str
+) -> list:
     """
     Fetch jobs by name, including their predecessors, and filter by status and queues.
     """
@@ -250,11 +255,7 @@ def _fetch_jobs_by_name(session: Session, experiment: int | None, queues: list |
     for job in jobs:
         predecessors = nx.ancestors(graph, job.id)
         results.extend(
-            [
-                graph.nodes[node]["data"]
-                for node in graph.nodes
-                if node in predecessors
-            ]
+            [graph.nodes[node]["data"] for node in graph.nodes if node in predecessors]
         )
         results.append(job)
 
@@ -264,11 +265,13 @@ def _fetch_jobs_by_name(session: Session, experiment: int | None, queues: list |
         results = [job for job in results if job.queue in queues]
     return results
 
+
 def _all_parents_completed(job) -> bool:
     """
     Check if all parents of a job are completed.
     """
     return all(parent.status == "completed" for parent in job.parents)
+
 
 def _update_job_status(session: Session, job, worker_id: int) -> None:
     """
@@ -279,6 +282,7 @@ def _update_job_status(session: Session, job, worker_id: int) -> None:
     job.worker_id = worker_id
     session.add(job)
     session.commit()
+
 
 def _job_to_dict(job) -> dict:
     """
@@ -293,6 +297,7 @@ def _job_to_dict(job) -> dict:
         "cache": job.cache,
         "force": job.force,
     }
+
 
 def complete_job(
     job_id: int,
