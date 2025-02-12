@@ -160,14 +160,15 @@ def session_to_graph(session: Session, experiment_id: int | None) -> nx.DiGraph:
     if experiment_id:
         statement = statement.where(Job.experiment_id == experiment_id)
     jobs = session.exec(statement).all()
-    
+
     graph = nx.DiGraph()
     for job in jobs:
         graph.add_node(job.id, data=job)
         for parent in job.parents:
             graph.add_edge(parent.id, job.id)
-    
+
     return graph
+
 
 def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
     """
@@ -177,7 +178,7 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
     with Session(engine) as session:
         # Create the graph using the open session
         graph = session_to_graph(session, experiment_id)
-        
+
         # Resolve Job objects to dictionaries
         resolved_graph = nx.DiGraph()
         for job_id, node_data in graph.nodes(data=True):
@@ -192,11 +193,12 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
                 deps_hash=job.deps_hash,
                 group=get_group(job.name)[0],
             )
-        
+
         # Add edges from the original graph
         resolved_graph.add_edges_from(graph.edges(data=True))
-        
+
         return resolved_graph
+
 
 def get_job(
     db_url: str,
@@ -229,12 +231,18 @@ def get_job(
             statement = select(Job).where(Job.name == job_name)
             if experiment:
                 statement = statement.where(Job.experiment_id == experiment)
-            
+
             jobs = session.exec(statement).all()
             results = []
             for _job in jobs:
                 predecessors = nx.ancestors(graph, _job.id)
-                results.extend([graph.nodes[node]["data"] for node in graph.nodes if node in predecessors])
+                results.extend(
+                    [
+                        graph.nodes[node]["data"]
+                        for node in graph.nodes
+                        if node in predecessors
+                    ]
+                )
                 results.append(_job)
             # filter results that are not "pending" or "cached"
             results = [job for job in results if job.status in ["pending", "cached"]]
@@ -243,7 +251,6 @@ def get_job(
 
         # Process each job to check if all parents are completed
         for job in results:
-
             if all(parent.status == "completed" for parent in job.parents):
                 job.status = "running"
                 job.started_at = datetime.datetime.now()

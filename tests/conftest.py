@@ -1,12 +1,12 @@
 import os
 import pathlib
 import shutil
+import subprocess
 
 import dvc.cli
 import git
 import pytest
 import zntrack.examples
-import subprocess
 
 
 @pytest.fixture
@@ -18,12 +18,14 @@ def check_finished():
         for name in names or []:
             cmd.append(name)
         result = subprocess.run(cmd, capture_output=True, check=True)
-        finished = result.stdout.decode().strip() == "Data and pipelines are up to date."
+        finished = (
+            result.stdout.decode().strip() == "Data and pipelines are up to date."
+        )
         if not finished:
             print(result.stdout.decode())
         return finished
-    return func
 
+    return func
 
 
 @pytest.fixture

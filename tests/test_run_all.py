@@ -42,7 +42,6 @@ def proj02(proj_path) -> zntrack.Project:
     return proj
 
 
-
 def test_check_finished(proj01, check_finished):
     subprocess.check_call(["dvc", "repro", "A_X_ParamsToOuts"])
     assert check_finished(["A_X_ParamsToOuts"])
