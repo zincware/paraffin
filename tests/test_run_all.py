@@ -42,20 +42,7 @@ def proj02(proj_path) -> zntrack.Project:
     return proj
 
 
-def check_finished(names: list[str] | None = None, exclusive: bool = False) -> bool:
-    if exclusive:
-        raise NotImplementedError
-    cmd = ["dvc", "status"]
-    for name in names or []:
-        cmd.append(name)
-    result = subprocess.run(cmd, capture_output=True, check=True)
-    finished = result.stdout.decode().strip() == "Data and pipelines are up to date."
-    if not finished:
-        print(result.stdout.decode())
-    return finished
-
-
-def test_check_finished(proj01):
+def test_check_finished(proj01, check_finished):
     subprocess.check_call(["dvc", "repro", "A_X_ParamsToOuts"])
     assert check_finished(["A_X_ParamsToOuts"])
     assert not check_finished(["A_Y_ParamsToOuts"])
@@ -64,7 +51,7 @@ def test_check_finished(proj01):
     assert not check_finished()
 
 
-def test_run_all(proj01, caplog):
+def test_run_all(proj01, caplog, check_finished):
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker"])
@@ -73,7 +60,7 @@ def test_run_all(proj01, caplog):
     assert check_finished()
 
 
-def test_run_all_multi_jobs(proj01, caplog):
+def test_run_all_multi_jobs(proj01, caplog, check_finished):
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker", "--jobs", "2"])
@@ -82,7 +69,7 @@ def test_run_all_multi_jobs(proj01, caplog):
     assert check_finished()
 
 
-def test_run_selection(proj01, caplog):
+def test_run_selection(proj01, caplog, check_finished):
     result = runner.invoke(app, ["submit", "A_X_ParamsToOuts"])
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker"])
@@ -123,7 +110,7 @@ def test_run_selection(proj01, caplog):
     )
 
 
-def test_run_selection_glob(proj01, caplog):
+def test_run_selection_glob(proj01, caplog, check_finished):
     result = runner.invoke(app, ["submit", "A_X_*"])
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker"])
@@ -134,7 +121,7 @@ def test_run_selection_glob(proj01, caplog):
     )
 
 
-def test_run_datafile(proj02, caplog):
+def test_run_datafile(proj02, caplog, check_finished):
     result = runner.invoke(app, ["submit", "a*"])
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker"])
@@ -180,7 +167,7 @@ def test_run_datafile(proj02, caplog):
     assert zntrack.from_rev("b_2").c == 30
 
 
-def test_run_one_two_many(proj02):
+def test_run_one_two_many(proj02, check_finished):
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
     result = runner.invoke(app, ["worker"])

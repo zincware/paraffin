@@ -36,7 +36,7 @@ interface NodeData {
 	started_at: string;
 	finished_at: string;
 	machine: string;
-	worker: WorkerData;
+	worker?: WorkerData;
 }
 
 // TODO: on the edge between the nodes, show infos on which attributes are connected.

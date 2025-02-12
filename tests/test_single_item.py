@@ -23,7 +23,7 @@ class B(zntrack.Node):
         self.metrics = {"random": self.a.metrics["random"]}
 
 
-def test_single_item(proj_path):
+def test_single_item(proj_path, check_finished):
     project = zntrack.Project()
 
     with project:
@@ -42,5 +42,7 @@ def test_single_item(proj_path):
     assert result.exit_code == 0
     result = runner.invoke(app, "worker")
     assert result.exit_code == 0
+
+    assert check_finished()
 
     assert A.from_rev().metrics["random"] == B.from_rev().metrics["random"]

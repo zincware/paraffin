@@ -1,11 +1,31 @@
 import os
 import pathlib
 import shutil
+import subprocess
 
 import dvc.cli
 import git
 import pytest
 import zntrack.examples
+
+
+@pytest.fixture
+def check_finished():
+    def func(names: list[str] | None = None, exclusive: bool = False) -> bool:
+        if exclusive:
+            raise NotImplementedError
+        cmd = ["dvc", "status"]
+        for name in names or []:
+            cmd.append(name)
+        result = subprocess.run(cmd, capture_output=True, check=True)
+        finished = (
+            result.stdout.decode().strip() == "Data and pipelines are up to date."
+        )
+        if not finished:
+            print(result.stdout.decode())
+        return finished
+
+    return func
 
 
 @pytest.fixture
