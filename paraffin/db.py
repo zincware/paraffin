@@ -226,17 +226,20 @@ def get_job(
 
         else:
             graph = session_to_graph(session, experiment)
-            # TODO: what if multiple experiments are present, iterate!
-            _job = session.exec(
-                select(Job)
-                .where(Job.name == job_name)
-            ).one()
-            # if queues: # TODO: how to handle job / predecessors are not in the workers queue
-            # get all predecessors of the job
-            predecessors = nx.ancestors(graph, _job.id)
-            results = [graph.nodes[node]["data"] for node in graph.nodes if node in predecessors] + [_job]
+            statement = select(Job).where(Job.name == job_name)
+            if experiment:
+                statement = statement.where(Job.experiment_id == experiment)
+            
+            jobs = session.exec(statement).all()
+            results = []
+            for _job in jobs:
+                predecessors = nx.ancestors(graph, _job.id)
+                results.extend([graph.nodes[node]["data"] for node in graph.nodes if node in predecessors])
+                results.append(_job)
             # filter results that are not "pending" or "cached"
             results = [job for job in results if job.status in ["pending", "cached"]]
+            if queues:
+                results = [job for job in results if job.queue in queues]
 
         # Process each job to check if all parents are completed
         for job in results:
