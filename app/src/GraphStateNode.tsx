@@ -25,13 +25,18 @@ const statusColors: { [key: string]: string } = {
 	default: "orange",
 };
 
+interface WorkerData {
+	name: string;
+	machine: string;
+}
+
 interface NodeData {
 	stdout: string;
 	stderr: string;
 	started_at: string;
 	finished_at: string;
 	machine: string;
-	worker: string;
+	worker: WorkerData;
 }
 
 // TODO: on the edge between the nodes, show infos on which attributes are connected.
@@ -169,7 +174,7 @@ ${data.node.deps_hash}
 						<>
 							<h5>Worker</h5>
 							<pre>
-								{nodeData.worker}@{nodeData.machine}
+								{nodeData.worker.name}@{nodeData.worker.machine}
 							</pre>
 							<h5>Started At</h5>
 							<pre>{nodeData.started_at}</pre>

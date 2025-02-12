@@ -47,8 +47,7 @@ def spawn_worker(
             job_obj = get_job(
                 db_url=db,
                 queues=queues,
-                worker=name,
-                machine=socket.gethostname(),
+                worker_id=worker_id,
                 experiment=experiment,
                 job_name=job,
             )

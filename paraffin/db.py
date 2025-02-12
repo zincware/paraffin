@@ -1,11 +1,20 @@
 import datetime
 import fnmatch
 import json
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import networkx as nx
 from dvc.stage.cache import _get_cache_hash
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, or_, select
+from sqlmodel import (
+    Field,
+    Relationship,
+    Session,
+    SQLModel,
+    String,
+    create_engine,
+    or_,
+    select,
+)
 
 from paraffin.lock import clean_lock
 from paraffin.stage import PipelineStageDC
@@ -16,8 +25,13 @@ class Worker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     machine: str
-    status: str = "idle"  # idle, busy, offline
+    status: Literal["running", "idle", "offline"] = Field(
+        sa_type=String, default="idle"
+    )
     last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
+    # Relationships
+    jobs: List["Job"] = Relationship(back_populates="worker")
 
 
 class JobDependency(SQLModel, table=True):
@@ -31,6 +45,9 @@ class Experiment(SQLModel, table=True):
     origin: str = "local"  # Origin of the repository, e.g. https://...
     machine: str = "local"  # Machine where the experiment was submitted from
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+
+    # Relationships
+    jobs: List["Job"] = Relationship(back_populates="experiment")
 
 
 class Job(SQLModel, table=True):
@@ -46,13 +63,13 @@ class Job(SQLModel, table=True):
     stdout: str = ""  # stdout output
     started_at: Optional[datetime.datetime] = None
     finished_at: Optional[datetime.datetime] = None
-    machine: str = ""  # Machine where the job was executed # TODO: get from worker
-    worker: str = ""  # Worker that executed the job # TODO: use foreign key
+    worker_id: Optional[int] = Field(foreign_key="worker.id", default=None)
     cache: bool = False  # Use the paraffin cache for this job
-
     force: bool = False  # rerun the job even if cached
 
     # Relationships
+    experiment: Optional[Experiment] = Relationship(back_populates="jobs")
+    worker: Optional[Worker] = Relationship(back_populates="jobs")
     parents: List["Job"] = Relationship(
         link_model=JobDependency,
         back_populates="children",
@@ -162,9 +179,8 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
 
 def get_job(
     db_url: str,
+    worker_id: int,
     queues: list | None = None,
-    worker: str = "",
-    machine: str = "",
     experiment: str | None = None,
     job_name: str | None = None,
 ) -> dict | None:
@@ -193,8 +209,7 @@ def get_job(
             if all(parent.status == "completed" for parent in job.parents):
                 job.status = "running"
                 job.started_at = datetime.datetime.now()
-                job.worker = worker
-                job.machine = machine
+                job.worker_id = worker_id
                 session.add(job)
                 session.commit()
                 # TODO: use dataclass or even the Job object directly?
@@ -268,7 +283,9 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
         )
         results = session.exec(statement)
         job = results.one()
-        return job.model_dump()
+        data = job.model_dump()
+        data.update({"worker": job.worker.model_dump()})
+        return data
 
 
 def find_cached_job(db_url: str, deps_cache: str = "") -> dict:
@@ -310,8 +327,17 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def list_workers(db_url: str) -> list[dict]:
+def list_workers(db_url: str, id: int | None = None) -> list[dict]:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        workers = session.exec(select(Worker).where(Worker.status != "offline")).all()
-        return [worker.model_dump() for worker in workers]
+        if id is None:
+            statement = select(Worker).where(Worker.status != "offline")
+            workers = session.exec(statement).all()
+        else:
+            workers = session.exec(select(Worker).where(Worker.id == id)).all()
+        data = []
+        for worker in workers:
+            _data = worker.model_dump()
+            _data["jobs"] = [job.id for job in worker.jobs]
+            data.append(_data)
+        return data
