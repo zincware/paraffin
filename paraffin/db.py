@@ -199,7 +199,6 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
 
         return resolved_graph
 
-
 def get_job(
     db_url: str,
     worker_id: int,
@@ -212,63 +211,88 @@ def get_job(
     """
     engine = create_engine(db_url)
     with Session(engine) as session:
-        # Fetch jobs with 'pending' status, eagerly loading their parents
         if job_name is None:
-            statement = select(Job).where(
-                or_(Job.status == "pending", Job.status == "cached")
-            )
-            if experiment:
-                statement = statement.where(Job.experiment_id == experiment)
-            if queues:
-                statement = statement.where(Job.queue.in_(queues))
-
-            statement = statement.with_for_update()
-
-            results = session.exec(statement)
-
+            results = _fetch_pending_jobs(session, experiment, queues)
         else:
-            graph = session_to_graph(session, experiment)
-            statement = select(Job).where(Job.name == job_name)
-            if experiment:
-                statement = statement.where(Job.experiment_id == experiment)
+            results = _fetch_jobs_by_name(session, experiment, queues, job_name)
 
-            jobs = session.exec(statement).all()
-            results = []
-            for _job in jobs:
-                predecessors = nx.ancestors(graph, _job.id)
-                results.extend(
-                    [
-                        graph.nodes[node]["data"]
-                        for node in graph.nodes
-                        if node in predecessors
-                    ]
-                )
-                results.append(_job)
-            # filter results that are not "pending" or "cached"
-            results = [job for job in results if job.status in ["pending", "cached"]]
-            if queues:
-                results = [job for job in results if job.queue in queues]
-
-        # Process each job to check if all parents are completed
         for job in results:
-            if all(parent.status == "completed" for parent in job.parents):
-                job.status = "running"
-                job.started_at = datetime.datetime.now()
-                job.worker_id = worker_id
-                session.add(job)
-                session.commit()
-                # TODO: use dataclass or even the Job object directly?
-                return {
-                    "id": job.id,
-                    "name": job.name,
-                    "cmd": json.loads(job.cmd),
-                    "queue": job.queue,
-                    "status": job.status,
-                    "cache": job.cache,
-                    "force": job.force,
-                }
+            if _all_parents_completed(job):
+                _update_job_status(session, job, worker_id)
+                return _job_to_dict(job)
     return None
 
+def _fetch_pending_jobs(session: Session, experiment: int | None, queues: list | None) -> list:
+    """
+    Fetch jobs with 'pending' or 'cached' status, optionally filtered by experiment and queues.
+    """
+    statement = select(Job).where(
+        or_(Job.status == "pending", Job.status == "cached")
+    )
+    if experiment:
+        statement = statement.where(Job.experiment_id == experiment)
+    if queues:
+        statement = statement.where(Job.queue.in_(queues))
+    statement = statement.with_for_update()
+    return session.exec(statement).all()
+
+def _fetch_jobs_by_name(session: Session, experiment: int | None, queues: list | None, job_name: str) -> list:
+    """
+    Fetch jobs by name, including their predecessors, and filter by status and queues.
+    """
+    graph = session_to_graph(session, experiment)
+    statement = select(Job).where(Job.name == job_name)
+    if experiment:
+        statement = statement.where(Job.experiment_id == experiment)
+    jobs = session.exec(statement).all()
+
+    results = []
+    for job in jobs:
+        predecessors = nx.ancestors(graph, job.id)
+        results.extend(
+            [
+                graph.nodes[node]["data"]
+                for node in graph.nodes
+                if node in predecessors
+            ]
+        )
+        results.append(job)
+
+    # Filter results that are not "pending" or "cached"
+    results = [job for job in results if job.status in ["pending", "cached"]]
+    if queues:
+        results = [job for job in results if job.queue in queues]
+    return results
+
+def _all_parents_completed(job) -> bool:
+    """
+    Check if all parents of a job are completed.
+    """
+    return all(parent.status == "completed" for parent in job.parents)
+
+def _update_job_status(session: Session, job, worker_id: int) -> None:
+    """
+    Update the job status to 'running' and set the worker ID and start time.
+    """
+    job.status = "running"
+    job.started_at = datetime.datetime.now()
+    job.worker_id = worker_id
+    session.add(job)
+    session.commit()
+
+def _job_to_dict(job) -> dict:
+    """
+    Convert a Job object to a dictionary.
+    """
+    return {
+        "id": job.id,
+        "name": job.name,
+        "cmd": json.loads(job.cmd),
+        "queue": job.queue,
+        "status": job.status,
+        "cache": job.cache,
+        "force": job.force,
+    }
 
 def complete_job(
     job_id: int,
