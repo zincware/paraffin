@@ -230,7 +230,7 @@ def _fetch_pending_jobs(
     session: Session, experiment: int | None, queues: list | None
 ) -> list:
     """
-    Fetch jobs with 'pending' or 'cached' status, optionally 
+    Fetch jobs with 'pending' or 'cached' status, optionally
     filtered by experiment and queues.
     """
     statement = select(Job).where(or_(Job.status == "pending", Job.status == "cached"))
