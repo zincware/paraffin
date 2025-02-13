@@ -3,12 +3,13 @@
 import dataclasses
 import json
 import logging
+import re
 import subprocess
-import threading
 import time
 from pathlib import Path
 
 import dvc.api
+import pexpect
 import yaml
 from dvc.lock import LockError
 from dvc.stage import PipelineStage
@@ -18,6 +19,9 @@ from dvc.stage.serialize import to_single_stage_lockfile
 from paraffin.lock import clean_lock, transform_lock
 
 log = logging.getLogger(__name__)
+
+
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 @dataclasses.dataclass(frozen=True, eq=True)
@@ -84,54 +88,35 @@ def get_lock(name: str) -> tuple[dict, str]:
     return stage_lock, deps_hash
 
 
-def _stream_reader(pipe, callback) -> None:
-    """Reads lines from a pipe and calls the callback function."""
-    with pipe:
-        for line in iter(pipe.readline, ""):  # Read until EOF
-            callback(line)
-
-
 def run_command(command: list[str]) -> tuple[int, str, str]:
-    """Run a subprocess command, capturing its stdout, stderr, and return code."""
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True,
-    )
+    """Runs a command with PTY support, capturing stdout/stderr while preserving colors and progress bars."""
+
+    cmd_str = " ".join(command)  # Convert list to string
+    child = pexpect.spawn(cmd_str, encoding="utf-8", timeout=None)
 
     stdout_lines = []
     stderr_lines = []
 
-    def print_and_store_stdout(line):
-        print(line, end="")  # Print in real-time
-        stdout_lines.append(line)
+    # Capture output in real-time
+    try:
+        while True:
+            line = child.readline()
+            if not line:
+                break  # Stop when no more output
 
-    def print_and_store_stderr(line):
-        print(line, end="")  # Print in real-time
-        stderr_lines.append(line)
+            print(line, end="")  # Print output live (preserves colors)
+            stdout_lines.append(ANSI_ESCAPE.sub("", line))  # Capture stdout
 
-    # Create threads to read stdout and stderr
-    stdout_thread = threading.Thread(
-        target=_stream_reader,
-        args=(process.stdout, print_and_store_stdout),
-        daemon=True,
-    )
-    stderr_thread = threading.Thread(
-        target=_stream_reader,
-        args=(process.stderr, print_and_store_stderr),
-        daemon=True,
-    )
+    except pexpect.EOF:
+        pass  # Process finished
 
-    stdout_thread.start()
-    stderr_thread.start()
+    return_code = child.wait()
 
-    return_code = process.wait()  # Ensure process completes
-
-    stdout_thread.join()
-    stderr_thread.join()
-
-    return return_code, "".join(stdout_lines), "".join(stderr_lines)
+    return (
+        return_code,
+        "".join(stdout_lines),
+        "".join(stderr_lines),
+    )  # stderr is empty (pexpect merges output)
 
 
 @retry(10, (LockError,), delay=0.5)
