@@ -32,8 +32,8 @@ class Worker(SQLModel, table=True):
 
     # Relationships
     jobs: List["Job"] = Relationship(back_populates="worker")
-    cwd: str = "" # Current working directory
-    pid: int = 0 # Process ID
+    cwd: str = ""  # Current working directory
+    pid: int = 0  # Process ID
     started_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     finished_at: Optional[datetime.datetime] = None
 
