@@ -18,3 +18,19 @@ export type GraphData = {
 	edges: GraphEdge[];
 	nodes: GraphNode[];
 };
+
+export interface WorkerInfo {
+	machine: string;
+	last_seen: Date;
+	status: "offline" | "idle" | "running";
+	id: number;
+	name: string;
+}
+
+export interface Jobs {
+	pending: number;
+	running: number;
+	completed: number;
+	cached: number;
+	failed: number;
+}

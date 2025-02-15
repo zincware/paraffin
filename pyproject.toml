@@ -1,6 +1,6 @@
 [project]
 name = "paraffin"
-version = "0.3.6"
+version = "0.3.7a1"
 description = "Parallel execution of DVC stages"
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },

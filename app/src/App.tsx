@@ -32,6 +32,9 @@ import GraphNodeGroup from "./GraphNodeGroup";
 import GraphContext from "./GraphContext";
 import "./App.css";
 
+import { Jobs, WorkerInfo } from "./types";
+import JobStatusTable from "./JobsOverview";
+
 const elk = new ELK();
 
 async function fetchElkGraph(experiment: string | null) {
@@ -39,6 +42,18 @@ async function fetchElkGraph(experiment: string | null) {
 		return;
 	}
 	const res = await fetch("/api/v1/graph" + "?experiment=" + experiment);
+	if (!res.ok) {
+		throw new Error(`HTTP error! Status: ${res.status}`);
+	}
+	const data = await res.json();
+	return data;
+}
+
+async function fetchJobs(experiment: string | null) {
+	if (experiment === null) {
+		return;
+	}
+	const res = await fetch("/api/v1/jobs" + "?experiment=" + experiment);
 	if (!res.ok) {
 		throw new Error(`HTTP error! Status: ${res.status}`);
 	}
@@ -98,22 +113,15 @@ const ElkSettings: React.FC<ElkSettingsProps> = ({
 	);
 };
 
-interface WorkerInfo {
-	machine: string;
-	last_seen: Date;
-	status: "offline" | "idle" | "running";
-	id: number;
-	name: string;
-}
-
-function LayoutFlow({ experiment }: { experiment: string | null }) {
+function LayoutFlow({
+	experiment,
+	workerInfo,
+}: { experiment: string | null; workerInfo: WorkerInfo[] }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	// const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
 	const [visibleDepth, setVisibleDepth] = useState(3);
 	const [direction, setDirection] = useState("RIGHT");
-
-	const [workerInfo, setWorkerInfo] = useState<WorkerInfo[]>([]);
 
 	const [excludedNodes, setExcludedNodes] = useState({}); // {node.id: [excluded children ids]}
 
@@ -131,53 +139,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 		() => ({ graphstatenode: GraphStateNode, graphnodegroup: GraphNodeGroup }),
 		[],
 	);
-
-	useEffect(() => {
-		const interval = setInterval(() => {
-			fetchWorkers().then((workers: WorkerInfo[]) => {
-				// special case if len(workers) == 0 and workerInfo.length > 0
-				if (workers.length === 0 && workerInfo.length > 0) {
-					setWorkerInfo([]);
-					return;
-				}
-
-				setWorkerInfo((prevWorkerInfo) => {
-					const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
-
-					// Check if any worker has changed
-					let hasChanges = false;
-					const updatedWorkers = workers.map((worker) => {
-						const lastSeen = Date.parse(worker.last_seen);
-						const prevWorker = prevWorkerMap.get(worker.id);
-
-						// If the worker exists in the previous state and `last_seen` has changed
-						if (prevWorker && Date.parse(prevWorker.last_seen) !== lastSeen) {
-							hasChanges = true;
-							return { ...worker, last_seen: lastSeen };
-						}
-
-						// If the worker is new, add it to the state
-						if (!prevWorker) {
-							hasChanges = true;
-							return worker;
-						}
-
-						// If no changes, return the previous worker
-						return prevWorker;
-					});
-					if (hasChanges) {
-						return updatedWorkers;
-					}
-
-					return prevWorkerInfo;
-				});
-			});
-		}, 5000);
-
-		return () => {
-			clearInterval(interval);
-		};
-	}, [workerInfo]);
 
 	useEffect(() => {
 		fetchElkGraph(experiment).then((graph) => {
@@ -389,7 +350,6 @@ function LayoutFlow({ experiment }: { experiment: string | null }) {
 			<GraphContext.Provider
 				value={{ excludedNodes, setExcludedNodes, experiment }}
 			>
-				<Button>{workerInfo.length} workers online</Button>
 				<ReactFlow
 					nodes={nodes}
 					edges={edges}
@@ -509,14 +469,71 @@ const ExperimentSelector = ({
 
 const App = () => {
 	const [experiment, setExperiment] = useState<string | null>(null);
+	const [workerInfo, setWorkerInfo] = useState<WorkerInfo[]>([]);
+	const [jobs, setJobs] = useState<Jobs | null>(null);
+
+	useEffect(() => {
+		const interval = setInterval(() => {
+			fetchWorkers().then((workers: WorkerInfo[]) => {
+				// special case if len(workers) == 0 and workerInfo.length > 0
+				if (workers.length === 0 && workerInfo.length > 0) {
+					setWorkerInfo([]);
+					return;
+				}
+
+				setWorkerInfo((prevWorkerInfo) => {
+					const prevWorkerMap = new Map(prevWorkerInfo.map((w) => [w.id, w]));
+
+					// Check if any worker has changed
+					let hasChanges = false;
+					const updatedWorkers = workers.map((worker) => {
+						const lastSeen = Date.parse(worker.last_seen);
+						const prevWorker = prevWorkerMap.get(worker.id);
+
+						// If the worker exists in the previous state and `last_seen` has changed
+						if (prevWorker && Date.parse(prevWorker.last_seen) !== lastSeen) {
+							hasChanges = true;
+							return { ...worker, last_seen: lastSeen };
+						}
+
+						// If the worker is new, add it to the state
+						if (!prevWorker) {
+							hasChanges = true;
+							return worker;
+						}
+
+						// If no changes, return the previous worker
+						return prevWorker;
+					});
+					if (hasChanges) {
+						return updatedWorkers;
+					}
+
+					return prevWorkerInfo;
+				});
+			});
+		}, 5000);
+
+		return () => {
+			clearInterval(interval);
+		};
+	}, [workerInfo]);
+
+	useEffect(() => {
+		fetchJobs(experiment).then((jobs) => {
+			setJobs(jobs);
+		});
+	}, [experiment, workerInfo]);
 
 	return experiment === null ? (
 		<ExperimentSelector setExperiment={setExperiment} />
 	) : (
 		<ReactFlowProvider>
 			<Card style={{ width: "100%", height: "85vh" }}>
-				<LayoutFlow experiment={experiment} />
+				<LayoutFlow experiment={experiment} workerInfo={workerInfo} />
 			</Card>
+			<hr />
+			<JobStatusTable workerInfo={workerInfo} jobs={jobs} />
 		</ReactFlowProvider>
 	);
 };
