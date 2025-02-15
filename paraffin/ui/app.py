@@ -9,10 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from paraffin.db import (
     db_to_graph,
     get_job_dump,
+    get_jobs,
     list_experiments,
     list_workers,
     update_job_status,
-    get_jobs,
 )
 from paraffin.utils import build_elk_hierarchy
 
@@ -108,6 +108,7 @@ def spawn(
 def read_job(name: str, experiment: int):
     db_url = os.environ["PARAFFIN_DB"]
     return get_job_dump(job_name=name, experiment_id=int(experiment), db_url=db_url)
+
 
 # list finished, running, and pending and failed jobs
 @app.get("/api/v1/jobs")
