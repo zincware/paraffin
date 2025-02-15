@@ -82,7 +82,7 @@ const JobStatusTable = ({
 									backgroundImage:
 										status === "pending"
 											? "none" // No gradient for pending
-											: `linear-gradient(90deg, var(--bs-${jobStatusColors[status]}-bg) 10%, transparent 50%)`,
+											: `linear-gradient(90deg, var(--bs-${jobStatusColors[status]}) 1%, transparent 25%)`,
 									padding: "8px 12px",
 								}}
 							>
