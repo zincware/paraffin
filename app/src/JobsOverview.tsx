@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-	Table,
-	Card,
-	ProgressBar,
-} from "react-bootstrap";
+import { Table, Card, ProgressBar } from "react-bootstrap";
 import { Jobs, WorkerInfo } from "./types";
 
 const JobStatusTable = ({
@@ -25,7 +21,6 @@ const JobStatusTable = ({
 		failed: "danger",
 		completed: "success",
 		running: "info",
-		pending: "warning",
 		cached: "secondary",
 	};
 
@@ -60,12 +55,6 @@ const JobStatusTable = ({
 					max={totalJobs}
 				/>
 				<ProgressBar
-					variant="warning"
-					now={jobs?.pending}
-					key={4}
-					max={totalJobs}
-				/>
-				<ProgressBar
 					variant="secondary"
 					now={jobs?.cached}
 					key={5}
@@ -90,7 +79,11 @@ const JobStatusTable = ({
 						<tr key={status}>
 							<td
 								style={{
-									backgroundImage: `linear-gradient(90deg, var(--bs-${jobStatusColors[status]}) 1%, #ffffff00 20%)`,
+									backgroundImage:
+										status === "pending"
+											? "none" // No gradient for pending
+											: `linear-gradient(90deg, var(--bs-${jobStatusColors[status]}-bg) 10%, transparent 50%)`,
+									padding: "8px 12px",
 								}}
 							>
 								{jobStatusLabels[status]}
