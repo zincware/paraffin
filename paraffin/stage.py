@@ -3,6 +3,7 @@
 import dataclasses
 import json
 import logging
+import random
 import subprocess
 import threading
 import time
@@ -44,7 +45,7 @@ class PipelineStageDC:
         return self.stage.cmd
 
 
-def retry(times, exceptions, delay: float = 0):
+def retry(times, exceptions, delay: float = 0, exponential: bool = True):
     """
     Retry Decorator
     Retries the wrapped function/method `times` times if the exceptions listed
@@ -64,7 +65,9 @@ def retry(times, exceptions, delay: float = 0):
                 except exceptions as e:
                     attempt += 1
                     log.warning(f"Caught exception {e} - retrying {attempt}/{times}")
-                    time.sleep(delay)
+                    sleep_time = delay * (2.0**attempt) if exponential else delay
+                    sleep_time *= random.uniform(0, 1.0)
+                    time.sleep(sleep_time)
             return func(*args, **kwargs)
 
         return newfn
