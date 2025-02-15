@@ -28,6 +28,8 @@ const statusColors: { [key: string]: string } = {
 interface WorkerData {
 	name: string;
 	machine: string;
+	cwd: string;
+	pid: number;
 }
 
 interface NodeData {
@@ -180,6 +182,10 @@ ${data.node.deps_hash}
 							<pre>{nodeData.started_at}</pre>
 							<h5>Finished At</h5>
 							<pre>{nodeData.finished_at}</pre>
+							<h5>Working Directory</h5>
+							<pre>{nodeData.worker.cwd}</pre>
+							<h5>PID</h5>
+							<pre>{nodeData.worker.pid}</pre>
 						</>
 					)}
 				</Modal.Body>
