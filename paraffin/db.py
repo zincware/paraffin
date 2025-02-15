@@ -32,6 +32,10 @@ class Worker(SQLModel, table=True):
 
     # Relationships
     jobs: List["Job"] = Relationship(back_populates="worker")
+    cwd: str = ""  # Current working directory
+    pid: int = 0  # Process ID
+    started_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    finished_at: Optional[datetime.datetime] = None
 
 
 class JobDependency(SQLModel, table=True):
@@ -376,10 +380,10 @@ def find_cached_job(db_url: str, deps_cache: str = "") -> dict:
     return {}
 
 
-def register_worker(name: str, machine: str, db_url: str) -> int:
+def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) -> int:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        worker = Worker(name=name, machine=machine)
+        worker = Worker(name=name, machine=machine, cwd=cwd, pid=pid)
         session.add(worker)
         session.commit()
         return worker.id
@@ -401,6 +405,7 @@ def close_worker(id: int, db_url: str) -> None:
         worker = session.exec(select(Worker).where(Worker.id == id)).one()
         worker.status = "offline"
         worker.last_seen = datetime.datetime.now()
+        worker.finished_at = datetime.datetime.now()
         session.add(worker)
         session.commit()
 

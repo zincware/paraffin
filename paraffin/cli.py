@@ -37,7 +37,13 @@ app = typer.Typer()
 def spawn_worker(
     name: str, queues, experiment: str, job: str, timeout: float, db: str, workers: dict
 ):
-    worker_id = register_worker(name=name, machine=socket.gethostname(), db_url=db)
+    worker_id = register_worker(
+        name=name,
+        machine=socket.gethostname(),
+        db_url=db,
+        cwd=os.getcwd(),
+        pid=os.getpid(),
+    )
     workers[worker_id] = None
     log.info(f"Listening on queues: {queues}")
 
