@@ -65,8 +65,8 @@ def retry(times, exceptions, delay: float = 0, exponential: bool = True):
                 except exceptions as e:
                     attempt += 1
                     log.warning(f"Caught exception {e} - retrying {attempt}/{times}")
-                    sleep_time = delay * attempt if exponential else delay
-                    sleep_time += random.uniform(0, 0.5)
+                    sleep_time = delay * (2.0**attempt) if exponential else delay
+                    sleep_time *= random.uniform(0, 1.0)
                     time.sleep(sleep_time)
             return func(*args, **kwargs)
 
