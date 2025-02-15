@@ -61,7 +61,6 @@ async function fetchJobs(experiment: string | null) {
 	return data;
 }
 
-
 async function fetchWorkers() {
 	const res = await fetch("/api/v1/workers");
 	if (!res.ok) {
@@ -114,9 +113,10 @@ const ElkSettings: React.FC<ElkSettingsProps> = ({
 	);
 };
 
-
-
-function LayoutFlow({ experiment, workerInfo }: { experiment: string | null, workerInfo: WorkerInfo[] }) {
+function LayoutFlow({
+	experiment,
+	workerInfo,
+}: { experiment: string | null; workerInfo: WorkerInfo[] }) {
 	const [nodes, setNodes, onNodesChange] = useNodesState([]);
 	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 	// const [hiddenNodes, setHiddenNodes] = useState<string[]>([]);
@@ -472,7 +472,6 @@ const App = () => {
 	const [workerInfo, setWorkerInfo] = useState<WorkerInfo[]>([]);
 	const [jobs, setJobs] = useState<Jobs | null>(null);
 
-
 	useEffect(() => {
 		const interval = setInterval(() => {
 			fetchWorkers().then((workers: WorkerInfo[]) => {
@@ -519,7 +518,6 @@ const App = () => {
 			clearInterval(interval);
 		};
 	}, [workerInfo]);
-
 
 	useEffect(() => {
 		fetchJobs(experiment).then((jobs) => {
