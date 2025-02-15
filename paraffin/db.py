@@ -58,7 +58,9 @@ class Job(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     cmd: str  # Command to execute
-    status: str = "pending"  # pending, running, completed, failed
+    status: Literal["pending", "running", "completed", "cached", "failed"] = Field(
+        sa_type=String, default="pending"
+    )
     queue: str = "default"  # Queue name(s)
     lock: str = ""  # JSON string of lockfile for the stage
     deps_hash: str = ""  # Hash of the dependencies
@@ -424,3 +426,16 @@ def list_workers(db_url: str, id: int | None = None) -> list[dict]:
             _data["jobs"] = [job.id for job in worker.jobs]
             data.append(_data)
         return data
+
+def get_jobs(db_url: str, experiment_id: int) -> dict[str, int]:
+    """Get the number of jobs in each status for a specific experiment."""
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        statement = select(Job).where(Job.experiment_id == experiment_id)
+        jobs = session.exec(statement).all()
+
+        status = {"pending": 0, "running": 0, "completed": 0, "cached": 0, "failed": 0}
+        for job in jobs:
+            status[job.status] += 1
+
+        return status
