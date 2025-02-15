@@ -427,6 +427,7 @@ def list_workers(db_url: str, id: int | None = None) -> list[dict]:
             data.append(_data)
         return data
 
+
 def get_jobs(db_url: str, experiment_id: int) -> dict[str, int]:
     """Get the number of jobs in each status for a specific experiment."""
     engine = create_engine(db_url)
