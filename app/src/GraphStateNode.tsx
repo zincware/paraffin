@@ -1,13 +1,13 @@
-import { useState, useEffect, useContext } from "react";
 import { Handle } from "@xyflow/react";
-import Card from "react-bootstrap/Card";
-import { FaSpinner } from "react-icons/fa";
-import Button from "react-bootstrap/Button";
-import Modal from "react-bootstrap/Modal";
-import Markdown from "react-markdown";
-import { GraphNode } from "./types";
-import GraphContext from "./GraphContext";
+import { useContext, useEffect, useState } from "react";
 import Accordion from "react-bootstrap/Accordion";
+import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
+import Modal from "react-bootstrap/Modal";
+import { FaSpinner } from "react-icons/fa";
+import Markdown from "react-markdown";
+import GraphContext from "./GraphContext";
+import type { GraphNode } from "./types";
 
 interface GraphStateNodeProps {
 	data: {
@@ -144,7 +144,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 					<Modal.Title>{data.node.id}</Modal.Title>
 				</Modal.Header>
 				<Modal.Body>
-					<Accordion defaultActiveKey={["0", "1", "2", "3"]} alwaysOpen>
+					<Accordion defaultActiveKey={["0", "1", "2", "3", "4"]} alwaysOpen>
 						<Accordion.Item eventKey="0">
 							<Accordion.Header>Run this Node</Accordion.Header>
 							<Accordion.Body>

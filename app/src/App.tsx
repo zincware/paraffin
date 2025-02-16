@@ -1,39 +1,39 @@
-// import { initialNodes, initialEdges } from './initialElements.js';
-import ELK from "elkjs/lib/elk.bundled.js";
-import { useEffect, useState, useMemo, useRef } from "react";
 import {
 	Background,
-	ReactFlow,
-	ReactFlowProvider,
-	useNodesState,
-	useEdgesState,
 	Controls,
 	Panel,
 	Position,
+	ReactFlow,
+	ReactFlowProvider,
+	useEdgesState,
+	useNodesState,
 } from "@xyflow/react";
+// import { initialNodes, initialEdges } from './initialElements.js';
+import ELK from "elkjs/lib/elk.bundled.js";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import InputGroup from "react-bootstrap/InputGroup";
 import Form from "react-bootstrap/Form";
+import InputGroup from "react-bootstrap/InputGroup";
 
 import "@xyflow/react/dist/style.css";
-import { Card, Button } from "react-bootstrap";
+import { Button, Card } from "react-bootstrap";
 import Table from "react-bootstrap/Table";
 import {
-	FaPlus,
-	FaMinus,
-	FaArrowRight,
 	FaArrowDown,
-	FaRedo,
+	FaArrowRight,
+	FaMinus,
 	FaPlay,
+	FaPlus,
+	FaRedo,
 } from "react-icons/fa";
 
-import GraphStateNode from "./GraphStateNode";
-import GraphNodeGroup from "./GraphNodeGroup";
 import GraphContext from "./GraphContext";
+import GraphNodeGroup from "./GraphNodeGroup";
+import GraphStateNode from "./GraphStateNode";
 import "./App.css";
 
-import { Jobs, WorkerInfo } from "./types";
 import JobStatusTable from "./JobsOverview";
+import type { Jobs, WorkerInfo } from "./types";
 
 const elk = new ELK();
 
@@ -254,7 +254,7 @@ function LayoutFlow({
 	useEffect(() => {
 		if (elkGraph) {
 			// Recursively extract nodes from ELK graph
-			const extractNodesAndEdges = (graph, currentDepth: number = 0) => {
+			const extractNodesAndEdges = (graph, currentDepth = 0) => {
 				const hiddenNodes = excludedNodes[graph.id] || [];
 				const resultNodes = [];
 				const resultEdges = [];
@@ -269,7 +269,7 @@ function LayoutFlow({
 					if (child.children) {
 						// Subgraph: Recursively process children
 
-						let node = {
+						const node = {
 							id: child.id,
 							position: {
 								x: child.x,
@@ -299,7 +299,7 @@ function LayoutFlow({
 						resultEdges.push(...subEdges);
 					} else {
 						// Individual node
-						let node = {
+						const node = {
 							id: child.id,
 							position: {
 								x: child.x,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Table, Card, ProgressBar } from "react-bootstrap";
-import { Jobs, WorkerInfo } from "./types";
+import { Card, ProgressBar, Table } from "react-bootstrap";
+import type { Jobs, WorkerInfo } from "./types";
 
 const JobStatusTable = ({
 	workerInfo,
