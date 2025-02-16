@@ -152,7 +152,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 									{`
 ~~~
 paraffin worker --job ${data.node.id} --experiment ${experiment}
-~~~		
+~~~
 `}
 								</Markdown>
 							</Accordion.Body>
