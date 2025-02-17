@@ -1,5 +1,5 @@
-import Form from "react-bootstrap/Form";
 import Dropdown from "react-bootstrap/Dropdown";
+import Form from "react-bootstrap/Form";
 
 function RangeExample({
 	value,
@@ -14,7 +14,7 @@ function RangeExample({
 				min={100}
 				max={60000}
 				step={100}
-				onChange={(e) => setValue(parseInt(e.target.value))}
+				onChange={(e) => setValue(Number.parseInt(e.target.value))}
 				value={value}
 				style={{ marginTop: "10px" }}
 			/>

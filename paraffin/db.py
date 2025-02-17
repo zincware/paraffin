@@ -67,6 +67,8 @@ class Job(SQLModel, table=True):
     experiment_id: Optional[int] = Field(foreign_key="experiment.id")
     stderr: str = ""  # stderr output
     stdout: str = ""  # stdout output
+    capture_stderr: bool = True  # Capture stderr output
+    capture_stdout: bool = True  # Capture stdout output
     started_at: Optional[datetime.datetime] = None
     finished_at: Optional[datetime.datetime] = None
     worker_id: Optional[int] = Field(foreign_key="worker.id", default=None)
@@ -323,8 +325,10 @@ def complete_job(
         job = results.one()
         job.status = status
         job.lock = json.dumps(lock)
-        job.stderr = stderr
-        job.stdout = stdout
+        if job.capture_stderr:
+            job.stderr = stderr
+        if job.capture_stdout:
+            job.stdout = stdout
         job.finished_at = datetime.datetime.now()
         # We only write the deps_hash to the database
         #  once the job has finished successfully!

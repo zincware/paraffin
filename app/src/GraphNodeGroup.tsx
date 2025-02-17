@@ -1,10 +1,10 @@
-import { useCallback, useContext, useEffect } from "react";
 import { Handle } from "@xyflow/react";
-import Card from "react-bootstrap/Card";
-import { GraphNode } from "./types";
-import { BsArrowsAngleContract, BsArrowsAngleExpand } from "react-icons/bs";
+import { useCallback, useContext } from "react";
 import { Button } from "react-bootstrap";
+import Card from "react-bootstrap/Card";
+import { BsArrowsAngleContract, BsArrowsAngleExpand } from "react-icons/bs";
 import GraphContext from "./GraphContext";
+import type { GraphNode } from "./types";
 
 interface GraphStateNodeProps {
 	data: {

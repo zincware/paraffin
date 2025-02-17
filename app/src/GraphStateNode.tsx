@@ -1,12 +1,13 @@
-import { useState, useEffect, useContext } from "react";
 import { Handle } from "@xyflow/react";
-import Card from "react-bootstrap/Card";
-import { FaSpinner } from "react-icons/fa";
+import { useContext, useEffect, useState } from "react";
+import Accordion from "react-bootstrap/Accordion";
 import Button from "react-bootstrap/Button";
+import Card from "react-bootstrap/Card";
 import Modal from "react-bootstrap/Modal";
+import { FaSpinner } from "react-icons/fa";
 import Markdown from "react-markdown";
-import { GraphNode } from "./types";
 import GraphContext from "./GraphContext";
+import type { GraphNode } from "./types";
 
 interface GraphStateNodeProps {
 	data: {
@@ -143,51 +144,67 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 					<Modal.Title>{data.node.id}</Modal.Title>
 				</Modal.Header>
 				<Modal.Body>
-					<Markdown>
-						{`
-#### Run this Node
+					<Accordion defaultActiveKey={["0", "1", "2", "3", "4"]} alwaysOpen>
+						<Accordion.Item eventKey="0">
+							<Accordion.Header>Run this Node</Accordion.Header>
+							<Accordion.Body>
+								<Markdown>
+									{`
 ~~~
 paraffin worker --job ${data.node.id} --experiment ${experiment}
 ~~~
-#### DVC Stage Lock
+`}
+								</Markdown>
+							</Accordion.Body>
+						</Accordion.Item>
+						<Accordion.Item eventKey="1">
+							<Accordion.Header>DVC Stage Lock</Accordion.Header>
+							<Accordion.Body>
+								<Markdown>
+									{`
 ~~~dict
 ${JSON.stringify(data.node.lock, null, 4)}
 ~~~
-#### DVC Stage Dependencies Hash
-~~~
-${data.node.deps_hash}
-~~~
 `}
-						{/* TODO: show node-meta.json if requested */}
-					</Markdown>
-					{nodeData.stdout && (
-						<>
-							<h5>STDOUT</h5>
-							<pre>{nodeData.stdout}</pre>
-						</>
-					)}
-					{nodeData.stderr && (
-						<>
-							<h5>STDERR</h5>
-							<pre>{nodeData.stderr}</pre>
-						</>
-					)}
-					{nodeData.worker && (
-						<>
-							<h5>Worker</h5>
-							<pre>
-								{nodeData.worker.name}@{nodeData.worker.machine}
-							</pre>
-							<h5>Started At</h5>
-							<pre>{nodeData.started_at}</pre>
-							<h5>Finished At</h5>
-							<pre>{nodeData.finished_at}</pre>
-							<h5>Working Directory</h5>
-							<pre>{nodeData.worker.cwd}</pre>
-							<h5>PID</h5>
-							<pre>{nodeData.worker.pid}</pre>
-						</>
-					)}
+								</Markdown>
+							</Accordion.Body>
+						</Accordion.Item>
+
+						{nodeData.stdout && (
+							<Accordion.Item eventKey="2">
+								<Accordion.Header>STDOUT</Accordion.Header>
+								<Accordion.Body>
+									<pre>{nodeData.stdout}</pre>
+								</Accordion.Body>
+							</Accordion.Item>
+						)}
+						{nodeData.stderr && (
+							<Accordion.Item eventKey="3">
+								<Accordion.Header>STDERR</Accordion.Header>
+								<Accordion.Body>
+									<pre>{nodeData.stderr}</pre>
+								</Accordion.Body>
+							</Accordion.Item>
+						)}
+						{nodeData.worker && (
+							<Accordion.Item eventKey="4">
+								<Accordion.Header>Worker</Accordion.Header>
+								<Accordion.Body>
+									<pre>
+										{nodeData.worker.name}@{nodeData.worker.machine}
+									</pre>
+									<h5>Started At</h5>
+									<pre>{nodeData.started_at}</pre>
+									<h5>Finished At</h5>
+									<pre>{nodeData.finished_at}</pre>
+									<h5>Working Directory</h5>
+									<pre>{nodeData.worker.cwd}</pre>
+									<h5>PID</h5>
+									<pre>{nodeData.worker.pid}</pre>
+								</Accordion.Body>
+							</Accordion.Item>
+						)}
+					</Accordion>
 				</Modal.Body>
 				<Modal.Footer>
 					<Button variant="secondary" onClick={handleClose}>
