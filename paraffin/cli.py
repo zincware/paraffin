@@ -226,7 +226,7 @@ def worker(
         for worker, job_id in workers.items():
             if job_id is not None:
                 complete_job(
-                    job_id=job_id,
+                    stage_id=job_id,
                     status="failed",
                     lock={},
                     stdout="",
