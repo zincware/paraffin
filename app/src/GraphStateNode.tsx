@@ -151,7 +151,7 @@ function GraphStateNode({ data }: GraphStateNodeProps) {
 								<Markdown>
 									{`
 ~~~
-paraffin worker --job ${data.node.id} --experiment ${experiment}
+paraffin worker --stage ${data.node.id} --experiment ${experiment}
 ~~~
 `}
 								</Markdown>

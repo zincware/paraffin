@@ -51,7 +51,7 @@ def read_graph(experiment: str):
 
 @app.get("/api/v1/spawn")
 def spawn(
-    name: str | None = None, experiment: int | None = None, job: str | None = None
+    name: str | None = None, experiment: int | None = None, stage: str | None = None
 ):
     # Build the command
     cmd = ["paraffin", "worker"]
@@ -59,8 +59,8 @@ def spawn(
         cmd += ["--name", name]
     if experiment is not None:
         cmd += ["--experiment", str(experiment)]
-    if job is not None:
-        cmd += ["--job", job]
+    if stage is not None:
+        cmd += ["--stage", stage]
 
     # open subprocess and forget about it
     subprocess.Popen(cmd)
