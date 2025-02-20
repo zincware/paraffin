@@ -92,7 +92,6 @@ def spawn_worker(
                 cached_job = find_cached_job(deps_cache=dependency_hash, db_url=db)
             if cached_job is not None:
                 log.info(f"Job '{stage.name}' is cached and dvc.lock is available.")
-                print(cached_job)
                 returncode, stdout, stderr = checkout(
                     stage_lock, cached_job.lockfile_content, stage.name
                 )
