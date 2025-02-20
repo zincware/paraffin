@@ -114,16 +114,16 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
         # Resolve Job objects to dictionaries
         resolved_graph = nx.DiGraph()
         for job_id, node_data in graph.nodes(data=True):
-            job = node_data["data"]
+            stage: Stage = node_data["data"]
             resolved_graph.add_node(
                 job_id,
-                name=job.name,
-                cmd=json.loads(job.cmd),
-                status=job.status,
-                queue=job.queue,
-                lock=json.loads(job.lock) if job.lock else None,
-                dependency_hash=job.dependency_hash,
-                group=get_group(job.name)[0],
+                name=stage.name,
+                cmd=json.loads(stage.cmd),
+                status=stage.status,
+                queue=stage.queue,
+                lock=json.loads(stage.lockfile_content) if stage.lockfile_content else None,
+                dependency_hash=stage.dependency_hash,
+                group=get_group(stage.name)[0],
             )
 
         # Add edges from the original graph
@@ -284,10 +284,10 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
             .where(Stage.name == job_name)
         )
         results = session.exec(statement)
-        job = results.one()
-        data = job.model_dump()
-        if job.worker:
-            data.update({"worker": job.worker.model_dump()})
+        stage = results.one()
+        data = stage.model_dump()
+        if len(stage.jobs) == 1:
+            data.update({"worker": stage.jobs[0].worker.model_dump()})
         return data
 
 
