@@ -294,14 +294,15 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
         return data
 
 
-def find_cached_job(db_url: str, deps_cache: str = "") -> dict:
+def find_cached_job(db_url: str, deps_cache: str = "") -> Stage|None:
     engine = create_engine(db_url)
     with Session(engine) as session:
         statement = select(Stage).where(Stage.dependency_hash == deps_cache)
         results = session.exec(statement)
         if res := results.first():
-            return res.model_dump()
-    return {}
+            session.refresh(res)
+            return res
+    return None
 
 
 def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) -> int:

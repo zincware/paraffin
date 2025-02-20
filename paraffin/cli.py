@@ -86,14 +86,15 @@ def spawn_worker(
 
             # This will search the DB and not rely on DVC run cache to determine if
             #  the job is cached so this can easily work across directories
-            cached_job = False
+            cached_job = None
             if stage.cache and detect_zntrack({"cmd": stage.cmd}) and not stage.force:
                 stage_lock, dependency_hash = get_lock(stage.name)
                 cached_job = find_cached_job(deps_cache=dependency_hash, db_url=db)
-            if cached_job:
+            if cached_job is not None:
                 log.info(f"Job '{stage.name}' is cached and dvc.lock is available.")
+                print(cached_job)
                 returncode, stdout, stderr = checkout(
-                    stage_lock, cached_job["lock"], stage.name
+                    stage_lock, cached_job.lockfile_content, stage.name
                 )
                 if returncode == 404:
                     # TODO: we need to ensure that all deps nodes are checked out!
