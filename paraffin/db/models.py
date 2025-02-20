@@ -1,6 +1,8 @@
-from typing import List, Optional, Literal
 from datetime import datetime
-from sqlmodel import SQLModel, Field, Relationship, String, UniqueConstraint
+from typing import List, Literal, Optional
+
+from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
+
 
 class Worker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -24,7 +26,9 @@ class StageDependency(SQLModel, table=True):
     child_id: int = Field(foreign_key="stage.id", primary_key=True)
 
     # Unique constraint to prevent duplicate dependencies
-    __table_args__ = (UniqueConstraint("parent_id", "child_id", name="unique_dependency"),)
+    __table_args__ = (
+        UniqueConstraint("parent_id", "child_id", name="unique_dependency"),
+    )
 
 
 class Experiment(SQLModel, table=True):

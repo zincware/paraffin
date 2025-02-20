@@ -1,4 +1,3 @@
-from paraffin.db.models import Experiment, Job, Stage, Worker, StageDependency
 import datetime
 import fnmatch
 import json
@@ -13,10 +12,10 @@ from sqlmodel import (
     select,
 )
 
+from paraffin.db.models import Experiment, Job, Stage, StageDependency, Worker
 from paraffin.lock import clean_lock
 from paraffin.stage import PipelineStageDC
 from paraffin.utils import get_group
-
 
 
 def save_graph_to_db(
@@ -161,7 +160,7 @@ def get_job(
                 session.refresh(job)
                 session.refresh(stage)
                 return stage, job
-            
+
     return None
 
 
@@ -172,7 +171,9 @@ def _fetch_pending_jobs(
     Fetch jobs with 'pending' or 'cached' status, optionally
     filtered by experiment and queues.
     """
-    statement = select(Stage).where(or_(Stage.status == "pending", Stage.status == "cached"))
+    statement = select(Stage).where(
+        or_(Stage.status == "pending", Stage.status == "cached")
+    )
     if experiment:
         statement = statement.where(Stage.experiment_id == experiment)
     if queues:
@@ -215,7 +216,6 @@ def _all_parents_completed(stage: Stage) -> bool:
     return all(parent.status == "completed" for parent in stage.parents)
 
 
-
 def complete_job(
     stage_id: int,
     lock: dict,
@@ -233,7 +233,11 @@ def complete_job(
         stage.status = status
         stage.lockfile_content = json.dumps(lock)
         # TODO: this only works for a single worker
-        job = session.exec(select(Job).where(Job.stage_id == stage_id).where(Job.worker_id == worker_id)).one()
+        job = session.exec(
+            select(Job)
+            .where(Job.stage_id == stage_id)
+            .where(Job.worker_id == worker_id)
+        ).one()
         job.finished_at = datetime.datetime.now()
         if stage.capture_stderr:
             job.stderr = stderr

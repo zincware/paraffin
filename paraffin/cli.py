@@ -35,7 +35,13 @@ app = typer.Typer()
 
 
 def spawn_worker(
-    name: str, queues, experiment: str, stage_name: str, timeout: float, db: str, workers: dict
+    name: str,
+    queues,
+    experiment: str,
+    stage_name: str,
+    timeout: float,
+    db: str,
+    workers: dict,
 ):
     worker_id = register_worker(
         name=name,
@@ -85,9 +91,7 @@ def spawn_worker(
                 stage_lock, dependency_hash = get_lock(stage.name)
                 cached_job = find_cached_job(deps_cache=dependency_hash, db_url=db)
             if cached_job:
-                log.info(
-                    f"Job '{stage.name}' is cached and dvc.lock is available."
-                )
+                log.info(f"Job '{stage.name}' is cached and dvc.lock is available.")
                 returncode, stdout, stderr = checkout(
                     stage_lock, cached_job["lock"], stage.name
                 )
@@ -96,8 +100,7 @@ def spawn_worker(
                     #  this will be important when clone / push.
                     # TODO: this can be the cause for a lock issue!
                     log.warning(
-                        "Unable to checkout GIT tracked files"
-                        f" for job '{stage.name}'"
+                        f"Unable to checkout GIT tracked files for job '{stage.name}'"
                     )
                     log.info(f"Running job '{stage.name}'")
                     returncode, stdout, stderr = repro(
@@ -109,12 +112,10 @@ def spawn_worker(
                 # TODO: we need to ensure that all deps nodes are checked out!
                 #  this will be important when clone / push.
                 # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(
-                    stage.name, force=stage.force
-                )
+                returncode, stdout, stderr = repro(stage.name, force=stage.force)
             if returncode != 0:
                 complete_job(
-                    stage_id=stage.id, # TODO: should later be job.id
+                    stage_id=stage.id,  # TODO: should later be job.id
                     status="failed",
                     lock={},
                     stdout=stdout,
@@ -125,7 +126,7 @@ def spawn_worker(
             else:
                 stage_lock, _ = get_lock(stage.name)
                 complete_job(
-                    stage_id=stage.id, # TODO: should later be job.id
+                    stage_id=stage.id,  # TODO: should later be job.id
                     status="completed",
                     lock=stage_lock,
                     stdout=stdout,
@@ -140,7 +141,7 @@ def spawn_worker(
         if job_obj is not None:
             stage, job = job_obj
             complete_job(
-                stage_id=stage.id, # TODO: should later be job.id
+                stage_id=stage.id,  # TODO: should later be job.id
                 status="failed",
                 lock={},
                 stdout="",
