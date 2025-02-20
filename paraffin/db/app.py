@@ -154,7 +154,8 @@ def get_job(
 
         for stage in stages:
             if _all_parents_completed(stage):
-                # TODO check if the number of workers on the job are less than max_workers
+                # TODO check if the number of workers on the
+                #  job are less than max_workers
                 job = stage.attach_job(worker)
                 session.add(job)
                 session.add(stage)
