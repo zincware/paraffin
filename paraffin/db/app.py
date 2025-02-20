@@ -1,16 +1,13 @@
+from paraffin.db.models import Experiment, Job, Stage, Worker, StageDependency
 import datetime
 import fnmatch
 import json
-from typing import List, Literal, Optional
 
 import networkx as nx
 from dvc.stage.cache import _get_cache_hash
 from sqlmodel import (
-    Field,
-    Relationship,
     Session,
     SQLModel,
-    String,
     create_engine,
     or_,
     select,
@@ -21,90 +18,6 @@ from paraffin.stage import PipelineStageDC
 from paraffin.utils import get_group
 
 
-class Worker(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    machine: str
-    status: Literal["running", "idle", "offline"] = Field(
-        sa_type=String, default="idle"
-    )
-    last_seen: datetime.datetime = Field(default_factory=datetime.datetime.now)
-
-    # Relationships
-    stages: List["Stage"] = Relationship(back_populates="worker")  # Fixed name
-    cwd: str = ""  # Current working directory
-    pid: int = 0  # Process ID
-    started_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    finished_at: Optional[datetime.datetime] = None
-
-
-class StageDependency(SQLModel, table=True):
-    parent_id: Optional[int] = Field(foreign_key="stage.id", primary_key=True)  # Fixed
-    child_id: Optional[int] = Field(foreign_key="stage.id", primary_key=True)  # Fixed
-
-
-class Experiment(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    base: str  # Commit this experiment is based on
-    origin: str = "local"  # Origin of the repository, e.g. https://...
-    machine: str = "local"  # Machine where the experiment was submitted from
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-
-    # Relationships
-    stages: List["Stage"] = Relationship(back_populates="experiment")
-
-
-class Job(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    stage_id: int = Field(foreign_key="stage.id")  # Fixed reference
-    worker_id: int = Field(foreign_key="worker.id")
-    stderr: str = ""
-    stdout: str = ""
-    started_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    finished_at: Optional[datetime.datetime] = None
-
-    # Relationships
-    stage: Optional["Stage"] = Relationship(back_populates="jobs")  # Fixed name
-    worker: Optional[Worker] = Relationship(back_populates="jobs")
-
-
-class Stage(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str
-    cmd: str  # Command to execute
-    status: Literal["pending", "running", "completed", "cached", "failed"] = Field(
-        sa_type=String, default="pending"
-    )
-    queue: str = "default"  # Queue name(s)
-    lock: str = ""  # JSON string of lockfile for the stage
-    deps_hash: str = ""  # Hash of the dependencies
-    experiment_id: Optional[int] = Field(foreign_key="experiment.id")
-    capture_stderr: bool = True  # Capture stderr output
-    capture_stdout: bool = True  # Capture stdout output
-    started_at: Optional[datetime.datetime] = None
-    finished_at: Optional[datetime.datetime] = None
-    cache: bool = False  # Use the paraffin cache for this job
-    force: bool = False  # Rerun the job even if cached
-
-    # Relationships
-    experiment: Optional[Experiment] = Relationship(back_populates="stages")
-    parents: List["Stage"] = Relationship(
-        link_model=StageDependency,
-        back_populates="children",
-        sa_relationship_kwargs={
-            "primaryjoin": "Stage.id==StageDependency.child_id",
-            "secondaryjoin": "Stage.id==StageDependency.parent_id",
-        },
-    )
-    children: List["Stage"] = Relationship(
-        link_model=StageDependency,
-        back_populates="parents",
-        sa_relationship_kwargs={
-            "primaryjoin": "Stage.id==StageDependency.parent_id",
-            "secondaryjoin": "Stage.id==StageDependency.child_id",
-        },
-    )
-    jobs: List[Job] = Relationship(back_populates="stage")  # Fixed name
 
 def save_graph_to_db(
     graph: nx.DiGraph,
@@ -140,9 +53,9 @@ def save_graph_to_db(
                 cache=cache,
                 force=node.force,
             )
-            # if completed, we can look for the lock and deps_hash
+            # if completed, we can look for the lock and dependency_hash
             if status == "completed":
-                # TODO: get the lock and deps_hash from the stage
+                # TODO: get the lock and dependency_hash from the stage
                 pass
 
             session.add(job)
@@ -210,7 +123,7 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
                 status=job.status,
                 queue=job.queue,
                 lock=json.loads(job.lock) if job.lock else None,
-                deps_hash=job.deps_hash,
+                dependency_hash=job.dependency_hash,
                 group=get_group(job.name)[0],
             )
 
@@ -225,28 +138,36 @@ def get_job(
     worker_id: int,
     queues: list | None = None,
     experiment: int | None = None,
-    job_name: str | None = None,
-) -> dict | None:
+    stage_name: str | None = None,
+) -> tuple[Stage, Job] | None:
     """
     Get the next job where status is 'pending' and all parents are 'completed'.
     """
     engine = create_engine(db_url)
     with Session(engine) as session:
-        if job_name is None:
-            results = _fetch_pending_jobs(session, experiment, queues)
+        worker = session.exec(select(Worker).where(Worker.id == worker_id)).one()
+        if stage_name is None:
+            stages = _fetch_pending_jobs(session, experiment, queues)
         else:
-            results = _fetch_jobs_by_name(session, experiment, queues, job_name)
+            stages = _fetch_jobs_by_name(session, experiment, queues, stage_name)
 
-        for job in results:
-            if _all_parents_completed(job):
-                _update_job_status(session, job, worker_id)
-                return _job_to_dict(job)
+        for stage in stages:
+            if _all_parents_completed(stage):
+                # TODO check if the number of workers on the job are less than max_workers
+                job = stage.attach_job(worker)
+                session.add(job)
+                session.add(stage)
+                session.commit()
+                session.refresh(job)
+                session.refresh(stage)
+                return stage, job
+            
     return None
 
 
 def _fetch_pending_jobs(
     session: Session, experiment: int | None, queues: list | None
-) -> list:
+) -> list[Stage]:
     """
     Fetch jobs with 'pending' or 'cached' status, optionally
     filtered by experiment and queues.
@@ -262,7 +183,7 @@ def _fetch_pending_jobs(
 
 def _fetch_jobs_by_name(
     session: Session, experiment: int | None, queues: list | None, job_name: str
-) -> list:
+) -> list[Stage]:
     """
     Fetch jobs by name, including their predecessors, and filter by status and queues.
     """
@@ -287,45 +208,19 @@ def _fetch_jobs_by_name(
     return results
 
 
-def _all_parents_completed(job) -> bool:
+def _all_parents_completed(stage: Stage) -> bool:
     """
     Check if all parents of a job are completed.
     """
-    return all(parent.status == "completed" for parent in job.parents)
+    return all(parent.status == "completed" for parent in stage.parents)
 
-
-def _update_job_status(session: Session, stage: Stage, worker_id: int) -> None:
-    """
-    Update the stage status to 'running' and set the worker ID and start time.
-    """
-    stage.status = "running"
-    stage.started_at = datetime.datetime.now()
-    job = Job(stage_id=stage.id, worker_id=worker_id)
-    stage.jobs.append(job)
-    session.add(job)
-    session.add(stage)
-    session.commit()
-
-
-def _job_to_dict(job) -> dict:
-    """
-    Convert a Job object to a dictionary.
-    """
-    return {
-        "id": job.id,
-        "name": job.name,
-        "cmd": json.loads(job.cmd),
-        "queue": job.queue,
-        "status": job.status,
-        "cache": job.cache,
-        "force": job.force,
-    }
 
 
 def complete_job(
     stage_id: int,
     lock: dict,
     db_url: str,
+    worker_id: int,
     status: str = "completed",
     stderr: str = "",
     stdout: str = "",
@@ -336,17 +231,21 @@ def complete_job(
         results = session.exec(statement)
         stage = results.one()
         stage.status = status
-        stage.lock = json.dumps(lock)
+        stage.lockfile_content = json.dumps(lock)
+        # TODO: this only works for a single worker
+        job = session.exec(select(Job).where(Job.stage_id == stage_id).where(Job.worker_id == worker_id)).one()
+        job.finished_at = datetime.datetime.now()
         if stage.capture_stderr:
-            stage.stderr = stderr
+            job.stderr = stderr
         if stage.capture_stdout:
-            stage.stdout = stdout
+            job.stdout = stdout
         stage.finished_at = datetime.datetime.now()
-        # We only write the deps_hash to the database
+        # We only write the dependency_hash to the database
         #  once the job has finished successfully!
         if status == "completed":
-            stage.deps_hash = _get_cache_hash(clean_lock(lock), key=False)
+            stage.dependency_hash = _get_cache_hash(clean_lock(lock), key=False)
         session.add(stage)
+        session.add(job)
         session.commit()
 
 
@@ -391,7 +290,7 @@ def get_job_dump(job_name: str, experiment_id: int, db_url: str) -> dict[str, st
 def find_cached_job(db_url: str, deps_cache: str = "") -> dict:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        statement = select(Stage).where(Stage.deps_hash == deps_cache)
+        statement = select(Stage).where(Stage.dependency_hash == deps_cache)
         results = session.exec(statement)
         if res := results.first():
             return res.model_dump()

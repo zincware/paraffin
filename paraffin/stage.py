@@ -82,9 +82,9 @@ def get_lock(name: str) -> tuple[dict, str]:
         stage = fs.repo.stage.collect(name)[0]
         stage.save(allow_missing=True, run_cache=False)
         stage_lock = to_single_stage_lockfile(stage, with_files=True)
-        deps_hash = _get_cache_hash(clean_lock(stage_lock), key=False)
+        dependency_hash = _get_cache_hash(clean_lock(stage_lock), key=False)
 
-    return stage_lock, deps_hash
+    return stage_lock, dependency_hash
 
 
 def _stream_reader(pipe, callback) -> None:
