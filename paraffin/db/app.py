@@ -121,7 +121,9 @@ def db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
                 cmd=json.loads(stage.cmd),
                 status=stage.status,
                 queue=stage.queue,
-                lock=json.loads(stage.lockfile_content) if stage.lockfile_content else None,
+                lock=json.loads(stage.lockfile_content)
+                if stage.lockfile_content
+                else None,
                 dependency_hash=stage.dependency_hash,
                 group=get_group(stage.name)[0],
             )
