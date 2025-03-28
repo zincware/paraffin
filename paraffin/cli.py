@@ -303,7 +303,7 @@ def submit(
     if use_dvc:
         graph = get_stage_graph(names=names, force=force, single_item=single_item)
     else:
-        pass # import "main" from main.py and get the graph from the project object
+        pass  # import "main" from main.py and get the graph from the project object
 
     custom_queues = get_custom_queue()
     update_gitignore(line="paraffin.db")
