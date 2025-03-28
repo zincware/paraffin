@@ -276,6 +276,7 @@ def submit(
     ),
 ):
     """Run DVC stages in parallel."""
+    use_dvc = True
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -299,7 +300,10 @@ def submit(
             log.debug(f"Creating new experiment based on commit '{commit}'")
 
     log.debug("Getting stage graph")
-    graph = get_stage_graph(names=names, force=force, single_item=single_item)
+    if use_dvc:
+        graph = get_stage_graph(names=names, force=force, single_item=single_item)
+    else:
+        pass # import "main" from main.py and get the graph from the project object
 
     custom_queues = get_custom_queue()
     update_gitignore(line="paraffin.db")

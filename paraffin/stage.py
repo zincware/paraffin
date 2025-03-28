@@ -21,6 +21,7 @@ from paraffin.lock import clean_lock, transform_lock
 log = logging.getLogger(__name__)
 
 
+# TODO: make compatible with the non-dvc stuff
 @dataclasses.dataclass(frozen=True, eq=True)
 class PipelineStageDC:
     """Container for a DVC stage."""
