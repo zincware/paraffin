@@ -88,8 +88,9 @@ def worker(
     jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
 ):
     """Start a paraffin worker to process the queued DVC stages."""
-    from paraffin.worker import run_worker
     import signal
+
+    from paraffin.worker import run_worker
 
     shutdown_event = threading.Event()
 
@@ -148,81 +149,17 @@ def submit(
 ):
     """Run DVC stages in parallel."""
     # imports here for better performance
-    from paraffin.db.app import save_graph_to_db, query_existing_experiments
-    from paraffin.dvc import get_status, print_graph_description, StageStatus, get_stage_from_graph
-    import networkx as nx
-    import dataclasses
+    from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
+    from paraffin.dvc import get_status, print_graph_description
+    from paraffin.utils import handle_existing_stages
 
     # TODO: if there is an experiment, set the stages to outdated
 
     graph = get_status()
-    if stages := query_existing_experiments(db_url=db, status=StageStatus.FINISHED, graph=graph):
-        print(
-            f"Found {len(stages)} stages with finished status from previous runs that have not been commited."
-        )
-        # ask if the state should be transferred to the new experiment, e.g. the parameters and dependencies for this node did not change
-        for stage in stages:
-            print(f"Stage {stage.name} has status {stage.status}")
-            print(
-                f"Do you want to transfer the state of this stage to the new experiment? (y/n)"
-            )
-            answer = input().lower()
-            # if no input was given, set to "y"
-            if answer in ["", "y", "yes", "ja"]:
-                answer = "y"
-            node = get_stage_from_graph(graph, stage.name)
-            if answer.lower() == "y":
-                new_stage = dataclasses.replace(node, status=StageStatus.FINISHED)
-                nx.relabel_nodes(
-                    graph,
-                    {node: new_stage},
-                    copy=False
-                )
-            else:
-                new_stage = dataclasses.replace(node, status=StageStatus.QUEUED)
-                nx.relabel_nodes(
-                    graph,
-                    {node: new_stage},
-                    copy=False
-                )
-    if stages := query_existing_experiments(db_url=db, status=StageStatus.RUNNING, graph=graph):
-        print(
-            f"Found {len(stages)} stages that are still running - please stop the workers and run again."
-        )
-        return
-    if stages := query_existing_experiments(db_url=db, status=StageStatus.UNFINISHED, graph=graph):
-        print(
-            f"Found {len(stages)} stages that are still unfinished."
-        )
-        for stage in stages:
-            print(f"Stage {stage.name} has status {stage.status}")
-            print(
-                f"Do you want to transfer the state of this stage to the new experiment? (y/n)"
-            )
-            answer = input().lower()
-            # if no input was given, set to "y"
-            if answer in ["", "y", "yes", "ja"]:
-                answer = "y"
-            node = get_stage_from_graph(graph, stage.name)
-            if answer.lower() == "y":
-                new_stage = dataclasses.replace(node, status=StageStatus.UNFINISHED)
-                nx.relabel_nodes(
-                    graph,
-                    {node: new_stage},
-                    copy=False
-                )
-            else:
-                new_stage = dataclasses.replace(node, status=StageStatus.QUEUED)
-                nx.relabel_nodes(
-                    graph,
-                    {node: new_stage},
-                    copy=False
-                )
-
+    handle_existing_stages(graph=graph, db=db)
+    update_existing_experiment_stages(db_url=db)
     # cleanup all stages that are `queued`
-    print_graph_description(
-        graph
-    )  
+    print_graph_description(graph)
     save_graph_to_db(graph=graph, db_url=db)
 
 

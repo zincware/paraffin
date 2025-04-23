@@ -18,6 +18,7 @@ from sqlmodel import (
 
 from paraffin.db.models import (
     Experiment,
+    ExperimentStatus,
     Job,
     Stage,
     StageDependency,
@@ -30,7 +31,10 @@ from paraffin.dvc import StageDC, StageStatus
 # from paraffin.stage import PipelineStageDC
 # from paraffin.utils import get_group
 
-def query_existing_experiments(db_url: str, status: StageStatus, graph: nx.DiGraph) -> list[Stage]:
+
+def query_existing_experiments(
+    db_url: str, status: StageStatus, graph: nx.DiGraph
+) -> list[Stage]:
     # TODO
     commit = "test"
     origin = "test"
@@ -46,6 +50,7 @@ def query_existing_experiments(db_url: str, status: StageStatus, graph: nx.DiGra
             Experiment.base == commit,
             Experiment.origin == origin,
             Experiment.machine == machine,
+            Experiment.status == ExperimentStatus.ACTIVE,
         )
         results = session.exec(statement)
         experiments = results.all()
@@ -54,15 +59,35 @@ def query_existing_experiments(db_url: str, status: StageStatus, graph: nx.DiGra
             statement = select(Stage).where(
                 Stage.experiment_id == experiment.id,
                 Stage.status == status,
-                Stage.name.in_(
-                    [node.addressing for node in graph]
-                ),
+                Stage.name.in_([node.addressing for node in graph]),
             )
             results = session.exec(statement)
             stages.extend(results.all())
     return stages
 
-            
+
+def update_existing_experiment_stages(db_url: str) -> None:
+    # TODO: instead of updating the stages we can keep that information and update the experiment!
+    commit = "test"
+    origin = "test"
+    machine = "test"
+
+    engine = create_engine(db_url)
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        statement = select(Experiment).where(
+            Experiment.base == commit,
+            Experiment.origin == origin,
+            Experiment.machine == machine,
+            Experiment.status == ExperimentStatus.ACTIVE,
+        )
+        results = session.exec(statement).all()
+        for experiment in results:
+            # find all jobs that are running, unfinished or finished
+            experiment.status = ExperimentStatus.INACTIVE
+            session.add(experiment)
+        session.commit()
 
 
 def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
@@ -123,17 +148,27 @@ def update_job(
 
 
 def claim_stage(session: Session, status: list[StageStatus]) -> t.Optional[Stage]:
+    # TODO
+    commit = "test"
+    origin = "test"
+    machine = "test"
+
     result = session.exec(
         text(f"""
-            UPDATE stage
-            SET status = '{StageStatus.RUNNING}'
-            WHERE id = (
-                SELECT id FROM stage
-                WHERE status IN ({",".join(f"'{s}'" for s in status)})
-                LIMIT 1
-            )
-            RETURNING id
-        """),
+        UPDATE stage
+        SET status = '{StageStatus.RUNNING}'
+        WHERE id = (
+            SELECT s.id FROM stage s
+            JOIN experiment e ON s.experiment_id = e.id
+            WHERE s.status IN ({",".join(f"'{s}'" for s in status)})
+              AND e.status = '{ExperimentStatus.ACTIVE}'
+              AND e.base = '{commit}'
+              AND e.machine = '{machine}'
+              AND e.origin = '{origin}'
+            LIMIT 1
+        )
+        RETURNING id
+    """),
     )
     row = result.first()
     if row:

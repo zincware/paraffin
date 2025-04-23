@@ -1,10 +1,15 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
 
 from paraffin.dvc import StageStatus
+
+
+class ExperimentStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
 
 
 class WorkerStatus(StrEnum):
@@ -57,7 +62,9 @@ class Experiment(SQLModel, table=True):
     machine: str = Field(default="local")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
-
+    status: ExperimentStatus = Field(
+        sa_type=String, default=ExperimentStatus.ACTIVE
+    )  # Status of the experiment
     # Relationships
     stages: List["Stage"] = Relationship(back_populates="experiment")
 
@@ -80,9 +87,7 @@ class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     cmd: str = Field(max_length=255)  # Command to execute
-    status: Literal["pending", "running", "completed", "cached", "failed"] = Field(
-        sa_type=String, default="pending"
-    )
+    status: StageStatus = Field(sa_type=String, default=StageStatus.QUEUED)
     queue: str = Field(default="default", max_length=100)
     lockfile_content: str = Field(default="")  # JSON string of lockfile
     dependency_hash: str = Field(default="")  # Hash of the dependencies

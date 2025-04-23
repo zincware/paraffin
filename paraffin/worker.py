@@ -1,6 +1,5 @@
 import json
 import os
-import signal
 import socket
 import subprocess
 import threading
@@ -8,16 +7,13 @@ import time
 from typing import Optional
 
 from paraffin.db.app import (
+    Job,
     StageStatus,
     close_worker,
     get_job,
     register_worker,
     update_job,
-    Job,
 )
-
-import time
-
 
 
 def run_worker(name: str, db: str, shutdown_event: threading.Event):
@@ -43,7 +39,6 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event):
             )
             if res is None:
                 break
-            
 
             stage, job = res
             active_job = job
@@ -67,9 +62,7 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event):
                     break
                 # Check the return code
                 if proc.returncode != 0:
-                    raise subprocess.CalledProcessError(
-                        proc.returncode, cmd
-                    )
+                    raise subprocess.CalledProcessError(proc.returncode, cmd)
                 update_job(
                     db_url=db,
                     stage_id=job.stage_id,

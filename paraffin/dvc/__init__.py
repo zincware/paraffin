@@ -41,11 +41,13 @@ class StageStatus(StrEnum):
     UNFINISHED = "unfinished"
     FAILED = "failed"
 
+
 @dataclass(frozen=True)
 class StageDC:
     addressing: str
     status: StageStatus
     cmd: str | dict | None
+
 
 def get_stage_from_graph(graph: nx.DiGraph, stage: str) -> StageDC:
     for node in graph.nodes:
