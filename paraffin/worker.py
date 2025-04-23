@@ -1,19 +1,16 @@
-
-
-import threading
-import socket
-import os
-import time
-import subprocess
 import json
-from typing import Optional
+import os
+import socket
+import subprocess
+
 from paraffin.db.app import (
-    register_worker,
+    StageStatus,
     close_worker,
     get_job,
+    register_worker,
     update_job,
-    StageStatus,
 )
+
 
 def run_worker(name: str, db: str):
     worker_id = register_worker(

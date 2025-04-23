@@ -1,10 +1,11 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import List, Literal, Optional
 
 from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
+
 from paraffin.dvc import StageStatus
 
-from enum import StrEnum
 
 class WorkerStatus(StrEnum):
     """Worker status enum.
@@ -28,9 +29,7 @@ class Worker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True)
     machine: str = Field(max_length=100)
-    status: WorkerStatus = Field(
-        sa_type=String, default=WorkerStatus.IDLE, index=True
-    )
+    status: WorkerStatus = Field(sa_type=String, default=WorkerStatus.IDLE, index=True)
     last_seen: datetime = Field(default_factory=datetime.now)
     cwd: str = Field(default="", max_length=255)  # Current working directory
     pid: int = Field(default=0)  # Process ID

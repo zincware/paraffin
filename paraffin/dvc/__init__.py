@@ -4,14 +4,14 @@ from enum import StrEnum
 import dvc.api
 import networkx as nx
 from dvc.repo.reproduce import plan_repro
-from dvc.stage.cache import RunCacheNotFoundError
 from dvc.stage import PipelineStage
+from dvc.stage.cache import RunCacheNotFoundError
 from tqdm import tqdm
 
 
 class StageStatus(StrEnum):
     """Stage status enum.
-    
+
     Attributes
     ----------
     QUEUED : str
@@ -44,11 +44,12 @@ class StageStatus(StrEnum):
     FAILED = "failed"
     CLAIMED = "claimed"
 
+
 @dataclass(frozen=True)
 class StageDC:
     addressing: str
     status: StageStatus
-    cmd: str|dict|None
+    cmd: str | dict | None
 
 
 def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
@@ -77,8 +78,8 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                         # dry must be false, otherwise we will get wrong results!
                         stage.repo.stage_cache.restore(stage, dry=False)
                         # FYI, there is also stage.commit() which is like Stage.save(),
-                        # but also saves file to the cache (i.e. commit). 
-                        # Stage.dump() is what saves the stage to dvc.yaml and 
+                        # but also saves file to the cache (i.e. commit).
+                        # Stage.dump() is what saves the stage to dvc.yaml and
                         # dvc.lock file. (dump has update_pipeline=True|False and
                         # update_lock=True|False arguments to save to only
                         # one or to both of the files).
@@ -106,7 +107,7 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
             if any(stage.addressing in status for stage in nx.ancestors(graph, stage)):
                 results[stage] = StageDC(
                     addressing=stage.addressing,
-                    status=StageStatus.QUEUED, # TODO: we need to check the run chache here as well!
+                    status=StageStatus.QUEUED,  # TODO: we need to check the run chache here as well!
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
             else:
@@ -115,9 +116,10 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     status=StageStatus.COMPLETED,
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
-        
-    
-    assert len(results) == len(steps), f"Expected {len(steps)} results, got {len(results)}"
+
+    assert len(results) == len(steps), (
+        f"Expected {len(steps)} results, got {len(results)}"
+    )
     return nx.relabel_nodes(graph, results, copy=True).reverse(copy=True)
 
 

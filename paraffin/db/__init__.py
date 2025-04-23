@@ -10,8 +10,8 @@ from paraffin.db.app import (
     # list_workers,
     # register_worker,
     save_graph_to_db,
-#     update_job_status,
-#     update_worker,
+    #     update_job_status,
+    #     update_worker,
 )
 
 __all__ = [

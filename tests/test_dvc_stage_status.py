@@ -1,26 +1,24 @@
-import dvc.api
-import zntrack.examples
-import pytest
-import dvc.api
-import shutil
-from dvc.stage.cache import RunCacheNotFoundError
 import pathlib
-import subprocess
+import shutil
 
-from paraffin.dvc import get_status, StageStatus
+import dvc.api
+import pytest
+import zntrack.examples
+
+from paraffin.dvc import StageStatus, get_status
+
 
 @pytest.fixture
 def proj(proj_path):
     project = zntrack.Project()
 
     with project:
-        stage1 = zntrack.examples.AddNumbers(
-            a=1, b=2
-        )
-    
+        stage1 = zntrack.examples.AddNumbers(a=1, b=2)
+
     project.build()
 
     return project
+
 
 def test_stage_unfinished(proj):
     status = get_status()
@@ -32,14 +30,14 @@ def test_stage_unfinished(proj):
     repo = fs.repo
     # # with repo.lock:
     status = repo.status()
-    assert 'AddNumbers' in status
+    assert "AddNumbers" in status
     # stages = repo.stage.collect()
     # assert len(stages) == 1
     # for stage in stages:
     #     with stage.repo.lock:
     #         assert stage.changed() is True
 
-    
+
 def test_stage_finished(proj):
     proj.repro()
 
@@ -58,6 +56,7 @@ def test_stage_finished(proj):
     # # for stage in stages:
     # #     with stage.repo.lock:
     # #         assert stage.changed() is False
+
 
 @pytest.mark.parametrize("rmlock", [True, False])
 def test_stage_cached(proj, rmlock):
@@ -83,7 +82,7 @@ def test_stage_cached(proj, rmlock):
     #     with stage.repo.lock:
     #         try:
     #             stage.repo.stage_cache.restore(stage)
-    #             # FYI, there is also stage.commit() which is like Stage.save(), but also saves file to the cache (i.e. commit). 
+    #             # FYI, there is also stage.commit() which is like Stage.save(), but also saves file to the cache (i.e. commit).
     #             # Stage.dump() is what saves the stage to dvc.yaml and dvc.lock file.
     #             # (dump has update_pipeline=True|False and update_lock=True|False arguments to save to only one or to both of the files).
     #             stage.save()
@@ -93,6 +92,7 @@ def test_stage_cached(proj, rmlock):
 
     # status = repo.status()
     assert status == {}
+
 
 def test_stage_cached_rm_cache(proj):
     proj.repro()

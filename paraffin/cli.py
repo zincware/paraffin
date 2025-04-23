@@ -1,25 +1,16 @@
 import os
 import socket
-
-import typing as t
 import subprocess
-import json
+import threading
+import typing as t
 
 import typer
 
-import threading
-import socket
-import os
-import time
-import subprocess
-import json
-from typing import Optional
 from paraffin.db.app import (
-    register_worker,
     close_worker,
     get_job,
+    register_worker,
     update_job,
-    StageStatus,
 )
 
 app = typer.Typer()
@@ -28,7 +19,6 @@ app = typer.Typer()
 @app.command()
 def commit():
     """Commit all reproduced stages."""
-    from paraffin.db.app import get_job, update_job, register_worker, close_worker
     from paraffin.dvc import StageStatus
 
     name = "paraffin"
@@ -42,8 +32,6 @@ def commit():
         pid=os.getpid(),
     )
     # TODO: make this a DVC worker and ensure only one worker is running at a time
-
-    import dvc.api
 
     while True:
         res = get_job(
@@ -69,9 +57,6 @@ def commit():
 
     print("No job found.")
     close_worker(id=worker_id, db_url=db)
-
-
-
 
 
 @app.command()
@@ -119,7 +104,7 @@ def worker(
         t.join()
     print("All workers done.")
 
-  
+
 @app.command()
 def submit(
     names: t.Optional[list[str]] = typer.Argument(
@@ -154,11 +139,13 @@ def submit(
 ):
     """Run DVC stages in parallel."""
     # imports here for better performance
-    from paraffin.dvc import get_status, print_graph_description
     from paraffin.db import save_graph_to_db
+    from paraffin.dvc import get_status, print_graph_description
 
     graph = get_status()
-    print_graph_description(graph) # TODO: read from database and not from dvc graph - this way the command can also be watdched
+    print_graph_description(
+        graph
+    )  # TODO: read from database and not from dvc graph - this way the command can also be watdched
     save_graph_to_db(graph=graph, db_url=db)
 
 

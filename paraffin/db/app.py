@@ -1,6 +1,10 @@
 # import datetime
 # import fnmatch
+import datetime
 import json
+import typing as t
+
+import networkx as nx
 
 # import networkx as nx
 # from dvc.stage.cache import _get_cache_hash
@@ -12,11 +16,16 @@ from sqlmodel import (
     text,
 )
 
-import datetime
-from paraffin.db.models import Experiment, Job, Stage, StageDependency, Worker, WorkerStatus
+from paraffin.db.models import (
+    Experiment,
+    Job,
+    Stage,
+    StageDependency,
+    Worker,
+    WorkerStatus,
+)
 from paraffin.dvc import StageDC, StageStatus
-import networkx as nx
-import typing as t
+
 # from paraffin.lock import clean_lock
 # from paraffin.stage import PipelineStageDC
 # from paraffin.utils import get_group
@@ -38,8 +47,8 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
 
         for node in nx.topological_sort(graph):
             node: StageDC
-            if node.cmd is None: 
-                continue # skip everything that is not a PipelineStage
+            if node.cmd is None:
+                continue  # skip everything that is not a PipelineStage
             job = Stage(
                 cmd=json.dumps(node.cmd),
                 name=node.addressing,
@@ -59,6 +68,7 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
                 ).one()
                 session.add(StageDependency(parent_id=parent_job.id, child_id=job.id))
         session.commit()
+
 
 def update_job(
     db_url: str,
@@ -85,7 +95,7 @@ def claim_stage(session: Session, status: list[StageStatus]) -> t.Optional[Stage
             SET status = '{StageStatus.RUNNING}'
             WHERE id = (
                 SELECT id FROM stage
-                WHERE status IN ({','.join(f"'{s}'" for s in status)})
+                WHERE status IN ({",".join(f"'{s}'" for s in status)})
                 LIMIT 1
             )
             RETURNING id
@@ -95,6 +105,7 @@ def claim_stage(session: Session, status: list[StageStatus]) -> t.Optional[Stage
     if row:
         return session.exec(select(Stage).where(Stage.id == row[0])).one()
     return None
+
 
 def get_job(
     db_url: str,
@@ -125,7 +136,11 @@ def _all_parents_completed(stage: Stage) -> bool:
     """
     Check if all parents of a job are completed.
     """
-    return all(parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED] for parent in stage.parents)
+    return all(
+        parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED]
+        for parent in stage.parents
+    )
+
 
 def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) -> int:
     engine = create_engine(db_url)
@@ -134,7 +149,6 @@ def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) ->
         session.add(worker)
         session.commit()
         return worker.id
-
 
 
 def close_worker(id: int, db_url: str) -> None:
@@ -146,4 +160,3 @@ def close_worker(id: int, db_url: str) -> None:
         worker.finished_at = datetime.datetime.now()
         session.add(worker)
         session.commit()
-
