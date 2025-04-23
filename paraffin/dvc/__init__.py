@@ -30,8 +30,6 @@ class StageStatus(StrEnum):
     FINISHED : str
         The stage has been reproduced and the output files are up to date.
         The stage is not yet cached and the dvc.lock file is not up to date.
-    CLAIMED : str
-        The stage has been claimed by a worker and is currently being processed.
     """
 
     # TODO: what about cached, to we always want to checkout all files?
@@ -42,7 +40,6 @@ class StageStatus(StrEnum):
     RUNNING = "running"
     UNFINISHED = "unfinished"
     FAILED = "failed"
-    CLAIMED = "claimed"
 
 
 @dataclass(frozen=True)
