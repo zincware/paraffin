@@ -56,6 +56,65 @@ def commit():
     close_worker(id=worker_id, db_url=db)
 
 
+
+import threading
+import socket
+import os
+import time
+import subprocess
+import json
+from typing import Optional
+from paraffin.db.app import (
+    register_worker,
+    close_worker,
+    get_job,
+    update_job,
+    StageStatus,
+)
+
+def run_worker(name: str, db: str):
+    worker_id = register_worker(
+        name=name,
+        machine=socket.gethostname(),
+        db_url=db,
+        cwd=os.getcwd(),
+        pid=os.getpid(),
+    )
+
+    try:
+        while True:
+            res = get_job(
+                db_url=db,
+                queues=None,
+                worker_id=worker_id,
+                experiment=None,
+                stage_name=None,
+                status=[StageStatus.QUEUED],
+            )
+            if res is None:
+                break
+
+            stage, job = res
+            cmd = json.loads(stage.cmd)
+            print(f"({worker_id}) Running command: {cmd}")
+            try:
+                subprocess.check_call(cmd, shell=True)
+                update_job(
+                    db_url=db,
+                    stage_id=job.stage_id,
+                    status=StageStatus.REPRODUCED,
+                )
+            except subprocess.CalledProcessError:
+                print(f"({worker_id}) Command failed: {cmd}")
+                update_job(
+                    db_url=db,
+                    stage_id=job.stage_id,
+                    status=StageStatus.FAILED,
+                )
+    finally:
+        close_worker(id=worker_id, db_url=db)
+        print(f"({worker_id}) Worker closed.")
+
 @app.command()
 def worker(
     queues: str = typer.Option(
@@ -83,53 +142,65 @@ def worker(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
     jobs: int = typer.Option(1, "--jobs", "-j", help="Number of jobs to run."),
-    delay_between_workers: float = typer.Option(
-        0.1, help="Delay between starting workers.", hidden=True
-    ),
 ):
     """Start a paraffin worker to process the queued DVC stages."""
-    from paraffin.db.app import get_job, register_worker, update_job, close_worker
-    from paraffin.dvc import StageStatus
 
-    worker_id = register_worker(
-        name=name,
-        machine=socket.gethostname(),
-        db_url=db,
-        cwd=os.getcwd(),
-        pid=os.getpid(),
-    )
-    while True:
-        res = get_job(
-            db_url=db,
-            queues=None,
-            worker_id=worker_id,
-            experiment=None,
-            stage_name=None,
-            status=[StageStatus.QUEUED],
+    threads = []
+    for _ in range(jobs):
+        t = threading.Thread(
+            target=run_worker,
+            args=(name, db),
+            daemon=True,
         )
-        if res is None:
-            break
-        
-        stage, job = res
-        cmd = json.loads(stage.cmd)
-        print(f"({worker_id}) Running command: {cmd}")
-        try:
-            subprocess.check_call(cmd, shell=True)
-            update_job(
-                db_url=db,
-                stage_id=job.stage_id,
-                status=StageStatus.REPRODUCED,
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"({worker_id}) Command failed: {cmd}")
-            update_job(
-                db_url=db,
-                stage_id=job.stage_id,
-                status=StageStatus.FAILED,
-            )
+        threads.append(t)
+        t.start()
 
-    print("No job found.")
-    close_worker(id=worker_id, db_url=db)
+    for t in threads:
+        t.join()
+    print("All workers done.")
+
+    # from paraffin.db.app import get_job, register_worker, update_job, close_worker
+    # from paraffin.dvc import StageStatus
+
+    # worker_id = register_worker(
+    #     name=name,
+    #     machine=socket.gethostname(),
+    #     db_url=db,
+    #     cwd=os.getcwd(),
+    #     pid=os.getpid(),
+    # )
+    # while True:
+    #     res = get_job(
+    #         db_url=db,
+    #         queues=None,
+    #         worker_id=worker_id,
+    #         experiment=None,
+    #         stage_name=None,
+    #         status=[StageStatus.QUEUED],
+    #     )
+    #     if res is None:
+    #         break
+        
+    #     stage, job = res
+    #     cmd = json.loads(stage.cmd)
+    #     print(f"({worker_id}) Running command: {cmd}")
+    #     try:
+    #         subprocess.check_call(cmd, shell=True)
+    #         update_job(
+    #             db_url=db,
+    #             stage_id=job.stage_id,
+    #             status=StageStatus.REPRODUCED,
+    #         )
+    #     except subprocess.CalledProcessError as e:
+    #         print(f"({worker_id}) Command failed: {cmd}")
+    #         update_job(
+    #             db_url=db,
+    #             stage_id=job.stage_id,
+    #             status=StageStatus.FAILED,
+    #         )
+
+    # print("No job found.")
+    # close_worker(id=worker_id, db_url=db)
 
   
 @app.command()
