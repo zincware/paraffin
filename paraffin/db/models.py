@@ -2,14 +2,34 @@ from datetime import datetime
 from typing import List, Literal, Optional
 
 from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
+from paraffin.dvc import StageStatus
+
+from enum import StrEnum
+
+class WorkerStatus(StrEnum):
+    """Worker status enum.
+
+    Attributes
+    ----------
+    RUNNING : str
+        The worker is currently running a job.
+    IDLE : str
+        The worker is idle and waiting for a job.
+    OFFLINE : str
+        The worker is offline and not available for jobs.
+    """
+
+    RUNNING = "running"
+    IDLE = "idle"
+    OFFLINE = "offline"
 
 
 class Worker(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100, index=True)
     machine: str = Field(max_length=100)
-    status: Literal["running", "idle", "offline"] = Field(
-        sa_type=String, default="idle", index=True
+    status: WorkerStatus = Field(
+        sa_type=String, default=WorkerStatus.IDLE, index=True
     )
     last_seen: datetime = Field(default_factory=datetime.now)
     cwd: str = Field(default="", max_length=255)  # Current working directory
@@ -99,7 +119,7 @@ class Stage(SQLModel, table=True):
     )
 
     def attach_job(self, worker: Worker) -> Job:
-        self.status = "running"
+        self.status = StageStatus.RUNNING
         job = Job(stage_id=self.id, worker_id=worker.id)
         self.jobs.append(job)
         return job

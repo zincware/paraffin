@@ -1,48 +1,24 @@
-import datetime
-import logging
 import os
 import socket
-import threading
-import time
+
 import typing as t
-import webbrowser
+import subprocess
+import json
 
-import git
 import typer
-import uvicorn
-
-from paraffin.db import (
-    close_worker,
-    complete_job,
-    find_cached_job,
-    get_job,
-    register_worker,
-    save_graph_to_db,
-    update_worker,
-)
-from paraffin.stage import checkout, get_lock, repro
-from paraffin.ui.app import app as webapp
-from paraffin.utils import (
-    detect_zntrack,
-    get_custom_queue,
-    get_stage_graph,
-    update_gitignore,
-)
-
-log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
 
-def spawn_worker(
-    name: str,
-    queues,
-    experiment: str,
-    stage_name: str,
-    timeout: float,
-    db: str,
-    workers: dict,
-):
+@app.command()
+def commit():
+    """Commit all reproduced stages."""
+    from paraffin.db.app import get_job, update_job, register_worker, close_worker
+    from paraffin.dvc import StageStatus
+
+    name = "paraffin"
+    db = "sqlite:///paraffin.db"
+
     worker_id = register_worker(
         name=name,
         machine=socket.gethostname(),
@@ -50,133 +26,34 @@ def spawn_worker(
         cwd=os.getcwd(),
         pid=os.getpid(),
     )
-    workers[worker_id] = None
-    log.info(f"Listening on queues: {queues}")
+    # TODO: make this a DVC worker and ensure only one worker is running at a time
 
-    last_seen = datetime.datetime.now()
-    try:
-        while True:
-            job_obj = get_job(
-                db_url=db,
-                queues=queues,
-                worker_id=worker_id,
-                experiment=experiment,
-                stage_name=stage_name,
-            )
+    import dvc.api
 
-            if job_obj is None:
-                remaining_seconds = (
-                    timeout - (datetime.datetime.now() - last_seen).seconds
-                )
-                if remaining_seconds <= 0:
-                    log.info("Timeout reached - exiting.")
-                    break
-                time.sleep(1)
-                log.info(
-                    "No more job found"
-                    f" - sleeping until closing in {remaining_seconds} seconds"
-                )
-                continue
+    while True:
+        res = get_job(
+            db_url=db,
+            queues=None,
+            worker_id=worker_id,
+            experiment=None,
+            stage_name=None,
+            status=[StageStatus.REPRODUCED],
+        )
+        if res is None:
+            break
 
-            stage, job = job_obj
-            last_seen = datetime.datetime.now()
+        stage, job = res
+        print(f"Updating lock file 'dvc.lock' for stage '{stage.name}'")
+        subprocess.check_call(f"dvc commit --force --quiet {stage.name}", shell=True)
 
-            update_worker(worker_id, status="running", db_url=db)
-            workers[worker_id] = stage.id
+        update_job(
+            db_url=db,
+            stage_id=job.stage_id,
+            status=StageStatus.FINISHED,
+        )
 
-            # This will search the DB and not rely on DVC run cache to determine if
-            #  the job is cached so this can easily work across directories
-            cached_job = None
-            if stage.cache and detect_zntrack({"cmd": stage.cmd}) and not stage.force:
-                stage_lock, dependency_hash = get_lock(stage.name)
-                cached_job = find_cached_job(deps_cache=dependency_hash, db_url=db)
-            if cached_job is not None:
-                log.info(f"Job '{stage.name}' is cached and dvc.lock is available.")
-                returncode, stdout, stderr = checkout(
-                    stage_lock, cached_job.lockfile_content, stage.name
-                )
-                if returncode == 404:
-                    # TODO: we need to ensure that all deps nodes are checked out!
-                    #  this will be important when clone / push.
-                    # TODO: this can be the cause for a lock issue!
-                    log.warning(
-                        f"Unable to checkout GIT tracked files for job '{stage.name}'"
-                    )
-                    log.info(f"Running job '{stage.name}'")
-                    returncode, stdout, stderr = repro(
-                        stage.name, force=stage.force
-                    )  # TODO: this is not tested in CI,
-                    #  because it did not raise an error
-            else:
-                log.info(f"Running job '{stage.name}'")
-                # TODO: we need to ensure that all deps nodes are checked out!
-                #  this will be important when clone / push.
-                # TODO: this can be the cause for a lock issue!
-                returncode, stdout, stderr = repro(stage.name, force=stage.force)
-            if returncode != 0:
-                complete_job(
-                    stage_id=stage.id,  # TODO: should later be job.id
-                    status="failed",
-                    lock={},
-                    stdout=stdout,
-                    stderr=stderr,
-                    db_url=db,
-                    worker_id=worker_id,
-                )
-            else:
-                stage_lock, _ = get_lock(stage.name)
-                complete_job(
-                    stage_id=stage.id,  # TODO: should later be job.id
-                    status="completed",
-                    lock=stage_lock,
-                    stdout=stdout,
-                    stderr=stderr,
-                    db_url=db,
-                    worker_id=worker_id,
-                )
-            job_obj = None
-            update_worker(worker_id, status="idle", db_url=db)
-
-    finally:
-        if job_obj is not None:
-            stage, job = job_obj
-            complete_job(
-                stage_id=stage.id,  # TODO: should later be job.id
-                status="failed",
-                lock={},
-                stdout="",
-                stderr="Worker exited.",
-                db_url=db,
-                worker_id=worker_id,
-            )
-        close_worker(id=worker_id, db_url=db)
-        workers.pop(worker_id)
-
-
-@app.command()
-def ui(
-    port: int = 8000,
-    db: str = typer.Option(
-        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
-    ),
-    all: bool = typer.Option(
-        False, help="Show all experiments and not just from the current commit."
-    ),
-):
-    """Start the Paraffin web UI."""
-    if not all:
-        try:
-            repo = git.Repo(search_parent_directories=True)
-            commit = repo.head.commit
-            os.environ["PARAFFIN_COMMIT"] = commit.hexsha
-        except git.InvalidGitRepositoryError:
-            log.warning(
-                "Unable to determine the current commit. Showing all experiments."
-            )
-
-    webbrowser.open(f"http://localhost:{port}")
-    os.environ["PARAFFIN_DB"] = db
-    uvicorn.run(webapp, host="0.0.0.0", port=port)
+    print("No job found.")
+    close_worker(id=worker_id, db_url=db)
 
 
 @app.command()
@@ -211,39 +88,50 @@ def worker(
     ),
 ):
     """Start a paraffin worker to process the queued DVC stages."""
-    queues = queues.split(",")
-    logging.basicConfig(level=logging.INFO)
-    threads = []
+    from paraffin.db.app import get_job, register_worker, update_job, close_worker
+    from paraffin.dvc import StageStatus
 
-    workers = {}
-    try:
-        for i in range(jobs):
-            t = threading.Thread(
-                target=spawn_worker,
-                args=(name, queues, experiment, stage, timeout, db, workers),
-                daemon=True,
+    worker_id = register_worker(
+        name=name,
+        machine=socket.gethostname(),
+        db_url=db,
+        cwd=os.getcwd(),
+        pid=os.getpid(),
+    )
+    while True:
+        res = get_job(
+            db_url=db,
+            queues=None,
+            worker_id=worker_id,
+            experiment=None,
+            stage_name=None,
+            status=[StageStatus.QUEUED],
+        )
+        if res is None:
+            break
+        
+        stage, job = res
+        cmd = json.loads(stage.cmd)
+        print(f"({worker_id}) Running command: {cmd}")
+        try:
+            subprocess.check_call(cmd, shell=True)
+            update_job(
+                db_url=db,
+                stage_id=job.stage_id,
+                status=StageStatus.REPRODUCED,
             )
-            threads.append(t)
-            t.start()
-            time.sleep(delay_between_workers)
+        except subprocess.CalledProcessError as e:
+            print(f"({worker_id}) Command failed: {cmd}")
+            update_job(
+                db_url=db,
+                stage_id=job.stage_id,
+                status=StageStatus.FAILED,
+            )
 
-        for t in threads:
-            t.join()
-    finally:
-        for worker_id, job_id in workers.items():
-            if job_id is not None:
-                complete_job(
-                    stage_id=job_id,
-                    status="failed",
-                    lock={},
-                    stdout="",
-                    stderr="Worker exited.",
-                    db_url=db,
-                    worker_id=worker_id,
-                )
-            close_worker(id=worker_id, db_url=db)
+    print("No job found.")
+    close_worker(id=worker_id, db_url=db)
 
-
+  
 @app.command()
 def submit(
     names: t.Optional[list[str]] = typer.Argument(
@@ -274,41 +162,22 @@ def submit(
         " changed dependencies. See https://dvc.org/doc/command-reference/repro#-s"
         " for more information.",
     ),
+    # TODO: cleanup
 ):
     """Run DVC stages in parallel."""
-    if verbose:
-        logging.basicConfig(level=logging.DEBUG)
+    # imports here for better performance
+    from paraffin.dvc import get_status, print_graph_description
+    from paraffin.db import save_graph_to_db
 
-    if single_item and names is None:
-        typer.echo("Cannot use single item without specifying names")
-        raise typer.Exit(1)
+    graph = get_status()
+    print_graph_description(graph) # TODO: read from database and not from dvc graph - this way the command can also be watdched
+    save_graph_to_db(graph=graph, db_url=db)
 
-    # check if the repo has a commit
-    repo = git.Repo(search_parent_directories=True)
-    if not repo.head.is_valid():
-        log.error(
-            "Unable to create experiment inside a GIT repository without commits."
-        )
-        return
-    else:
-        commit = repo.head.commit
-        try:
-            origin = repo.remotes.origin.url
-        except AttributeError:
-            origin = "local"
-            log.debug(f"Creating new experiment based on commit '{commit}'")
 
-    log.debug("Getting stage graph")
-    graph = get_stage_graph(names=names, force=force, single_item=single_item)
+@app.command()
+def status():
+    from paraffin.dvc import get_status, print_graph_description
+    # TODO: status will also perform checkouts!!
 
-    custom_queues = get_custom_queue()
-    update_gitignore(line="paraffin.db")
-    save_graph_to_db(
-        graph,
-        queues=custom_queues,
-        commit=commit.hexsha,
-        origin=origin,
-        machine=socket.gethostname(),
-        cache=cache,
-        db_url=db,
-    )
+    graph = get_status()
+    print_graph_description(graph)
