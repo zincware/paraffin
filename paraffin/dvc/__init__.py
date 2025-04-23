@@ -16,7 +16,7 @@ class StageStatus(StrEnum):
     ----------
     QUEUED : str
         The stage is in the dvc.yaml but has not been run yet.
-    FINISHED : str
+    COMPLETED : str
         The stage has been run and the output files are up to date.
         The stage is cached and the dvc.lock file is up to date.
     RUNNING : str
@@ -27,7 +27,7 @@ class StageStatus(StrEnum):
         from the last checkpoint.
     FAILED : str
         The stage has failed and will not be run again.
-    REPRODUCED : str
+    FINISHED : str
         The stage has been reproduced and the output files are up to date.
         The stage is not yet cached and the dvc.lock file is not up to date.
     CLAIMED : str
@@ -37,8 +37,8 @@ class StageStatus(StrEnum):
     # TODO: what about cached, to we always want to checkout all files?
 
     QUEUED = "queued"
+    COMPLETED = "completed"
     FINISHED = "finished"
-    REPRODUCED = "reproduced"
     RUNNING = "running"
     UNFINISHED = "unfinished"
     FAILED = "failed"
@@ -87,7 +87,7 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                         stage.dump()
                         results[stage] = StageDC(
                             addressing=stage.addressing,
-                            status=StageStatus.FINISHED,
+                            status=StageStatus.COMPLETED,
                             cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                         )
                     except (RunCacheNotFoundError, FileNotFoundError):
@@ -112,7 +112,7 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
             else:
                 results[stage] = StageDC(
                     addressing=stage.addressing,
-                    status=StageStatus.FINISHED,
+                    status=StageStatus.COMPLETED,
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
         
@@ -136,7 +136,7 @@ def print_graph_description(graph: nx.DiGraph):
         stage: StageDC = node
         status = stage.status
 
-        if status == StageStatus.FINISHED:
+        if status == StageStatus.COMPLETED:
             table.add_row(stage.addressing, "[green]✅ Finished[/green]")
         elif status == StageStatus.QUEUED:
             table.add_row(stage.addressing, "[yellow]🕐 Queued[/yellow]")

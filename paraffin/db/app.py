@@ -125,7 +125,7 @@ def _all_parents_completed(stage: Stage) -> bool:
     """
     Check if all parents of a job are completed.
     """
-    return all(parent.status in [StageStatus.FINISHED, StageStatus.REPRODUCED] for parent in stage.parents)
+    return all(parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED] for parent in stage.parents)
 
 def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) -> int:
     engine = create_engine(db_url)

@@ -46,7 +46,7 @@ def test_stage_finished(proj):
     status = get_status()
     assert len(status) == 1
     stage = next(n for n in status if n.addressing == "AddNumbers")
-    assert stage.status == StageStatus.FINISHED
+    assert stage.status == StageStatus.COMPLETED
 
     fs = dvc.api.DVCFileSystem()
     repo = fs.repo
@@ -71,7 +71,7 @@ def test_stage_cached(proj, rmlock):
     status = get_status()
     assert len(status) == 1
     stage = next(n for n in status if n.addressing == "AddNumbers")
-    assert stage.status == StageStatus.FINISHED
+    assert stage.status == StageStatus.COMPLETED
 
     fs = dvc.api.DVCFileSystem()
     repo = fs.repo
