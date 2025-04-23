@@ -41,12 +41,17 @@ class StageStatus(StrEnum):
     UNFINISHED = "unfinished"
     FAILED = "failed"
 
-
 @dataclass(frozen=True)
 class StageDC:
     addressing: str
     status: StageStatus
     cmd: str | dict | None
+
+def get_stage_from_graph(graph: nx.DiGraph, stage: str) -> StageDC:
+    for node in graph.nodes:
+        if node.addressing == stage:
+            return node
+    raise ValueError(f"Stage {stage} not found in graph")
 
 
 def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
@@ -121,6 +126,7 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
 
 
 def print_graph_description(graph: nx.DiGraph):
+    # TODO: read from database and not from dvc graph - this way the command can also be watdched
     from rich import box
     from rich.console import Console
     from rich.table import Table
@@ -139,6 +145,14 @@ def print_graph_description(graph: nx.DiGraph):
             table.add_row(stage.addressing, "[green]✅ Finished[/green]")
         elif status == StageStatus.QUEUED:
             table.add_row(stage.addressing, "[yellow]🕐 Queued[/yellow]")
+        elif status == StageStatus.RUNNING:
+            table.add_row(stage.addressing, "[blue]🔄 Running[/blue]")
+        elif status == StageStatus.UNFINISHED:
+            table.add_row(stage.addressing, "[orange]⏳ Unfinished[/orange]")
+        elif status == StageStatus.FAILED:
+            table.add_row(stage.addressing, "[red]❌ Failed[/red]")
+        elif status == StageStatus.FINISHED:
+            table.add_row(stage.addressing, "[green]✅ Finished[/green]")
         else:
             table.add_row(stage.addressing, f"[red]❓ Unknown ({status})[/red]")
 

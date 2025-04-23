@@ -1,7 +1,11 @@
 import json
 import os
+import signal
 import socket
 import subprocess
+import threading
+import time
+from typing import Optional
 
 from paraffin.db.app import (
     StageStatus,
@@ -9,10 +13,16 @@ from paraffin.db.app import (
     get_job,
     register_worker,
     update_job,
+    Job,
 )
 
+import time
 
-def run_worker(name: str, db: str):
+
+
+def run_worker(name: str, db: str, shutdown_event: threading.Event):
+    active_job: Optional[Job] = None
+
     worker_id = register_worker(
         name=name,
         machine=socket.gethostname(),
@@ -22,7 +32,7 @@ def run_worker(name: str, db: str):
     )
 
     try:
-        while True:
+        while not shutdown_event.is_set():
             res = get_job(
                 db_url=db,
                 queues=None,
@@ -33,12 +43,33 @@ def run_worker(name: str, db: str):
             )
             if res is None:
                 break
+            
 
             stage, job = res
+            active_job = job
+
             cmd = json.loads(stage.cmd)
             print(f"({worker_id}) Running command: {cmd}")
             try:
-                subprocess.check_call(cmd, shell=True)
+                # subprocess.check_call(cmd, shell=True)
+                proc = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    preexec_fn=os.setsid,
+                )
+                # Wait for the process to finish but also check for shutdown
+                while proc.poll() is None and not shutdown_event.is_set():
+                    time.sleep(0.1)
+                # If the shutdown event is set, terminate the process
+                if shutdown_event.is_set():
+                    proc.terminate()
+                    proc.wait()
+                    break
+                # Check the return code
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(
+                        proc.returncode, cmd
+                    )
                 update_job(
                     db_url=db,
                     stage_id=job.stage_id,
@@ -51,6 +82,14 @@ def run_worker(name: str, db: str):
                     stage_id=job.stage_id,
                     status=StageStatus.FAILED,
                 )
+            active_job = None
     finally:
+        if active_job is not None:
+            print(f"({worker_id}) Job {active_job.id} was interrupted.")
+            update_job(
+                db_url=db,
+                stage_id=active_job.stage_id,
+                status=StageStatus.UNFINISHED,
+            )
         close_worker(id=worker_id, db_url=db)
         print(f"({worker_id}) Worker closed.")

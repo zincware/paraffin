@@ -30,6 +30,40 @@ from paraffin.dvc import StageDC, StageStatus
 # from paraffin.stage import PipelineStageDC
 # from paraffin.utils import get_group
 
+def query_existing_experiments(db_url: str, status: StageStatus, graph: nx.DiGraph) -> list[Stage]:
+    # TODO
+    commit = "test"
+    origin = "test"
+    machine = "test"
+
+    engine = create_engine(db_url)
+    SQLModel.metadata.create_all(engine)
+
+    stages = []
+
+    with Session(engine) as session:
+        statement = select(Experiment).where(
+            Experiment.base == commit,
+            Experiment.origin == origin,
+            Experiment.machine == machine,
+        )
+        results = session.exec(statement)
+        experiments = results.all()
+        for experiment in experiments:
+            # find all jobs that are running, unfinished or finished
+            statement = select(Stage).where(
+                Stage.experiment_id == experiment.id,
+                Stage.status == status,
+                Stage.name.in_(
+                    [node.addressing for node in graph]
+                ),
+            )
+            results = session.exec(statement)
+            stages.extend(results.all())
+    return stages
+
+            
+
 
 def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
     engine = create_engine(db_url)
