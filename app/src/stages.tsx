@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Stage, StageDetails } from "./types";
+import { Stage } from "./types";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -8,36 +8,16 @@ import Card from "react-bootstrap/Card";
 import Table from "react-bootstrap/Table";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
-import Modal from "react-bootstrap/Modal";
-import ReactMarkdown from 'react-markdown';
-
-// Helper function to determine badge color based on status
-const getStatusBadgeVariant = (status: Stage["status"]) => {
-    switch (status) {
-        case "pending":
-            return "info";
-        case "completed":
-        case "finished":
-            return "success";
-        case "running":
-            return "primary";
-        case "unfinished":
-            return "warning";
-        case "failed":
-            return "danger";
-        case "unknown":
-        default:
-            return "secondary";
-    }
-};
+import StageDetailView from "./StageDetailView";
+import { getStatusBadgeVariant } from "./utils";
 
 const StageView = () => {
     const [searchParams] = useSearchParams();
     const experimentId = searchParams.get("experiment");
     const [stages, setStages] = useState<Stage[]>([]);
-    const [stageDetails, setStageDetails] = useState<StageDetails | null>(null);
+    const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
     const [showModal, setShowModal] = useState(false);
-	
+
     const fetchStages = async () => {
         try {
             const response = await fetch(`/api/v1/stages?experiment=${experimentId}`);
@@ -51,28 +31,6 @@ const StageView = () => {
         }
     };
 
-    const fetchStageDetails = async (stageId: string) => {
-        try {
-            const response = await fetch(`/api/v1/stage?id=${stageId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            // Convert data.lockfile to a pretty-printed JSON string
-            if (data.lockfile) {
-                try {
-                    data.lockfile = "```json\n" + JSON.stringify(JSON.parse(data.lockfile), null, 2) + "\n```";
-                } catch (e) {
-                    console.error("Error parsing lockfile JSON:", e);
-                    data.lockfile = "Error displaying lockfile.";
-                }
-            }
-            setStageDetails(data);
-        } catch (err: any) {
-            console.error(`Error fetching details for stage ${stageId}:`, err);
-        }
-    };
-
     useEffect(() => {
         if (experimentId) {
             fetchStages();
@@ -80,13 +38,13 @@ const StageView = () => {
     }, [experimentId]);
 
     const handleShowDetails = (stageId: string) => {
-        fetchStageDetails(stageId);
+        setSelectedStageId(stageId);
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
         setShowModal(false);
-        setStageDetails(null);
+        setSelectedStageId(null); // Reset selected stage ID when modal is closed
     };
 
     return (
@@ -144,33 +102,11 @@ const StageView = () => {
             </Row>
 
             {/* Stage Details Modal */}
-            <Modal show={showModal} onHide={handleCloseModal} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Stage Details</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {stageDetails && (
-                        <div>
-                            <p><strong>Addressing:</strong> {stageDetails.addressing}</p>
-                            <p><strong>Status:</strong> <Badge pill bg={getStatusBadgeVariant(stageDetails.status)}>{stageDetails.status}</Badge></p>
-                            <p><strong>Command:</strong> {stageDetails.cmd}</p>
-                            <p><strong>Path:</strong> {stageDetails.path}</p>
-                            {stageDetails.lockfile && (
-                                <div>
-                                    <strong>Lockfile:</strong>
-                                    <ReactMarkdown children={stageDetails.lockfile} />
-                                </div>
-                            )}
-                            {!stageDetails.lockfile && <p><strong>Lockfile:</strong> Not available.</p>}
-                        </div>
-                    )}
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleCloseModal}>
-                        Close
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <StageDetailView
+                stageId={selectedStageId}
+                show={showModal}
+                onClose={handleCloseModal}
+            />
         </Container>
     );
 };
