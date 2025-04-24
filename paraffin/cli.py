@@ -30,6 +30,7 @@ def commit():
         db_url=db,
         cwd=os.getcwd(),
         pid=os.getpid(),
+        requires_dvc_lock=True,
     )
     # TODO: make this a DVC worker and ensure only one worker is running at a time
 

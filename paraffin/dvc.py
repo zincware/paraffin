@@ -1,14 +1,13 @@
+import json
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 
 import dvc.api
 import networkx as nx
-from dvc.repo.reproduce import plan_repro
 from dvc.stage import PipelineStage
 from dvc.stage.cache import RunCacheNotFoundError
 from tqdm import tqdm
-import json
-from pathlib import Path
 
 
 class StageStatus(StrEnum):
@@ -109,21 +108,27 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                         results[stage] = StageDC(
                             addressing=stage.addressing,
                             status=StageStatus.COMPLETED,
-                            cmd=json.dumps(stage.cmd) if isinstance(stage, PipelineStage) else None,
+                            cmd=json.dumps(stage.cmd)
+                            if isinstance(stage, PipelineStage)
+                            else None,
                             path=Path(stage.path_in_repo).parent.as_posix(),
                         )
                     except (RunCacheNotFoundError, FileNotFoundError):
                         results[stage] = StageDC(
                             addressing=stage.addressing,
                             status=StageStatus.QUEUED,
-                            cmd=json.dumps(stage.cmd) if isinstance(stage, PipelineStage) else None,
+                            cmd=json.dumps(stage.cmd)
+                            if isinstance(stage, PipelineStage)
+                            else None,
                             path=Path(stage.path_in_repo).parent.as_posix(),
                         )
             else:
                 results[stage] = StageDC(
                     addressing=stage.addressing,
                     status=StageStatus.QUEUED,
-                    cmd=json.dumps(stage.cmd) if isinstance(stage, PipelineStage) else None,
+                    cmd=json.dumps(stage.cmd)
+                    if isinstance(stage, PipelineStage)
+                    else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
                 )
         else:
@@ -135,14 +140,18 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                 results[stage] = StageDC(
                     addressing=stage.addressing,
                     status=StageStatus.UNKNOWN,
-                    cmd=json.dumps(stage.cmd) if isinstance(stage, PipelineStage) else None,
+                    cmd=json.dumps(stage.cmd)
+                    if isinstance(stage, PipelineStage)
+                    else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
                 )
             else:
                 results[stage] = StageDC(
                     addressing=stage.addressing,
                     status=StageStatus.COMPLETED,
-                    cmd=json.dumps(stage.cmd) if isinstance(stage, PipelineStage) else None,
+                    cmd=json.dumps(stage.cmd)
+                    if isinstance(stage, PipelineStage)
+                    else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
                 )
 

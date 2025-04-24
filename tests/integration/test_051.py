@@ -55,9 +55,6 @@ def test_051(repo):
         print(result.stdout)
         assert result.exit_code == 0
 
-
     result = runner.invoke(app, "worker")
     if result.exit_code != 0:
-        raise AssertionError(
-            f"{result.exit_code} - {result.stdout}"
-        )
+        raise AssertionError(f"{result.exit_code} - {result.stdout}")

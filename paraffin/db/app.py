@@ -1,7 +1,6 @@
 # import datetime
 # import fnmatch
 import datetime
-import json
 import typing as t
 
 import networkx as nx
@@ -128,7 +127,9 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
                 ).all()
                 if len(parent_job) == 1:
                     # if the previous stage is not PipelineStage, we skip it
-                    session.add(StageDependency(parent_id=parent_job[0].id, child_id=job.id))
+                    session.add(
+                        StageDependency(parent_id=parent_job[0].id, child_id=job.id)
+                    )
         session.commit()
 
 
@@ -214,10 +215,23 @@ def _all_parents_completed(stage: Stage) -> bool:
     )
 
 
-def register_worker(name: str, machine: str, db_url: str, cwd: str, pid: int) -> int:
+def register_worker(
+    name: str,
+    machine: str,
+    db_url: str,
+    cwd: str,
+    pid: int,
+    requires_dvc_lock: bool = False,
+) -> int:
     engine = create_engine(db_url)
     with Session(engine) as session:
-        worker = Worker(name=name, machine=machine, cwd=cwd, pid=pid)
+        worker = Worker(
+            name=name,
+            machine=machine,
+            cwd=cwd,
+            pid=pid,
+            requires_dvc_lock=requires_dvc_lock,
+        )
         session.add(worker)
         session.commit()
         return worker.id
@@ -232,6 +246,7 @@ def close_worker(id: int, db_url: str) -> None:
         worker.finished_at = datetime.datetime.now()
         session.add(worker)
         session.commit()
+
 
 def get_status(
     db_url: str,

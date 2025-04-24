@@ -40,6 +40,7 @@ class Worker(SQLModel, table=True):
     pid: int = Field(default=0)  # Process ID
     started_at: datetime = Field(default_factory=datetime.now)
     finished_at: Optional[datetime] = None
+    requires_dvc_lock: bool = Field(default=False)
 
     # Relationships
     jobs: List["Job"] = Relationship(back_populates="worker")
