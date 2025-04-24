@@ -332,3 +332,18 @@ def list_stages(db_url: str, experiment_id: int) -> list[dict]:
             }
             for stage in stages
         ]
+
+def get_stage_by_id(db_url: str, stage_id: int) -> StageDC:
+    engine = create_engine(db_url)
+
+    with Session(engine) as session:
+        statement = select(Stage).where(Stage.id == stage_id)
+        results = session.exec(statement)
+        stage = results.one()
+        return StageDC(
+            addressing=stage.name,
+            status=stage.status,
+            cmd=stage.cmd,
+            path=stage.path,
+            lockfile=stage.lockfile_content,
+        )

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from paraffin.db.app import list_experiments, list_stages
+from paraffin.db.app import list_experiments, list_stages, get_stage_by_id
 
 # from paraffin.db import (
 #     db_to_graph,
@@ -45,6 +45,10 @@ def read_stages(experiment: str):
     db_url = os.environ["PARAFFIN_DB"]
     return list_stages(experiment_id=int(experiment), db_url=db_url)
 
+@app.get("/api/v1/stage")
+def read_stage(id: int):
+    db_url = os.environ["PARAFFIN_DB"]
+    return get_stage_by_id(stage_id=id, db_url=db_url)
 
 # @app.get("/api/v1/graph")
 # def read_graph(experiment: str):

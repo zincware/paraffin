@@ -19,3 +19,18 @@ export interface Stage {
 		| "failed"
 		| "unknown";
 }
+
+export interface StageDetails {
+	addressing: string;
+	status:
+	| "queued"
+	| "completed"
+	| "finished"
+	| "running"
+	| "unfinished"
+	| "failed"
+	| "unknown";
+	cmd: string;
+	path: string;
+	lockfile: string;
+}
