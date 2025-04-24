@@ -25,7 +25,9 @@ def ui(
     """Start the Paraffin web UI."""
     import os
     import webbrowser
+
     import uvicorn
+
     from paraffin.ui.app import app as webapp
 
     webbrowser.open(f"http://localhost:{port}")
