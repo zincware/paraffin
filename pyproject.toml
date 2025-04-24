@@ -1,13 +1,13 @@
 [project]
 name = "paraffin"
-version = "0.3.7"
+version = "0.4.0"
 description = "Parallel execution of DVC stages"
 authors = [
     { name = "Fabian Zills", email = "fzills@icp.uni-stuttgart.de" },
 ]
 license = "Apache-2.0"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "dvc>=3.59.0",
     "fastapi[standard]>=0.115.7",
