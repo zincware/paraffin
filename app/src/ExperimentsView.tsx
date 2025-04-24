@@ -36,15 +36,11 @@ const getStatusBadgeVariant = (status: string) => {
 
 const ExperimentView = () => {
 	const [experiments, setExperiments] = useState<Experiment[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [refreshInterval, setRefreshInterval] = useState<string>("60"); // Default to 5 seconds
+	const [refreshInterval, setRefreshInterval] = useState<string>("10"); // Default to 5 seconds
 	const [autoRefresh, setAutoRefresh] = useState(true); // Default to true
 	const intervalId = useRef<any | null>(null);
 
 	const fetchExperiments = async () => {
-		setLoading(true);
-		setError(null);
 		try {
 			const response = await fetch("/api/v1/experiments");
 			if (!response.ok) {
@@ -54,9 +50,6 @@ const ExperimentView = () => {
 			setExperiments(data);
 		} catch (err: any) {
 			console.error("Error fetching experiments:", err);
-			setError("Failed to load experiments.");
-		} finally {
-			setLoading(false);
 		}
 	};
 
@@ -96,26 +89,6 @@ const ExperimentView = () => {
 		});
 	}, [experiments]);
 
-	if (loading) {
-		return (
-			<Container className="mt-4">
-				<Card className="shadow-sm">
-					<Card.Body className="text-center">Loading experiments...</Card.Body>
-				</Card>
-			</Container>
-		);
-	}
-
-	if (error) {
-		return (
-			<Container className="mt-4">
-				<Card className="bg-danger text-white shadow-sm">
-					<Card.Body className="text-center">Error: {error}</Card.Body>
-				</Card>
-			</Container>
-		);
-	}
-
 	return (
 		<Container className="mt-4">
 			<Row className="mb-3">
@@ -134,6 +107,8 @@ const ExperimentView = () => {
 										aria-label="Refresh Interval"
 									>
 										<option value="0">No Auto-Refresh</option>
+										<option value="1">1 second</option>
+										<option value="5">5 seconds</option>
 										<option value="10">10 seconds</option>
 										<option value="30">30 seconds</option>
 										<option value="60">1 minute</option>

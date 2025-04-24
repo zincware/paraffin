@@ -51,7 +51,7 @@ const StageView = () => {
 		failed: 0,
 		unknown: 0,
 	});
-	const [refreshInterval, setRefreshInterval] = useState<string>("0"); // "0" indicates no autorefresh
+	const [refreshInterval, setRefreshInterval] = useState<string>("10"); // "0" indicates no autorefresh
 	const intervalId = useRef<any | null>(null);
 
 	const fetchStages = async () => {
