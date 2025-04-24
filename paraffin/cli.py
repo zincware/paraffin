@@ -16,6 +16,24 @@ app = typer.Typer()
 
 
 @app.command()
+def ui(
+    port: int = 8000,
+    db: str = typer.Option(
+        "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
+    ),
+):
+    """Start the Paraffin web UI."""
+    import os
+    import webbrowser
+    import uvicorn
+    from paraffin.ui.app import app as webapp
+
+    webbrowser.open(f"http://localhost:{port}")
+    os.environ["PARAFFIN_DB"] = db
+    uvicorn.run(webapp, host="0.0.0.0", port=port)
+
+
+@app.command()
 def commit():
     """Commit all reproduced stages."""
     import json

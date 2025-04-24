@@ -2,54 +2,51 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from paraffin.db.app import get_stage_by_id, list_experiments, list_stages
 
-# from paraffin.db import (
-#     db_to_graph,
-#     get_job_dump,
-#     get_jobs,
-#     list_experiments,
-#     list_workers,
-#     update_job_status,
-# )
-# from paraffin.utils import build_elk_hierarchy
+
+
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from fastapi import APIRouter
 
 FILE = Path(__file__)
 
 app = FastAPI()
 
-app.mount("/ui", StaticFiles(directory=FILE.parent.parent / "static"), name="ui")
-app.mount(
-    "/assets",
-    StaticFiles(directory=FILE.parent.parent / "static" / "assets"),
-    name="assets",
-)
+# Mount static files (React build)
+app.mount("/assets", StaticFiles(directory=FILE.parent.parent / "static" / "assets"), name="assets")
 
 
-@app.get("/")
-def read_root():
-    return RedirectResponse(url="/ui/index.html")
 
 
-@app.get("/api/v1/experiments")
+api_router = APIRouter(prefix="/api/v1")
+
+@api_router.get("/experiments")
 def read_experiments():
     db_url = os.environ["PARAFFIN_DB"]
     return list_experiments(db_url=db_url)
 
-
-@app.get("/api/v1/stages")
+@api_router.get("/stages")
 def read_stages(experiment: str):
     db_url = os.environ["PARAFFIN_DB"]
     return list_stages(experiment_id=int(experiment), db_url=db_url)
 
-
-@app.get("/api/v1/stage")
+@api_router.get("/stage")
 def read_stage(id: int):
     db_url = os.environ["PARAFFIN_DB"]
     return get_stage_by_id(stage_id=id, db_url=db_url)
+
+app.include_router(api_router)
+
+# Catch-all comes last
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_react_app(full_path: str):
+    return FileResponse(FILE.parent.parent / "static" / "index.html")
 
 
 # @app.get("/api/v1/graph")
