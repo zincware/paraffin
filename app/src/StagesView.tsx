@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Stage } from "./types";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
@@ -11,6 +11,7 @@ import Button from "react-bootstrap/Button";
 import StageDetailView from "./StageDetailView";
 import ProgressBar from "react-bootstrap/ProgressBar";
 import { getStatusBadgeVariant } from "./utils";
+import Form from "react-bootstrap/Form";
 
 // takes in a dictionary of {status: integer} and returns a component
 const StageProgress = ({ status }: { status: Record<string, number> }) => {
@@ -50,6 +51,8 @@ const StageView = () => {
         failed: 0,
         unknown: 0,
     });
+    const [refreshInterval, setRefreshInterval] = useState<string>("0"); // "0" indicates no autorefresh
+    const intervalId = useRef<any | null>(null);
 
     const fetchStages = async () => {
         try {
@@ -86,6 +89,26 @@ const StageView = () => {
         setStatusCounts(counts);
     }, [stages]);
 
+    useEffect(() => {
+        const interval = parseInt(refreshInterval, 10);
+        if (interval > 0 && experimentId) {
+            intervalId.current = setInterval(fetchStages, interval * 1000);
+        } else {
+            clearInterval(intervalId.current);
+            intervalId.current = null;
+        }
+
+        return () => {
+            if (intervalId.current) {
+                clearInterval(intervalId.current);
+            }
+        };
+    }, [refreshInterval, experimentId]);
+
+    const handleRefreshIntervalChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setRefreshInterval(event.target.value);
+    };
+
     const handleShowDetails = (stageId: string) => {
         setSelectedStageId(stageId);
         setShowModal(true);
@@ -102,11 +125,29 @@ const StageView = () => {
                 <Col>
                     <Card className="shadow-sm">
                         <Card.Body>
-                            <Card.Title className="mb-3">
-                                <h1>Stages for Experiment {experimentId}</h1>
-                            </Card.Title>
+                            <Row className="mb-3 align-items-center">
+                                <Col md="auto">
+                                    <h1>Stages for Experiment {experimentId}</h1>
+                                </Col>
+                                <Col md="auto" className="ms-auto">
+                                    <Form.Select
+                                        size="sm"
+                                        value={refreshInterval}
+                                        onChange={handleRefreshIntervalChange}
+                                        aria-label="Refresh Interval"
+                                        className="me-2"
+                                    >
+                                        <option value="0">No Auto-Refresh</option>
+                                        <option value="1">1 second</option>
+                                        <option value="5">5 seconds</option>
+                                        <option value="10">10 seconds</option>
+                                        <option value="30">30 seconds</option>
+                                        <option value="60">1 minute</option>
+                                    </Form.Select>
+                                </Col>
+                            </Row>
                             <Card.Subtitle className="mb-2 text-muted">
-							{stages.length > 0 && <StageProgress status={statusCounts} />}
+                                {stages.length > 0 && <StageProgress status={statusCounts} />}
                             </Card.Subtitle>
                             <Table striped bordered hover responsive>
                                 <thead>
