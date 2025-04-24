@@ -156,3 +156,26 @@ def print_graph_description(graph: nx.DiGraph):
         table.add_row(stage.addressing, desc)
 
     console.print(table)
+
+
+def cleanup_stages(graph: nx.DiGraph) -> None:
+    import dvc.api
+
+    fs = dvc.api.DVCFileSystem()
+    # collect all stages that are queued
+    stage_addressings = [
+        stage.addressing
+        for stage in graph.nodes
+        if stage.status in [StageStatus.PENDING, StageStatus.UNKNOWN]
+    ]
+
+    stages = sum((fs.repo.stage.collect(with_deps=False, target=ad) for ad in stage_addressings), [])
+    assert len(stages) == len(stage_addressings)
+    for stage in tqdm(
+        stages,
+        total=len(stages),
+        desc="Cleaning up stages",
+        unit="stage",
+    ):
+        with stage.repo.lock:
+            stage.remove_outs()
