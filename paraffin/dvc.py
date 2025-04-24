@@ -7,8 +7,8 @@ import dvc.api
 import networkx as nx
 from dvc.stage import PipelineStage
 from dvc.stage.cache import RunCacheNotFoundError
-from tqdm import tqdm
 from dvc.stage.serialize import to_single_stage_lockfile
+from tqdm import tqdm
 
 
 class StageStatus(StrEnum):
@@ -114,7 +114,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                             if isinstance(stage, PipelineStage)
                             else None,
                             path=Path(stage.path_in_repo).parent.as_posix(),
-                            lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True)) if isinstance(stage, PipelineStage) else None,
+                            lockfile=json.dumps(
+                                to_single_stage_lockfile(stage, with_files=True)
+                            )
+                            if isinstance(stage, PipelineStage)
+                            else None,
                         )
                     except (RunCacheNotFoundError, FileNotFoundError):
                         results[stage] = StageDC(
@@ -124,7 +128,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                             if isinstance(stage, PipelineStage)
                             else None,
                             path=Path(stage.path_in_repo).parent.as_posix(),
-                            lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True)) if isinstance(stage, PipelineStage) else None,
+                            lockfile=json.dumps(
+                                to_single_stage_lockfile(stage, with_files=True)
+                            )
+                            if isinstance(stage, PipelineStage)
+                            else None,
                         )
             else:
                 results[stage] = StageDC(
@@ -134,7 +142,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     if isinstance(stage, PipelineStage)
                     else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True)) if isinstance(stage, PipelineStage) else None,
+                    lockfile=json.dumps(
+                        to_single_stage_lockfile(stage, with_files=True)
+                    )
+                    if isinstance(stage, PipelineStage)
+                    else None,
                 )
         else:
             print(f"{stage.addressing} - {list(graph.predecessors(stage))}")
@@ -149,7 +161,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     if isinstance(stage, PipelineStage)
                     else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True)) if isinstance(stage, PipelineStage) else None,
+                    lockfile=json.dumps(
+                        to_single_stage_lockfile(stage, with_files=True)
+                    )
+                    if isinstance(stage, PipelineStage)
+                    else None,
                 )
             else:
                 results[stage] = StageDC(
@@ -159,7 +175,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     if isinstance(stage, PipelineStage)
                     else None,
                     path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True)) if isinstance(stage, PipelineStage) else None,
+                    lockfile=json.dumps(
+                        to_single_stage_lockfile(stage, with_files=True)
+                    )
+                    if isinstance(stage, PipelineStage)
+                    else None,
                 )
 
     assert len(results) == len(graph), (
