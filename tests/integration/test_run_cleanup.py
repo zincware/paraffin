@@ -1,10 +1,12 @@
-import zntrack
 from pathlib import Path
+
+import zntrack
 from typer.testing import CliRunner
 
 from paraffin.cli import app
 
 runner = CliRunner()
+
 
 class CleanupCheckNode(zntrack.Node):
     text: str = zntrack.params()
@@ -46,12 +48,10 @@ def test_run_cleanup(proj_path, check_finished):
     # Now we are testing the cleanup
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
-    assert not node.file.exists() # < file should be deleted at submit
+    assert not node.file.exists()  # < file should be deleted at submit
 
     result = runner.invoke(app, ["worker"])
     assert result.exit_code == 0
     result = runner.invoke(app, ["commit"])
     assert result.exit_code == 0
     assert check_finished()
-
-
