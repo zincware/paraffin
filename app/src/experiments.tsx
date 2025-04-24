@@ -1,5 +1,5 @@
 import { Experiment } from "./types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Table from "react-bootstrap/Table";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
@@ -60,6 +60,14 @@ const ExperimentView = () => {
         fetchExperiments();
     }, []);
 
+    const sortedExperiments = useMemo(() => {
+        return [...experiments].sort((a, b) => {
+			if (a.id < b.id) return 1;
+			if (a.id > b.id) return -1;
+			return 0;
+		});
+    }, [experiments]);
+
     if (loading) {
         return (
             <Container className="mt-4">
@@ -109,7 +117,7 @@ const ExperimentView = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {experiments.map((experiment) => (
+                                    {sortedExperiments.map((experiment) => (
                                         <tr key={experiment.id}>
                                             <td>{experiment.id}</td>
                                             <td>{formatDate(experiment.created_at)}</td>
