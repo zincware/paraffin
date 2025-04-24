@@ -19,8 +19,14 @@ def proj_single_node(proj_path):
 
     return project
 
+
 @pytest.fixture
-def proj_nested_nodes(proj_path) -> tuple[zntrack.Project, list[zntrack.examples.AddNumbers|zntrack.examples.SumNodeAttributes]]:
+def proj_nested_nodes(
+    proj_path,
+) -> tuple[
+    zntrack.Project,
+    list[zntrack.examples.AddNumbers | zntrack.examples.SumNodeAttributes],
+]:
     project = zntrack.Project()
 
     with project:
@@ -29,17 +35,13 @@ def proj_nested_nodes(proj_path) -> tuple[zntrack.Project, list[zntrack.examples
         nested_1 = zntrack.examples.SumNodeAttributes(
             inputs=[stage1.c, stage2.c], shift=0
         )
-        nested_2 = zntrack.examples.SumNodeAttributes(
-            inputs=[nested_1.output], shift=0
-        )
-        nested_3 = zntrack.examples.SumNodeAttributes(
-            inputs=[nested_2.output], shift=0
-        )
-
+        nested_2 = zntrack.examples.SumNodeAttributes(inputs=[nested_1.output], shift=0)
+        nested_3 = zntrack.examples.SumNodeAttributes(inputs=[nested_2.output], shift=0)
 
     project.build()
 
     return project, [stage1, stage2, nested_1, nested_2, nested_3]
+
 
 def test_stage_unfinished(proj_single_node):
     status = get_status()
@@ -162,13 +164,16 @@ def test_stage_nested_unfinished(proj_nested_nodes):
         assert stage.status == StageStatus.QUEUED
     assert len(status) == 5
 
+
 def test_stage_nested_finished(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
     proj.repro()
     status = get_status()
     for node in nodes:
         stage = next(s for s in status if s.addressing == node.name)
-        assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
+        assert stage.status == StageStatus.COMPLETED, (
+            f"Stage {node.name} is not completed"
+        )
     assert len(status) == 5
 
     fs = dvc.api.DVCFileSystem()
@@ -176,6 +181,7 @@ def test_stage_nested_finished(proj_nested_nodes):
     # # with repo.lock:
     status = repo.status()
     assert status == {}
+
 
 def test_stage_nested_cached(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
@@ -187,7 +193,9 @@ def test_stage_nested_cached(proj_nested_nodes):
     status = get_status()
     for node in nodes:
         stage = next(s for s in status if s.addressing == node.name)
-        assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
+        assert stage.status == StageStatus.COMPLETED, (
+            f"Stage {node.name} is not completed"
+        )
     assert len(status) == 5
 
     fs = dvc.api.DVCFileSystem()
@@ -195,6 +203,7 @@ def test_stage_nested_cached(proj_nested_nodes):
     # # with repo.lock:
     status = repo.status()
     assert status == {}
+
 
 def test_stage_nested_cached_rm_cache(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
@@ -217,6 +226,7 @@ def test_stage_nested_cached_rm_cache(proj_nested_nodes):
     for node in nodes:
         assert node.name in status
 
+
 def test_stage_nested_update_params_end(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
     proj.repro()
@@ -228,25 +238,36 @@ def test_stage_nested_update_params_end(proj_nested_nodes):
     for idx, node in enumerate(nodes):
         stage = next(s for s in status if s.addressing == node.name)
         if idx == len(nodes) - 1:
-            assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+            assert stage.status == StageStatus.QUEUED, (
+                f"Stage {node.name} is not queued"
+            )
         else:
-            assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
+            assert stage.status == StageStatus.COMPLETED, (
+                f"Stage {node.name} is not completed"
+            )
+
 
 def test_stage_nested_update_params_between(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
     proj.repro()
     # update downstream node
-    nodes[-2].shift = 1
+    nodes[-3].shift = 1
     proj.build()
 
     status = get_status()
     for idx, node in enumerate(nodes):
         stage = next(s for s in status if s.addressing == node.name)
-        if idx >= len(nodes) - 1:
-            # successors of the updated node
-            assert stage.status == StageStatus.UNKNOWN, f"Stage {node.name} is not unknown"
-        elif idx >= len(nodes) - 2:
+        if idx >= len(nodes) - 2:
+            # successors (two nodes) of the updated node
+            assert stage.status == StageStatus.UNKNOWN, (
+                f"Stage {node.name} is not unknown"
+            )
+        elif idx >= len(nodes) - 3:
             # this is the node that was updated
-            assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+            assert stage.status == StageStatus.QUEUED, (
+                f"Stage {node.name} is not queued"
+            )
         else:
-            assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
+            assert stage.status == StageStatus.COMPLETED, (
+                f"Stage {node.name} is not completed"
+            )

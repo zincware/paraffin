@@ -78,7 +78,12 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
 
     results = {}
 
-    for stage in tqdm(nx.topological_sort(graph), total=len(graph.nodes), desc="Checking stage status", unit="stage"):
+    for stage in tqdm(
+        nx.topological_sort(graph),
+        total=len(graph.nodes),
+        desc="Checking stage status",
+        unit="stage",
+    ):
         # TODO: only valid for pipeline stages
         if stage.addressing in status:
             if run_cache:
@@ -117,7 +122,10 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                 )
         else:
             print(f"{stage.addressing} - {list(graph.predecessors(stage))}")
-            if any(results[stage].status != StageStatus.COMPLETED for stage in graph.predecessors(stage)):
+            if any(
+                results[stage].status != StageStatus.COMPLETED
+                for stage in graph.predecessors(stage)
+            ):
                 results[stage] = StageDC(
                     addressing=stage.addressing,
                     status=StageStatus.UNKNOWN,
