@@ -138,6 +138,7 @@ def update_job(
     db_url: str,
     stage_id: int,
     status: StageStatus,
+    **kwargs: t.Any,
 ) -> None:
     """
     Update the status of a job in the database.
@@ -148,6 +149,9 @@ def update_job(
         results = session.exec(statement)
         stage = results.one()
         stage.status = status
+        for key, value in kwargs.items():
+            if hasattr(stage, key):
+                setattr(stage, key, value)
         session.add(stage)
         session.commit()
 

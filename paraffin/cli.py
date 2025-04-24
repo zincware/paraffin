@@ -20,6 +20,9 @@ app = typer.Typer()
 def commit():
     """Commit all reproduced stages."""
     from paraffin.dvc import StageStatus
+    import dvc.api
+    from dvc.stage.serialize import to_single_stage_lockfile
+    import json
 
     name = "paraffin"
     db = "sqlite:///paraffin.db"
@@ -34,6 +37,7 @@ def commit():
     )
     # TODO: make this a DVC worker and ensure only one worker is running at a time
     active_job = None
+    fs = dvc.api.DVCFileSystem()
     while True:
         try:
             res = get_job(
@@ -49,15 +53,20 @@ def commit():
 
             stage, job = res
             active_job = job
-            print(f"Updating lock file 'dvc.lock' for stage '{stage.name}'")
-            subprocess.check_call(
-                f"dvc commit --force --quiet {stage.name}", shell=True
-            )
+            pipelinestage = list(fs.repo.stage.collect(stage.name)) # TODO: does this work with path?
+            if not pipelinestage:
+                raise ValueError(f"Stage '{stage.name}' not found in DVC pipeline.")
+            
+            with pipelinestage[0].repo.lock:
+                pipelinestage[0].save()
+                pipelinestage[0].commit()
+                pipelinestage[0].dump(update_pipeline=True, update_lock=True)
 
             update_job(
                 db_url=db,
                 stage_id=job.stage_id,
                 status=StageStatus.COMPLETED,
+                lockfile=json.dumps(to_single_stage_lockfile(pipelinestage[0], with_files=True))
             )
             active_job = None
         finally:

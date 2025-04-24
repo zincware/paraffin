@@ -9,27 +9,27 @@ import Table from "react-bootstrap/Table";
 import Badge from "react-bootstrap/Badge";
 import Button from "react-bootstrap/Button";
 import Modal from "react-bootstrap/Modal";
+import ReactMarkdown from 'react-markdown';
 
 // Helper function to determine badge color based on status
 const getStatusBadgeVariant = (status: Stage["status"]) => {
-	switch (status) {
-		case "queued":
-			return "info";
-		case "completed":
-		case "finished":
-			return "success";
-		case "running":
-			return "primary";
-		case "unfinished":
-			return "warning";
-		case "failed":
-			return "danger";
-		case "unknown":
-		default:
-			return "secondary";
-	}
+    switch (status) {
+        case "queued":
+            return "info";
+        case "completed":
+        case "finished":
+            return "success";
+        case "running":
+            return "primary";
+        case "unfinished":
+            return "warning";
+        case "failed":
+            return "danger";
+        case "unknown":
+        default:
+            return "secondary";
+    }
 };
-
 
 const StageView = () => {
     const [searchParams] = useSearchParams();
@@ -37,7 +37,7 @@ const StageView = () => {
     const [stages, setStages] = useState<Stage[]>([]);
     const [stageDetails, setStageDetails] = useState<StageDetails | null>(null);
     const [showModal, setShowModal] = useState(false);
-
+	
     const fetchStages = async () => {
         try {
             const response = await fetch(`/api/v1/stages?experiment=${experimentId}`);
@@ -58,6 +58,15 @@ const StageView = () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
+            // Convert data.lockfile to a pretty-printed JSON string
+            if (data.lockfile) {
+                try {
+                    data.lockfile = "```json\n" + JSON.stringify(JSON.parse(data.lockfile), null, 2) + "\n```";
+                } catch (e) {
+                    console.error("Error parsing lockfile JSON:", e);
+                    data.lockfile = "Error displaying lockfile.";
+                }
+            }
             setStageDetails(data);
         } catch (err: any) {
             console.error(`Error fetching details for stage ${stageId}:`, err);
@@ -144,9 +153,15 @@ const StageView = () => {
                         <div>
                             <p><strong>Addressing:</strong> {stageDetails.addressing}</p>
                             <p><strong>Status:</strong> <Badge pill bg={getStatusBadgeVariant(stageDetails.status)}>{stageDetails.status}</Badge></p>
-							<p><strong>Command:</strong> {stageDetails.cmd}</p>
-							<p><strong>Path:</strong> {stageDetails.path}</p>
-							<p><strong>Lockfile:</strong> {stageDetails.lockfile}</p>
+                            <p><strong>Command:</strong> {stageDetails.cmd}</p>
+                            <p><strong>Path:</strong> {stageDetails.path}</p>
+                            {stageDetails.lockfile && (
+                                <div>
+                                    <strong>Lockfile:</strong>
+                                    <ReactMarkdown children={stageDetails.lockfile} />
+                                </div>
+                            )}
+                            {!stageDetails.lockfile && <p><strong>Lockfile:</strong> Not available.</p>}
                         </div>
                     )}
                 </Modal.Body>
