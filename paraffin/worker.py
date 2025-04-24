@@ -35,7 +35,7 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event):
                 worker_id=worker_id,
                 experiment=None,
                 stage_name=None,
-                status=[StageStatus.QUEUED],
+                status=[StageStatus.QUEUED, StageStatus.UNKNOWN],
             )
             if res is None:
                 break

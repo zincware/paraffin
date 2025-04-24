@@ -30,6 +30,14 @@ class StageStatus(StrEnum):
     FINISHED : str
         The stage has been reproduced and the output files are up to date.
         The stage is not yet cached and the dvc.lock file is not up to date.
+    UNKNOWN : str
+        The stage has not been run yet.
+        One or more dependencies have not been run yet as well.
+        Therefore, the state can not be determined, because if all
+        dependencies yield cached outputs, the stage might be
+        in the run cache.
+        Currently, this is the same as QUEUED and hashed dependency
+        will not be accounted for.
     """
 
     # TODO: what about cached, to we always want to checkout all files?
@@ -40,6 +48,7 @@ class StageStatus(StrEnum):
     RUNNING = "running"
     UNFINISHED = "unfinished"
     FAILED = "failed"
+    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)
@@ -63,14 +72,13 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
     fs = dvc.api.DVCFileSystem(**kwargs)
     repo = fs.repo
 
-    graph = repo.index.graph
-    steps = plan_repro(graph, stages=None)
+    graph = repo.index.graph.reverse(copy=True)
     status = repo.status()
     # TODO! check for downstream stages, they might not have the correct status from DVC status!!
 
     results = {}
 
-    for stage in tqdm(steps, desc="Checking stage status", unit="stage"):
+    for stage in tqdm(nx.topological_sort(graph), total=len(graph.nodes), desc="Checking stage status", unit="stage"):
         # TODO: only valid for pipeline stages
         if stage.addressing in status:
             if run_cache:
@@ -108,10 +116,11 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
         else:
-            if any(stage.addressing in status for stage in nx.ancestors(graph, stage)):
+            if any(stage.status != StageStatus.COMPLETED in results for stage in nx.predecessor(graph, stage)):
+                # TODO: we need to check the run chache here as well! Do we?
                 results[stage] = StageDC(
                     addressing=stage.addressing,
-                    status=StageStatus.QUEUED,  # TODO: we need to check the run chache here as well!
+                    status=StageStatus.UNKNOWN,
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
             else:
@@ -121,8 +130,8 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
 
-    assert len(results) == len(steps), (
-        f"Expected {len(steps)} results, got {len(results)}"
+    assert len(results) == len(graph), (
+        f"Expected {len(graph)} results, got {len(results)}"
     )
     return nx.relabel_nodes(graph, results, copy=True).reverse(copy=True)
 
