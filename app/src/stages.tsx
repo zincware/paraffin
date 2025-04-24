@@ -12,103 +12,105 @@ import StageDetailView from "./StageDetailView";
 import { getStatusBadgeVariant } from "./utils";
 
 const StageView = () => {
-    const [searchParams] = useSearchParams();
-    const experimentId = searchParams.get("experiment");
-    const [stages, setStages] = useState<Stage[]>([]);
-    const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
-    const [showModal, setShowModal] = useState(false);
+	const [searchParams] = useSearchParams();
+	const experimentId = searchParams.get("experiment");
+	const [stages, setStages] = useState<Stage[]>([]);
+	const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
+	const [showModal, setShowModal] = useState(false);
 
-    const fetchStages = async () => {
-        try {
-            const response = await fetch(`/api/v1/stages?experiment=${experimentId}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            setStages(data);
-        } catch (err: any) {
-            console.error("Error fetching stages:", err);
-        }
-    };
+	const fetchStages = async () => {
+		try {
+			const response = await fetch(`/api/v1/stages?experiment=${experimentId}`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			setStages(data);
+		} catch (err: any) {
+			console.error("Error fetching stages:", err);
+		}
+	};
 
-    useEffect(() => {
-        if (experimentId) {
-            fetchStages();
-        }
-    }, [experimentId]);
+	useEffect(() => {
+		if (experimentId) {
+			fetchStages();
+		}
+	}, [experimentId]);
 
-    const handleShowDetails = (stageId: string) => {
-        setSelectedStageId(stageId);
-        setShowModal(true);
-    };
+	const handleShowDetails = (stageId: string) => {
+		setSelectedStageId(stageId);
+		setShowModal(true);
+	};
 
-    const handleCloseModal = () => {
-        setShowModal(false);
-        setSelectedStageId(null); // Reset selected stage ID when modal is closed
-    };
+	const handleCloseModal = () => {
+		setShowModal(false);
+		setSelectedStageId(null); // Reset selected stage ID when modal is closed
+	};
 
-    return (
-        <Container className="mt-4">
-            <Row className="mb-3">
-                <Col>
-                    <Card className="shadow-sm">
-                        <Card.Body>
-                            <Card.Title className="mb-3">
-                                <h1>Stages</h1>
-                            </Card.Title>
-                            <Card.Subtitle className="mb-2 text-muted">
-                                Stages for Experiment ID: {experimentId}
-                            </Card.Subtitle>
-                            <Table striped bordered hover responsive>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Name</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {stages.map((stage) => (
-                                        <tr key={stage.id}>
-                                            <td>{stage.id}</td>
-                                            <td>{stage.name}</td>
-                                            <td>
-                                                <Badge pill bg={getStatusBadgeVariant(stage.status)}>
-                                                    {stage.status}
-                                                </Badge>
-                                            </td>
-                                            <td>
-                                                <Button
-                                                    variant="outline-info"
-                                                    size="sm"
-                                                    onClick={() => handleShowDetails(stage.id)}
-                                                >
-                                                    Details
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                            {stages.length === 0 && (
-                                <div className="text-center mt-3">
-                                    <p className="text-muted">No stages found for this experiment.</p>
-                                </div>
-                            )}
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+	return (
+		<Container className="mt-4">
+			<Row className="mb-3">
+				<Col>
+					<Card className="shadow-sm">
+						<Card.Body>
+							<Card.Title className="mb-3">
+								<h1>Stages</h1>
+							</Card.Title>
+							<Card.Subtitle className="mb-2 text-muted">
+								Stages for Experiment ID: {experimentId}
+							</Card.Subtitle>
+							<Table striped bordered hover responsive>
+								<thead>
+									<tr>
+										<th>ID</th>
+										<th>Name</th>
+										<th>Status</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{stages.map((stage) => (
+										<tr key={stage.id}>
+											<td>{stage.id}</td>
+											<td>{stage.name}</td>
+											<td>
+												<Badge pill bg={getStatusBadgeVariant(stage.status)}>
+													{stage.status}
+												</Badge>
+											</td>
+											<td>
+												<Button
+													variant="outline-info"
+													size="sm"
+													onClick={() => handleShowDetails(stage.id)}
+												>
+													Details
+												</Button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</Table>
+							{stages.length === 0 && (
+								<div className="text-center mt-3">
+									<p className="text-muted">
+										No stages found for this experiment.
+									</p>
+								</div>
+							)}
+						</Card.Body>
+					</Card>
+				</Col>
+			</Row>
 
-            {/* Stage Details Modal */}
-            <StageDetailView
-                stageId={selectedStageId}
-                show={showModal}
-                onClose={handleCloseModal}
-            />
-        </Container>
-    );
+			{/* Stage Details Modal */}
+			<StageDetailView
+				stageId={selectedStageId}
+				show={showModal}
+				onClose={handleCloseModal}
+			/>
+		</Container>
+	);
 };
 
 export default StageView;

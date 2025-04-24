@@ -1,6 +1,5 @@
 import os
 import socket
-import subprocess
 import threading
 import typing as t
 
@@ -19,10 +18,12 @@ app = typer.Typer()
 @app.command()
 def commit():
     """Commit all reproduced stages."""
-    from paraffin.dvc import StageStatus
+    import json
+
     import dvc.api
     from dvc.stage.serialize import to_single_stage_lockfile
-    import json
+
+    from paraffin.dvc import StageStatus
 
     name = "paraffin"
     db = "sqlite:///paraffin.db"
@@ -53,10 +54,12 @@ def commit():
 
             stage, job = res
             active_job = job
-            pipelinestage = list(fs.repo.stage.collect(stage.name)) # TODO: does this work with path?
+            pipelinestage = list(
+                fs.repo.stage.collect(stage.name)
+            )  # TODO: does this work with path?
             if not pipelinestage:
                 raise ValueError(f"Stage '{stage.name}' not found in DVC pipeline.")
-            
+
             with pipelinestage[0].repo.lock:
                 pipelinestage[0].save()
                 pipelinestage[0].commit()
@@ -66,7 +69,9 @@ def commit():
                 db_url=db,
                 stage_id=job.stage_id,
                 status=StageStatus.COMPLETED,
-                lockfile=json.dumps(to_single_stage_lockfile(pipelinestage[0], with_files=True))
+                lockfile=json.dumps(
+                    to_single_stage_lockfile(pipelinestage[0], with_files=True)
+                ),
             )
             active_job = None
         finally:

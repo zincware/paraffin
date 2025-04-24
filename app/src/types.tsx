@@ -23,13 +23,13 @@ export interface Stage {
 export interface StageDetails {
 	addressing: string;
 	status:
-	| "pending"
-	| "completed"
-	| "finished"
-	| "running"
-	| "unfinished"
-	| "failed"
-	| "unknown";
+		| "pending"
+		| "completed"
+		| "finished"
+		| "running"
+		| "unfinished"
+		| "failed"
+		| "unknown";
 	cmd: string;
 	path: string;
 	lockfile: string;

@@ -337,6 +337,7 @@ def list_stages(db_url: str, experiment_id: int) -> list[dict]:
             for stage in stages
         ]
 
+
 def get_stage_by_id(db_url: str, stage_id: int) -> StageDC:
     engine = create_engine(db_url)
 
