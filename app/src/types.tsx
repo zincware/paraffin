@@ -10,5 +10,12 @@ export interface Experiment {
 export interface Stage {
 	id: string;
 	name: string;
-	status: "QUEUED" | "COMPLETED" | "FINISHED" | "RUNNING" | "UNFINISHED" | "FAILED" | "UNKNOWN";
+	status:
+		| "QUEUED"
+		| "COMPLETED"
+		| "FINISHED"
+		| "RUNNING"
+		| "UNFINISHED"
+		| "FAILED"
+		| "UNKNOWN";
 }

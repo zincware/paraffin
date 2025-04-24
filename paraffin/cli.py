@@ -50,7 +50,9 @@ def commit():
             stage, job = res
             active_job = job
             print(f"Updating lock file 'dvc.lock' for stage '{stage.name}'")
-            subprocess.check_call(f"dvc commit --force --quiet {stage.name}", shell=True)
+            subprocess.check_call(
+                f"dvc commit --force --quiet {stage.name}", shell=True
+            )
 
             update_job(
                 db_url=db,
@@ -66,7 +68,6 @@ def commit():
                     status=StageStatus.FINISHED,
                 )
                 active_job = None
-
 
     print("No job found.")
     close_worker(id=worker_id, db_url=db)

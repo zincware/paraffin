@@ -9,7 +9,7 @@ const Welcome = () => {
 			<p>This is the welcome page.</p>
 		</div>
 	);
-}
+};
 
 const App: React.FC = () => {
 	return (

@@ -1,6 +1,7 @@
-from paraffin.db.app import save_graph_to_db, export_db_to_graph
-from paraffin.dvc import get_status
 import networkx as nx
+
+from paraffin.db.app import export_db_to_graph, save_graph_to_db
+from paraffin.dvc import get_status
 
 
 def test_db_graph_conversion(proj01):

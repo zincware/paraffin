@@ -295,10 +295,11 @@ def export_db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
 
     return graph
 
+
 def list_experiments(db_url: str) -> list[dict]:
     # return [{"created_at": 1234567890, "base": "test", "origin": "test", "id": "1", "machine": "test"}]
     engine = create_engine(db_url)
-    
+
     with Session(engine) as session:
         statement = select(Experiment)
         results = session.exec(statement)
@@ -315,9 +316,10 @@ def list_experiments(db_url: str) -> list[dict]:
             for experiment in experiments
         ]
 
+
 def list_stages(db_url: str, experiment_id: int) -> list[dict]:
     engine = create_engine(db_url)
-    
+
     with Session(engine) as session:
         statement = select(Stage).where(Stage.experiment_id == experiment_id)
         results = session.exec(statement)

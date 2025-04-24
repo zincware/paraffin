@@ -8,5 +8,5 @@ and
 
 ```bash
 export PARAFFIN_DB=sqlite://paraffin.db
-fastapi run paraffin/ui/app.py --reload  
+fastapi run paraffin/ui/app.py --reload
 ```
