@@ -11,11 +11,11 @@ export interface Stage {
 	id: string;
 	name: string;
 	status:
-		| "QUEUED"
-		| "COMPLETED"
-		| "FINISHED"
-		| "RUNNING"
-		| "UNFINISHED"
-		| "FAILED"
-		| "UNKNOWN";
+		| "queued"
+		| "completed"
+		| "finished"
+		| "running"
+		| "unfinished"
+		| "failed"
+		| "unknown";
 }
