@@ -51,6 +51,8 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event):
                     cmd,
                     shell=True,
                     preexec_fn=os.setsid,
+                    universal_newlines=True,
+                    cwd=stage.path,
                 )
                 # Wait for the process to finish but also check for shutdown
                 while proc.poll() is None and not shutdown_event.is_set():

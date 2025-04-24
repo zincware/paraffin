@@ -26,6 +26,7 @@ Releases = "https://github.com/zincware/paraffin/releases"
 dev = [
     "coverage>=7.6.10",
     "pytest>=8.3.4",
+    "pytest-xdist>=3.6.1",
     "zntrack>=0.8.5",
 ]
 [build-system]

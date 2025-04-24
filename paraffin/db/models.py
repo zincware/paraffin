@@ -101,6 +101,7 @@ class Stage(SQLModel, table=True):
     max_workers: int = Field(default=1)  # Maximum number of workers for this job
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+    path: str = Field(default=".")  # Path to the dvc.yaml file
 
     # Relationships
     experiment: Optional[Experiment] = Relationship(back_populates="stages")

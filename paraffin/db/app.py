@@ -109,13 +109,14 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
             if node.cmd is None:
                 continue  # skip everything that is not a PipelineStage
             job = Stage(
-                cmd=json.dumps(node.cmd),
+                cmd=node.cmd,
                 name=node.addressing,
                 queue="default",
                 status=node.status,
                 experiment_id=experiment.id,
                 cache=False,
                 force=False,
+                path=node.path,
             )
             session.add(job)
 
@@ -124,8 +125,10 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
                     select(Stage)
                     .where(Stage.experiment_id == experiment.id)
                     .where(Stage.name == parent.addressing)
-                ).one()
-                session.add(StageDependency(parent_id=parent_job.id, child_id=job.id))
+                ).all()
+                if len(parent_job) == 1:
+                    # if the previous stage is not PipelineStage, we skip it
+                    session.add(StageDependency(parent_id=parent_job[0].id, child_id=job.id))
         session.commit()
 
 
