@@ -169,7 +169,10 @@ def cleanup_stages(graph: nx.DiGraph) -> None:
         if stage.status in [StageStatus.PENDING, StageStatus.UNKNOWN]
     ]
 
-    stages = sum((fs.repo.stage.collect(with_deps=False, target=ad) for ad in stage_addressings), [])
+    stages = sum(
+        (fs.repo.stage.collect(with_deps=False, target=ad) for ad in stage_addressings),
+        [],
+    )
     assert len(stages) == len(stage_addressings)
     for stage in tqdm(
         stages,

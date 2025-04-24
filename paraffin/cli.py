@@ -178,7 +178,7 @@ def submit(
     """Run DVC stages in parallel."""
     # imports here for better performance
     from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
-    from paraffin.dvc import get_status, print_graph_description, cleanup_stages
+    from paraffin.dvc import cleanup_stages, get_status, print_graph_description
     from paraffin.utils import handle_existing_stages
 
     # TODO: if there is an experiment, set the stages to outdated
