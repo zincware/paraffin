@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import StrEnum
+from paraffin.backports import StrEnum
 from typing import List, Optional
 
 from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
