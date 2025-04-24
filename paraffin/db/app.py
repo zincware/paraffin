@@ -262,3 +262,35 @@ def get_stage_status(
         results = session.exec(statement)
         stage = results.one()
         return stage.status
+
+
+def export_db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
+    engine = create_engine(db_url)
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        statement = select(Stage).where(Stage.experiment_id == experiment_id)
+        results = session.exec(statement)
+        stages = results.all()
+
+        graph = nx.DiGraph()
+        stage_nodes = {}
+
+        # Create and store StageDC nodes
+        for stage in stages:
+            node = StageDC(
+                addressing=stage.name,
+                status=stage.status,
+                cmd=stage.cmd,
+                path=stage.path,
+                lockfile=stage.lockfile_content,
+            )
+            graph.add_node(node)
+            stage_nodes[stage.name] = node
+
+        # Add edges between StageDC nodes
+        for stage in stages:
+            for parent in stage.parents:
+                graph.add_edge(stage_nodes[parent.name], stage_nodes[stage.name])
+
+    return graph

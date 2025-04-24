@@ -11,6 +11,7 @@ from dvc.stage.serialize import to_single_stage_lockfile
 from tqdm import tqdm
 
 
+
 class StageStatus(StrEnum):
     """Stage status enum.
 
