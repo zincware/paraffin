@@ -232,3 +232,17 @@ def close_worker(id: int, db_url: str) -> None:
         worker.finished_at = datetime.datetime.now()
         session.add(worker)
         session.commit()
+
+def get_status(
+    db_url: str,
+    stage_name: str | None = None,
+) -> StageStatus:
+    """
+    Get the status of a stage in the database.
+    """
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        statement = select(Stage).where(Stage.name == stage_name)
+        results = session.exec(statement)
+        stage = results.one()
+        return stage.status
