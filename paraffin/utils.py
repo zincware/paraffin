@@ -25,7 +25,7 @@ def handle_existing_stages(graph, db):
         print(f"Found {len(stages)} stages with {status} status from previous runs ")
         for stage in stages:
             should_transfer = prompt_transfer(stage.name, stage.status)
-            new_status = stage.status if should_transfer else StageStatus.QUEUED
+            new_status = stage.status if should_transfer else StageStatus.PENDING
             node = get_stage_from_graph(graph, stage.name)
             new_stage = dataclasses.replace(node, status=new_status)
             nx.relabel_nodes(graph, {node: new_stage}, copy=False)

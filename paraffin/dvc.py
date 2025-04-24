@@ -16,7 +16,7 @@ class StageStatus(StrEnum):
 
     Attributes
     ----------
-    QUEUED : str
+    PENDING : str
         The stage is in the dvc.yaml but has not been run yet.
     COMPLETED : str
         The stage has been run and the output files are up to date.
@@ -38,11 +38,11 @@ class StageStatus(StrEnum):
         Therefore, the state can not be determined, because if all
         dependencies yield cached outputs, the stage might be
         in the run cache.
-        Currently, this is the same as QUEUED and hashed dependency
+        Currently, this is the same as PENDING and hashed dependency
         will not be accounted for.
     """
 
-    QUEUED = "queued"
+    PENDING = "pending"
     COMPLETED = "completed"
     FINISHED = "finished"
     RUNNING = "running"
@@ -89,9 +89,9 @@ def _restore_and_classify(stage, run_cache: bool) -> StageDC:
                 stage.dump()
                 return _create_stage_dc(stage, StageStatus.COMPLETED)
         except (RunCacheNotFoundError, FileNotFoundError):
-            return _create_stage_dc(stage, StageStatus.QUEUED)
+            return _create_stage_dc(stage, StageStatus.PENDING)
     else:
-        return _create_stage_dc(stage, StageStatus.QUEUED)
+        return _create_stage_dc(stage, StageStatus.PENDING)
 
 
 def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
@@ -144,7 +144,7 @@ def print_graph_description(graph: nx.DiGraph):
     status_icons = {
         StageStatus.COMPLETED: "[green]✅ Finished[/green]",
         StageStatus.FINISHED: "[green]✅ Finished[/green]",
-        StageStatus.QUEUED: "[yellow]🕐 Queued[/yellow]",
+        StageStatus.PENDING: "[yellow]🕐 Pending[/yellow]",
         StageStatus.RUNNING: "[blue]🔄 Running[/blue]",
         StageStatus.UNFINISHED: "[orange1]⏳ Unfinished[/orange1]",
         StageStatus.FAILED: "[red]❌ Failed[/red]",

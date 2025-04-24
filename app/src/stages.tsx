@@ -14,7 +14,7 @@ import ReactMarkdown from 'react-markdown';
 // Helper function to determine badge color based on status
 const getStatusBadgeVariant = (status: Stage["status"]) => {
     switch (status) {
-        case "queued":
+        case "pending":
             return "info";
         case "completed":
         case "finished":

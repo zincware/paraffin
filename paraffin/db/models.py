@@ -88,7 +88,7 @@ class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     cmd: str = Field(max_length=255)  # Command to execute
-    status: StageStatus = Field(sa_type=String, default=StageStatus.QUEUED)
+    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)
     queue: str = Field(default="default", max_length=100)
     lockfile_content: str = Field(default="")  # JSON string of lockfile
     dependency_hash: str = Field(default="")  # Hash of the dependencies

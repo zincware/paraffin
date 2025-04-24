@@ -47,7 +47,7 @@ def test_stage_unfinished(proj_single_node):
     status = get_status()
     assert len(status) == 1
     stage = next(n for n in status if n.addressing == "AddNumbers")
-    assert stage.status == StageStatus.QUEUED
+    assert stage.status == StageStatus.PENDING
 
     fs = dvc.api.DVCFileSystem()
     repo = fs.repo
@@ -129,7 +129,7 @@ def test_stage_cached_rm_cache(proj_single_node):
     # }
     assert len(status) == 1
     stage = next(n for n in status if n.addressing == "AddNumbers")
-    assert stage.status == StageStatus.QUEUED
+    assert stage.status == StageStatus.PENDING
 
     # # TODO: another check if the dvc.lock is removed!
 
@@ -161,7 +161,7 @@ def test_stage_nested_unfinished(proj_nested_nodes):
     proj, nodes = proj_nested_nodes
     for node in nodes:
         stage = next(s for s in status if s.addressing == node.name)
-        assert stage.status == StageStatus.QUEUED
+        assert stage.status == StageStatus.PENDING
     assert len(status) == 5
 
 
@@ -216,7 +216,7 @@ def test_stage_nested_cached_rm_cache(proj_nested_nodes):
     status = get_status()
     for node in nodes:
         stage = next(s for s in status if s.addressing == node.name)
-        assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+        assert stage.status == StageStatus.PENDING, f"Stage {node.name} is not pending"
     assert len(status) == 5
 
     fs = dvc.api.DVCFileSystem()
@@ -238,8 +238,8 @@ def test_stage_nested_update_params_end(proj_nested_nodes):
     for idx, node in enumerate(nodes):
         stage = next(s for s in status if s.addressing == node.name)
         if idx == len(nodes) - 1:
-            assert stage.status == StageStatus.QUEUED, (
-                f"Stage {node.name} is not queued"
+            assert stage.status == StageStatus.PENDING, (
+                f"Stage {node.name} is not pending"
             )
         else:
             assert stage.status == StageStatus.COMPLETED, (
@@ -264,8 +264,8 @@ def test_stage_nested_update_params_between(proj_nested_nodes):
             )
         elif idx >= len(nodes) - 3:
             # this is the node that was updated
-            assert stage.status == StageStatus.QUEUED, (
-                f"Stage {node.name} is not queued"
+            assert stage.status == StageStatus.PENDING, (
+                f"Stage {node.name} is not pending"
             )
         else:
             assert stage.status == StageStatus.COMPLETED, (

@@ -11,7 +11,7 @@ export interface Stage {
 	id: string;
 	name: string;
 	status:
-		| "queued"
+		| "pending"
 		| "completed"
 		| "finished"
 		| "running"
@@ -23,7 +23,7 @@ export interface Stage {
 export interface StageDetails {
 	addressing: string;
 	status:
-	| "queued"
+	| "pending"
 	| "completed"
 	| "finished"
 	| "running"
