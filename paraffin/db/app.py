@@ -116,6 +116,7 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
                 cache=False,
                 force=False,
                 path=node.path,
+                lockfile_content=node.lockfile,
             )
             session.add(job)
 
