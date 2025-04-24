@@ -2,7 +2,7 @@ import zntrack
 from typer.testing import CliRunner
 
 from paraffin.cli import app
-from paraffin.db.app import get_status
+from paraffin.db.app import get_stage_status
 from paraffin.dvc import StageStatus
 
 runner = CliRunner()
@@ -26,5 +26,5 @@ def test_run_fails(proj_path):
     result = runner.invoke(app, ["worker"])
     assert result.exit_code == 0
 
-    status = get_status(db_url="sqlite:///paraffin.db", stage_name=failing_node.name)
+    status = get_stage_status(db_url="sqlite:///paraffin.db", stage_name=failing_node.name)
     assert status == StageStatus.FAILED

@@ -249,7 +249,7 @@ def close_worker(id: int, db_url: str) -> None:
         session.commit()
 
 
-def get_status(
+def get_stage_status(
     db_url: str,
     stage_name: str | None = None,
 ) -> StageStatus:
