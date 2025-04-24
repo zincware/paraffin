@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from paraffin.backports import StrEnum
 from pathlib import Path
 
 import dvc.api
@@ -9,6 +8,9 @@ from dvc.stage import PipelineStage
 from dvc.stage.cache import RunCacheNotFoundError
 from dvc.stage.serialize import to_single_stage_lockfile
 from tqdm import tqdm
+
+from paraffin.backports import StrEnum
+
 
 class StageStatus(StrEnum):
     """Stage status enum.
