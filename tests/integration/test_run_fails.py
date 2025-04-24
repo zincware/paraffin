@@ -26,5 +26,7 @@ def test_run_fails(proj_path):
     result = runner.invoke(app, ["worker"])
     assert result.exit_code == 0
 
-    status = get_stage_status(db_url="sqlite:///paraffin.db", stage_name=failing_node.name)
+    status = get_stage_status(
+        db_url="sqlite:///paraffin.db", stage_name=failing_node.name
+    )
     assert status == StageStatus.FAILED

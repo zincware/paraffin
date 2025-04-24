@@ -11,7 +11,6 @@ from dvc.stage.serialize import to_single_stage_lockfile
 from tqdm import tqdm
 
 
-
 class StageStatus(StrEnum):
     """Stage status enum.
 
@@ -43,8 +42,6 @@ class StageStatus(StrEnum):
         will not be accounted for.
     """
 
-    # TODO: what about cached, to we always want to checkout all files?
-
     QUEUED = "queued"
     COMPLETED = "completed"
     FINISHED = "finished"
@@ -70,118 +67,62 @@ def get_stage_from_graph(graph: nx.DiGraph, stage: str) -> StageDC:
     raise ValueError(f"Stage {stage} not found in graph")
 
 
-def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
-    # with run_cache false, we will not check for nodes that can be restored
-    #  this is faster but can lead to computational overhead!
+def _create_stage_dc(stage, status: StageStatus) -> StageDC:
+    is_pipeline = isinstance(stage, PipelineStage)
+    return StageDC(
+        addressing=stage.addressing,
+        status=status,
+        cmd=json.dumps(stage.cmd) if is_pipeline else None,
+        path=Path(stage.path_in_repo).parent.as_posix(),
+        lockfile=json.dumps(to_single_stage_lockfile(stage, with_files=True))
+        if is_pipeline
+        else None,
+    )
 
+
+def _restore_and_classify(stage, run_cache: bool) -> StageDC:
+    if run_cache:
+        try:
+            with stage.repo.lock:
+                stage.repo.stage_cache.restore(stage, dry=False)
+                stage.save()
+                stage.dump()
+                return _create_stage_dc(stage, StageStatus.COMPLETED)
+        except (RunCacheNotFoundError, FileNotFoundError):
+            return _create_stage_dc(stage, StageStatus.QUEUED)
+    else:
+        return _create_stage_dc(stage, StageStatus.QUEUED)
+
+
+def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
     fs = dvc.api.DVCFileSystem(**kwargs)
     repo = fs.repo
-
     graph = repo.index.graph.reverse(copy=True)
     status = repo.status()
-    # TODO! check for downstream stages, they might not have the correct status from DVC status!!
 
     results = {}
-
     for stage in tqdm(
         nx.topological_sort(graph),
-        total=len(graph.nodes),
+        total=len(graph),
         desc="Checking stage status",
         unit="stage",
     ):
-        # TODO: only valid for pipeline stages
         if stage.addressing in status:
-            if run_cache:
-                with stage.repo.lock:
-                    try:
-                        # disable logging
-                        # import logging
-                        # logging.getLogger("dvc").setLevel(logging.CRITICAL)
-                        # dry must be false, otherwise we will get wrong results!
-                        stage.repo.stage_cache.restore(stage, dry=False)
-                        # FYI, there is also stage.commit() which is like Stage.save(),
-                        # but also saves file to the cache (i.e. commit).
-                        # Stage.dump() is what saves the stage to dvc.yaml and
-                        # dvc.lock file. (dump has update_pipeline=True|False and
-                        # update_lock=True|False arguments to save to only
-                        # one or to both of the files).
-
-                        stage.save()
-                        stage.dump()
-                        results[stage] = StageDC(
-                            addressing=stage.addressing,
-                            status=StageStatus.COMPLETED,
-                            cmd=json.dumps(stage.cmd)
-                            if isinstance(stage, PipelineStage)
-                            else None,
-                            path=Path(stage.path_in_repo).parent.as_posix(),
-                            lockfile=json.dumps(
-                                to_single_stage_lockfile(stage, with_files=True)
-                            )
-                            if isinstance(stage, PipelineStage)
-                            else None,
-                        )
-                    except (RunCacheNotFoundError, FileNotFoundError):
-                        results[stage] = StageDC(
-                            addressing=stage.addressing,
-                            status=StageStatus.QUEUED,
-                            cmd=json.dumps(stage.cmd)
-                            if isinstance(stage, PipelineStage)
-                            else None,
-                            path=Path(stage.path_in_repo).parent.as_posix(),
-                            lockfile=json.dumps(
-                                to_single_stage_lockfile(stage, with_files=True)
-                            )
-                            if isinstance(stage, PipelineStage)
-                            else None,
-                        )
-            else:
-                results[stage] = StageDC(
-                    addressing=stage.addressing,
-                    status=StageStatus.QUEUED,
-                    cmd=json.dumps(stage.cmd)
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                    path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(
-                        to_single_stage_lockfile(stage, with_files=True)
-                    )
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                )
+            results[stage] = _restore_and_classify(stage, run_cache)
         else:
-            print(f"{stage.addressing} - {list(graph.predecessors(stage))}")
+            # Handle stages not in DVC status
+            deps = list(graph.predecessors(stage))
+            # convert to for loop to avoid long convoluted list comprehension
             if any(
-                results[stage].status != StageStatus.COMPLETED
-                for stage in graph.predecessors(stage)
+                results.get(
+                    dep, StageDC("", StageStatus.UNKNOWN, None, "", None)
+                ).status
+                != StageStatus.COMPLETED
+                for dep in deps
             ):
-                results[stage] = StageDC(
-                    addressing=stage.addressing,
-                    status=StageStatus.UNKNOWN,
-                    cmd=json.dumps(stage.cmd)
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                    path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(
-                        to_single_stage_lockfile(stage, with_files=True)
-                    )
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                )
+                results[stage] = _create_stage_dc(stage, StageStatus.UNKNOWN)
             else:
-                results[stage] = StageDC(
-                    addressing=stage.addressing,
-                    status=StageStatus.COMPLETED,
-                    cmd=json.dumps(stage.cmd)
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                    path=Path(stage.path_in_repo).parent.as_posix(),
-                    lockfile=json.dumps(
-                        to_single_stage_lockfile(stage, with_files=True)
-                    )
-                    if isinstance(stage, PipelineStage)
-                    else None,
-                )
+                results[stage] = _create_stage_dc(stage, StageStatus.COMPLETED)
 
     assert len(results) == len(graph), (
         f"Expected {len(graph)} results, got {len(results)}"
@@ -197,27 +138,21 @@ def print_graph_description(graph: nx.DiGraph):
 
     console = Console()
     table = Table(title="DVC Pipeline Stage Status", box=box.SIMPLE_HEAVY)
-
     table.add_column("Stage", justify="left", style="cyan", no_wrap=True)
     table.add_column("Status", justify="center", style="bold")
 
-    for node in graph.nodes:
-        stage: StageDC = node
-        status = stage.status
+    status_icons = {
+        StageStatus.COMPLETED: "[green]✅ Finished[/green]",
+        StageStatus.FINISHED: "[green]✅ Finished[/green]",
+        StageStatus.QUEUED: "[yellow]🕐 Queued[/yellow]",
+        StageStatus.RUNNING: "[blue]🔄 Running[/blue]",
+        StageStatus.UNFINISHED: "[orange1]⏳ Unfinished[/orange1]",
+        StageStatus.FAILED: "[red]❌ Failed[/red]",
+        StageStatus.UNKNOWN: "[red]❓ Unknown[/red]",
+    }
 
-        if status == StageStatus.COMPLETED:
-            table.add_row(stage.addressing, "[green]✅ Finished[/green]")
-        elif status == StageStatus.QUEUED:
-            table.add_row(stage.addressing, "[yellow]🕐 Queued[/yellow]")
-        elif status == StageStatus.RUNNING:
-            table.add_row(stage.addressing, "[blue]🔄 Running[/blue]")
-        elif status == StageStatus.UNFINISHED:
-            table.add_row(stage.addressing, "[orange]⏳ Unfinished[/orange]")
-        elif status == StageStatus.FAILED:
-            table.add_row(stage.addressing, "[red]❌ Failed[/red]")
-        elif status == StageStatus.FINISHED:
-            table.add_row(stage.addressing, "[green]✅ Finished[/green]")
-        else:
-            table.add_row(stage.addressing, f"[red]❓ Unknown ({status})[/red]")
+    for stage in graph.nodes:
+        desc = status_icons.get(stage.status, f"[red]❓ Unknown ({stage.status})[/red]")
+        table.add_row(stage.addressing, desc)
 
     console.print(table)
