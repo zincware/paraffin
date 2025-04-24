@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import ExperimentView from "./experiments";
+import ExperimentView from "./ExperimentsView";
 import StageView from "./StagesView";
 
 const Welcome = () => {
