@@ -294,3 +294,39 @@ def export_db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
                 graph.add_edge(stage_nodes[parent.name], stage_nodes[stage.name])
 
     return graph
+
+def list_experiments(db_url: str) -> list[dict]:
+    # return [{"created_at": 1234567890, "base": "test", "origin": "test", "id": "1", "machine": "test"}]
+    engine = create_engine(db_url)
+    
+    with Session(engine) as session:
+        statement = select(Experiment)
+        results = session.exec(statement)
+        experiments = results.all()
+        return [
+            {
+                "created_at": experiment.created_at,
+                "base": experiment.base,
+                "origin": experiment.origin,
+                "id": experiment.id,
+                "machine": experiment.machine,
+                "status": experiment.status,
+            }
+            for experiment in experiments
+        ]
+
+def list_stages(db_url: str, experiment_id: int) -> list[dict]:
+    engine = create_engine(db_url)
+    
+    with Session(engine) as session:
+        statement = select(Stage).where(Stage.experiment_id == experiment_id)
+        results = session.exec(statement)
+        stages = results.all()
+        return [
+            {
+                "id": stage.id,
+                "name": stage.name,
+                "status": stage.status,
+            }
+            for stage in stages
+        ]

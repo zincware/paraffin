@@ -7,7 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
 from paraffin.dvc import StageStatus
 
 
-class ExperimentStatus(StrEnum):
+class ExperimentStatus(StrEnum): # TODO: could be a bool
     ACTIVE = "active"
     INACTIVE = "inactive"
 

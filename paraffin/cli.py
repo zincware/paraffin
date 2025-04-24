@@ -33,28 +33,40 @@ def commit():
         requires_dvc_lock=True,
     )
     # TODO: make this a DVC worker and ensure only one worker is running at a time
-
+    active_job = None
     while True:
-        res = get_job(
-            db_url=db,
-            queues=None,
-            worker_id=worker_id,
-            experiment=None,
-            stage_name=None,
-            status=[StageStatus.FINISHED],
-        )
-        if res is None:
-            break
+        try:
+            res = get_job(
+                db_url=db,
+                queues=None,
+                worker_id=worker_id,
+                experiment=None,
+                stage_name=None,
+                status=[StageStatus.FINISHED],
+            )
+            if res is None:
+                break
 
-        stage, job = res
-        print(f"Updating lock file 'dvc.lock' for stage '{stage.name}'")
-        subprocess.check_call(f"dvc commit --force --quiet {stage.name}", shell=True)
+            stage, job = res
+            active_job = job
+            print(f"Updating lock file 'dvc.lock' for stage '{stage.name}'")
+            subprocess.check_call(f"dvc commit --force --quiet {stage.name}", shell=True)
 
-        update_job(
-            db_url=db,
-            stage_id=job.stage_id,
-            status=StageStatus.COMPLETED,
-        )
+            update_job(
+                db_url=db,
+                stage_id=job.stage_id,
+                status=StageStatus.COMPLETED,
+            )
+            active_job = None
+        finally:
+            if active_job:
+                update_job(
+                    db_url=db,
+                    stage_id=active_job.stage_id,
+                    status=StageStatus.FINISHED,
+                )
+                active_job = None
+
 
     print("No job found.")
     close_worker(id=worker_id, db_url=db)

@@ -1,36 +1,14 @@
-// Define TypeScript types for the graph
-export type GraphNode = {
+export interface Experiment {
+	created_at: string;
+	base: string;
+	origin: string;
 	id: string;
-	label: string;
-	status: string;
-	queue: string;
-	lock: object;
-	dependency_hash: string;
-	group: string[];
-};
-
-export type GraphEdge = {
-	source: string;
-	target: string;
-};
-
-export type GraphData = {
-	edges: GraphEdge[];
-	nodes: GraphNode[];
-};
-
-export interface WorkerInfo {
 	machine: string;
-	last_seen: Date;
-	status: "offline" | "idle" | "running";
-	id: number;
-	name: string;
+	status: "active" | "inactive";
 }
 
-export interface Jobs {
-	pending: number;
-	running: number;
-	completed: number;
-	cached: number;
-	failed: number;
+export interface Stage {
+	id: string;
+	name: string;
+	status: "QUEUED" | "COMPLETED" | "FINISHED" | "RUNNING" | "UNFINISHED" | "FAILED" | "UNKNOWN";
 }
