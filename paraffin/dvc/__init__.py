@@ -116,8 +116,8 @@ def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
                     cmd=stage.cmd if isinstance(stage, PipelineStage) else None,
                 )
         else:
-            if any(stage.status != StageStatus.COMPLETED in results for stage in nx.predecessor(graph, stage)):
-                # TODO: we need to check the run chache here as well! Do we?
+            print(f"{stage.addressing} - {list(graph.predecessors(stage))}")
+            if any(results[stage].status != StageStatus.COMPLETED for stage in graph.predecessors(stage)):
                 results[stage] = StageDC(
                     addressing=stage.addressing,
                     status=StageStatus.UNKNOWN,

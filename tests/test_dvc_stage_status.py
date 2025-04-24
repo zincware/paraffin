@@ -20,20 +20,20 @@ def proj_single_node(proj_path):
     return project
 
 @pytest.fixture
-def proj_nested_nodes(proj_path) -> tuple[zntrack.Project, list[zntrack.examples.AddNumbers|zntrack.examples.AddNodeAttributes]]:
+def proj_nested_nodes(proj_path) -> tuple[zntrack.Project, list[zntrack.examples.AddNumbers|zntrack.examples.SumNodeAttributes]]:
     project = zntrack.Project()
 
     with project:
         stage1 = zntrack.examples.AddNumbers(a=1, b=2)
         stage2 = zntrack.examples.AddNumbers(a=1, b=2)
-        nested_1 = zntrack.examples.AddNodeAttributes(
-            a=stage1.c, b=stage2.c
+        nested_1 = zntrack.examples.SumNodeAttributes(
+            inputs=[stage1.c, stage2.c], shift=0
         )
-        nested_2 = zntrack.examples.AddNodeAttributes(
-            a=stage1.c, b=stage2.c
+        nested_2 = zntrack.examples.SumNodeAttributes(
+            inputs=[nested_1.output], shift=0
         )
-        nested_3 = zntrack.examples.AddNodeAttributes(
-            a=nested_2.c, b=nested_1.c
+        nested_3 = zntrack.examples.SumNodeAttributes(
+            inputs=[nested_2.output], shift=0
         )
 
 
@@ -195,3 +195,58 @@ def test_stage_nested_cached(proj_nested_nodes):
     # # with repo.lock:
     status = repo.status()
     assert status == {}
+
+def test_stage_nested_cached_rm_cache(proj_nested_nodes):
+    proj, nodes = proj_nested_nodes
+    proj.repro()
+    shutil.rmtree("nodes", ignore_errors=True)
+    dvc_lock_path = pathlib.Path("dvc.lock")
+    dvc_lock_path.unlink(missing_ok=True)
+    shutil.rmtree(".dvc/cache", ignore_errors=True)
+
+    status = get_status()
+    for node in nodes:
+        stage = next(s for s in status if s.addressing == node.name)
+        assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+    assert len(status) == 5
+
+    fs = dvc.api.DVCFileSystem()
+    repo = fs.repo
+    # # with repo.lock:
+    status = repo.status()
+    for node in nodes:
+        assert node.name in status
+
+def test_stage_nested_update_params_end(proj_nested_nodes):
+    proj, nodes = proj_nested_nodes
+    proj.repro()
+    # update downstream node
+    nodes[-1].shift = 1
+    proj.build()
+
+    status = get_status()
+    for idx, node in enumerate(nodes):
+        stage = next(s for s in status if s.addressing == node.name)
+        if idx == len(nodes) - 1:
+            assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+        else:
+            assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
+
+def test_stage_nested_update_params_between(proj_nested_nodes):
+    proj, nodes = proj_nested_nodes
+    proj.repro()
+    # update downstream node
+    nodes[-2].shift = 1
+    proj.build()
+
+    status = get_status()
+    for idx, node in enumerate(nodes):
+        stage = next(s for s in status if s.addressing == node.name)
+        if idx >= len(nodes) - 1:
+            # successors of the updated node
+            assert stage.status == StageStatus.UNKNOWN, f"Stage {node.name} is not unknown"
+        elif idx >= len(nodes) - 2:
+            # this is the node that was updated
+            assert stage.status == StageStatus.QUEUED, f"Stage {node.name} is not queued"
+        else:
+            assert stage.status == StageStatus.COMPLETED, f"Stage {node.name} is not completed"
