@@ -52,6 +52,8 @@ def test_db_graph_conversion(db_engine):
             status=[StageStatus.PENDING],
         )
         assert stage is not None
+        assert stage.finished_at is None
+        assert stage.started_at is None
         # get a worker
         worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
         job = stage.attach_job(worker=worker)
@@ -60,6 +62,9 @@ def test_db_graph_conversion(db_engine):
         session.refresh(job)
         session.refresh(stage)
         session.refresh(worker)
+        assert stage.started_at is not None
+        assert stage.started_at == job.started_at
+        assert stage.finished_at is None
 
     # now assert that the stage is running
 
@@ -111,5 +116,5 @@ def test_db_graph_conversion(db_engine):
         stage = session.exec(select(Stage).where(Stage.id == stage.id)).one()
         assert stage.status == StageStatus.FINISHED
         assert stage.jobs[0].worker_id == worker.id
-        for job in stage.jobs:
-            assert job.finished_at is not None
+        assert stage.finished_at is not None
+        assert stage.started_at is not None

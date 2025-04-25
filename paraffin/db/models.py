@@ -231,15 +231,14 @@ class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     cmd: str = Field(max_length=255)  # Command to execute
-    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)  # TODO: infer from the jobs? 
+    # Can not infer from jobs, because all jobs can finish but the job did not finish yet.
+    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)  
     queue: str = Field(default="default", max_length=100)
     lockfile_content: str = Field(default="")  # JSON string of lockfile
     dependency_hash: str = Field(default="")  # Hash of the dependencies
     experiment_id: int = Field(foreign_key="experiment.id")
     capture_stderr: bool = Field(default=True)
     capture_stdout: bool = Field(default=True)
-    # started_at: Optional[datetime] = None # infer from the jobs
-    # finished_at: Optional[datetime] = None  # infer from the jobs
     cache: bool = Field(default=False)  # Use the paraffin cache for this job
     force: bool = Field(default=False)  # Rerun the job even if cached
     max_workers: int = Field(default=1)  # Maximum number of workers for this job
@@ -273,6 +272,18 @@ class Stage(SQLModel, table=True):
             "secondaryjoin": "Stage.id==StageDependency.child_id",
         },
     )
+
+    @property
+    def started_at(self) -> Optional[datetime]:
+        starts = [job.started_at for job in self.jobs if job.started_at]
+        return min(starts) if starts else None
+
+    @property
+    def finished_at(self) -> Optional[datetime]:
+        if self.status in {StageStatus.FAILED, StageStatus.COMPLETED, StageStatus.FINISHED}:
+            ends = [job.finished_at for job in self.jobs if job.finished_at]
+            return max(ends) if ends else None
+        return None
 
     def attach_job(self, worker: Worker) -> Job:
         self.status = StageStatus.RUNNING
