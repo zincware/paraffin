@@ -64,6 +64,38 @@ def db_engine_parallel(proj_path) -> Engine:
     return engine
 
 
+@pytest.fixture
+def db_engine_parallel_graph(proj_path) -> Engine:
+    project = zntrack.Project()
+
+    with project:
+        a = zntrack.examples.ParamsToOuts(params=1)
+        _ = zntrack.examples.SumNodeAttributes(inputs=[a.outs], shift=0)
+    project.build()
+
+    db_path = "sqlite:///:memory:"
+    status_graph: nx.DiGraph = get_status()
+    mapping = {}
+    for node in status_graph:
+        if node.addressing == a.name:
+            continue
+        mapping[node] = dataclasses.replace(
+            node,
+            max_workers=2,
+        )
+    status_graph = nx.relabel_nodes(status_graph, mapping)
+
+    engine = create_engine(db_path)
+    SQLModel.metadata.create_all(engine)
+
+    save_graph_to_db(
+        engine=engine,
+        graph=status_graph,
+    )
+
+    return engine
+
+
 def test_db(db_engine: Engine):
     worker = Worker.register(
         name="test_worker",
@@ -534,3 +566,88 @@ def test_db_parallel_unfinished_last_finished(db_engine_parallel: Engine):
         assert len(stage_1.jobs) == 2
         assert stage_1.jobs[0].status == StageStatus.UNFINISHED
         assert stage_1.jobs[1].status == StageStatus.FINISHED
+
+
+def test_db_parallel_graph(db_engine_parallel_graph: Engine):
+    w1 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine_parallel_graph,
+        cwd="test_cwd",
+        pid=1234,
+    )
+    w2 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine_parallel_graph,
+        cwd="test_cwd",
+        pid=1234,
+    )
+
+    # claim a stage
+    with Session(db_engine_parallel_graph) as session:
+        # select all stages
+        job_1 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        job_2 = Stage.claim(
+            session=session,
+            worker_id=w2.id,
+        )
+        assert job_1 is not None
+        assert job_1.stage.max_workers == 1
+        assert job_1.stage.assigned_workers == 1
+        assert job_1.stage.status == StageStatus.RUNNING
+        assert job_1.stage.name == "ParamsToOuts"
+        assert job_2 is None
+
+        # finish the first job
+
+    job_1.set_finished(engine=db_engine_parallel_graph)
+
+    # now try to claim three jobs
+    with Session(db_engine_parallel_graph) as session:
+        # select all stages
+        job_3 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        job_4 = Stage.claim(
+            session=session,
+            worker_id=w2.id,
+        )
+        job_5 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+
+        assert job_3 is not None
+        assert job_4 is not None
+        assert job_5 is None
+
+        assert job_3.stage.max_workers == 2
+        assert job_3.stage.assigned_workers == 2
+
+    # finish all and try to claim again
+
+    job_3.set_finished(engine=db_engine_parallel_graph)
+    job_4.set_finished(engine=db_engine_parallel_graph)
+
+    with Session(db_engine_parallel_graph) as session:
+        # select all stages
+        job_6 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        assert job_6 is None
+
+    # select all stages and assert that the stage is finished
+    with Session(db_engine_parallel_graph) as session:
+        all_stages = session.exec(select(Stage)).all()
+        assert len(all_stages) == 2
+        for stage in all_stages:
+            assert stage.status == StageStatus.FINISHED
+            assert stage.finished_at is not None
+            assert stage.started_at is not None
+            assert stage.assigned_workers == 0

@@ -386,23 +386,34 @@ class Stage(SQLModel, table=True):
         origin: str = "test",
         machine: str = "test",
     ) -> Optional["Job"]:
-        status = [StageStatus.PENDING, StageStatus.UNKNOWN, StageStatus.UNFINISHED]
+        status_values = ",".join(
+            f"'{s}'"
+            for s in [StageStatus.PENDING, StageStatus.UNKNOWN, StageStatus.UNFINISHED]
+        )
+        parent_finished_statuses = (
+            f"'{StageStatus.FINISHED}', '{StageStatus.COMPLETED}'"
+        )
+
         result = session.exec(
             text(f"""
                 UPDATE stage
-                SET status = '{StageStatus.RUNNING}', assigned_workers = assigned_workers + 1
+                SET status = 'running', assigned_workers = assigned_workers + 1
                 WHERE id = (
                     SELECT s.id FROM stage s
                     JOIN experiment e ON s.experiment_id = e.id
-                    WHERE s.status IN ({",".join(f"'{s}'" for s in status)})
+                    LEFT JOIN stagedependency sd ON s.id = sd.child_id
+                    LEFT JOIN stage p ON sd.parent_id = p.id
+                    GROUP BY s.id
+                    HAVING s.status IN ({status_values})
                     AND e.status = '{ExperimentStatus.ACTIVE}'
                     AND e.base = '{commit}'
                     AND e.machine = '{machine}'
                     AND e.origin = '{origin}'
+                    AND (COUNT(sd.parent_id) = 0 OR SUM(CASE WHEN p.status IN ({parent_finished_statuses}) THEN 1 ELSE 0 END) = COUNT(sd.parent_id))
                     LIMIT 1
                 )
                 RETURNING id
-            """),
+            """)
         )
         row = result.first()
         if row is None:
