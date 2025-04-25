@@ -76,24 +76,21 @@ def test_db(db_engine: Engine):
 
     # claim a stage
     with Session(db_engine) as session:
-        # select all stages
-        stage = Stage.claim(
-            session=session,
-        )
-        assert stage is not None
+        stage = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage.status == StageStatus.PENDING
         assert stage.finished_at is None
         assert stage.started_at is None
-        # get a worker
-        worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
-        job = stage.attach_job(worker=worker)
-        session.add(job)
-        session.commit()
-        session.refresh(job)
-        session.refresh(stage)
-        session.refresh(worker)
-        assert stage.started_at is not None
-        assert stage.started_at == job.started_at
-        assert stage.finished_at is None
+        assert stage.jobs == []
+
+        # select all stages
+        job = Stage.claim(
+            session=session,
+            worker_id=worker.id,
+        )
+        assert job is not None
+        assert job.stage is not None
+        assert job.stage.finished_at is None
+        assert job.stage.started_at is not None
 
         finished_stage = Stage.claim_finished(session=session)
         assert finished_stage is None
@@ -112,17 +109,14 @@ def test_db(db_engine: Engine):
         # select all stages
         stage_2 = Stage.claim(
             session=session,
+            worker_id=worker.id,
         )
         assert stage_2 is None  # all stages are running, max_workers = 1
 
     # now finish the stage
 
-    # Setup
     shutdown_event = threading.Event()
-
-    # Create a mock Popen object
     mock_proc = MagicMock()
-    # Simulate .poll() returning None a few times, then 0 (process finished)
     mock_proc.poll.side_effect = [None, None, 0]
     mock_proc.returncode = 0
 
@@ -131,7 +125,6 @@ def test_db(db_engine: Engine):
         result = run_job(
             engine=db_engine,
             shutdown_event=shutdown_event,
-            stage=stage,
             worker=worker,
             job=job,
         )
@@ -170,35 +163,39 @@ def test_db_parallel_finished(db_engine_parallel: Engine):
         cwd="test_cwd",
         pid=1234,
     )
+    w3 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine_parallel,
+        cwd="test_cwd",
+        pid=1234,
+    )
 
     # claim a stage
     with Session(db_engine_parallel) as session:
         # select all stages
-        stage_1 = Stage.claim(
+        job_1 = Stage.claim(
             session=session,
+            worker_id=w1.id,
         ) # TODO: this should probably return a job?
-        assert stage_1 is not None
-        stage_2 = Stage.claim(
+        assert job_1 is not None
+        job_2 = Stage.claim(
             session=session,
+            worker_id=w2.id,
         )
-        assert stage_2 is not None
-        assert stage_2.id == stage_1.id
+        assert job_2 is not None
+        assert job_2.id != job_1.id
+        assert job_2.stage.id == job_1.stage.id
 
-        stage_3 = Stage.claim(
+        job_3 = Stage.claim(
             session=session,
+            worker_id=w3.id,
         )
-        assert stage_3 is None
+        assert job_3 is None
 
-        # assign workers to the jobs
-        worker_1 = session.exec(select(Worker).where(Worker.id == w1.id)).one()
-        job_1 = stage_1.attach_job(worker=worker_1)
-        session.add(job_1)
-        worker_2 = session.exec(select(Worker).where(Worker.id == w2.id)).one()
-        job_2 = stage_2.attach_job(worker=worker_2)
-        session.add(job_2)
         assert job_1.worker_id != job_2.worker_id
-        assert job_1.worker_id == worker_1.id
-        assert job_2.worker_id == worker_2.id
+        assert job_1.worker_id == w1.id
+        assert job_2.worker_id == w2.id
         assert job_1.id != job_2.id
 
         session.commit()

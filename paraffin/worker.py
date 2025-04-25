@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import Engine
+from sqlmodel import Session
 
 from paraffin.db.app import (
     Job,
@@ -17,13 +18,16 @@ from paraffin.db.app import (
 from paraffin.db.models import Worker, Job, Stage
 
 
+# TODO: make Job.run() a function
 def run_job(
-    stage: Stage,
     job: Job,
     shutdown_event: threading.Event,
     worker: Worker,
     engine: Engine,
 ) -> bool:
+    with Session(engine) as session:
+        stage = session.get(Job, job.id).stage
+        session.refresh(stage)
     cmd = json.loads(stage.cmd)
     print(f"({worker.id}) Running command: {cmd}")
     try:
@@ -84,29 +88,25 @@ def run_worker(
 
     try:
         while not shutdown_event.is_set():
-            res = Job.create(
-                engine=engine,
-                queues=None,
-                worker=worker,
-                experiment=None,
-                stage_name=None,
-            )
-            if res is None and timer is None:
+            with Session(engine) as session:
+                job = Stage.claim(
+                    session=session,
+                    worker_id=worker.id,
+                )
+            if job is None and timer is None:
                 timer = datetime.now()
-            elif res is None and timer is not None:
+            elif job is None and timer is not None:
                 if (datetime.now() - timer).total_seconds() > timeout:
                     print(f"({worker.id}) No job found, shutting down.")
                     break
                 print(f"({worker.id}) No job found, waiting for {timeout} seconds.")
                 time.sleep(max([timeout / 5, 1]))
-            elif res is not None:
+            elif job is not None:
                 timer = None
 
-                stage, job = res
                 active_job = job
 
                 result = run_job(
-                    stage=stage,
                     job=job,
                     shutdown_event=shutdown_event,
                     worker=worker,
@@ -118,9 +118,6 @@ def run_worker(
     finally:
         if active_job is not None:
             print(f"({worker.id}) Job {active_job.id} was interrupted.")
-            stage.update(
-                engine=engine,
-                status=StageStatus.UNFINISHED,
-            )
+            active_job.set_unfinished(engine=engine)
         worker.close(engine=engine)
         print(f"({worker.id}) Worker closed.")

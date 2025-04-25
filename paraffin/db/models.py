@@ -181,40 +181,6 @@ class Job(SQLModel, table=True):
             else:
                 return None
 
-    @staticmethod
-    def create(
-        engine: Engine,
-        worker: "Worker",
-        queues: list | None = None,
-        experiment: int | None = None,
-        stage_name: str | None = None,
-    ) -> tuple["Stage", "Job"] | None:
-        with Session(bind=engine) as session:
-            worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
-            stage = Stage.claim(session)
-            # TODO: don't we need to rollback the SET status = '{StageStatus.RUNNING}' if _all_parents_completed is false?
-            if stage and stage.check_completed_parents():
-                job = stage.attach_job(worker)
-                session.add(job)
-                session.add(stage)
-                session.commit()
-                session.refresh(stage)
-                session.refresh(job)
-                return stage, job
-            else:
-                parallel_stage = Stage.claim(session)
-                if parallel_stage and parallel_stage.check_completed_parents():
-                    print(f"Claimed stage {parallel_stage.name} for parallel execution")
-                    job = parallel_stage.attach_job(worker)
-                    session.add(job)
-                    session.add(parallel_stage)
-                    session.commit()
-                    session.refresh(parallel_stage)
-                    session.refresh(job)
-                    return parallel_stage, job
-
-        return None
-
 
 class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -338,10 +304,11 @@ class Stage(SQLModel, table=True):
     @staticmethod
     def claim(
         session: Session,
+        worker_id: int,
         commit: str = "test",
         origin: str = "test",
         machine: str = "test",
-    ) -> Optional["Stage"]:
+    ) -> Optional["Job"]:
         status = [StageStatus.PENDING, StageStatus.UNKNOWN]
         result = session.exec(
             text(f"""
@@ -361,29 +328,38 @@ class Stage(SQLModel, table=True):
             """),
         )
         row = result.first()
-        if row:
-            return session.exec(select(Stage).where(Stage.id == row[0])).one()
-
-        result = session.exec(
-            text(f"""
-                    UPDATE stage
-                    SET assigned_workers = assigned_workers + 1
-                    WHERE stage.id = (
-                        SELECT stage.id
-                        FROM stage
-                    JOIN experiment ON stage.experiment_id = experiment.id
-                    WHERE stage.status = '{StageStatus.RUNNING}'
-                    AND experiment.status = '{ExperimentStatus.ACTIVE}'
-                    AND experiment.base = '{commit}'
-                    AND experiment.machine = '{machine}'
-                    AND experiment.origin = '{origin}'
-                    AND stage.assigned_workers < stage.max_workers
-                    LIMIT 1
-                )
-                RETURNING id;
-            """),
-        )
-        row = result.first()
-        if row:
-            return session.exec(select(Stage).where(Stage.id == row[0])).one()
-        return None
+        if row is None:
+            # Let's try to claim a stage that can be run in parallel
+            result = session.exec(
+                text(f"""
+                        UPDATE stage
+                        SET assigned_workers = assigned_workers + 1
+                        WHERE stage.id = (
+                            SELECT stage.id
+                            FROM stage
+                        JOIN experiment ON stage.experiment_id = experiment.id
+                        WHERE stage.status = '{StageStatus.RUNNING}'
+                        AND experiment.status = '{ExperimentStatus.ACTIVE}'
+                        AND experiment.base = '{commit}'
+                        AND experiment.machine = '{machine}'
+                        AND experiment.origin = '{origin}'
+                        AND stage.assigned_workers < stage.max_workers
+                        LIMIT 1
+                    )
+                    RETURNING id;
+                """),
+            )
+            row = result.first()
+        if row is None:
+            return None # no stage available
+        stage: "Stage" = session.exec(select(Stage).where(Stage.id == row[0])).one()
+        worker: "Worker" = session.exec(
+            select(Worker).where(Worker.id == worker_id)
+        ).one()
+        job = stage.attach_job(worker)
+        session.add(job)
+        session.add(stage)
+        session.commit()
+        session.refresh(stage)
+        session.refresh(job)
+        return job
