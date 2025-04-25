@@ -1,6 +1,5 @@
 # import datetime
 # import fnmatch
-import datetime
 import typing as t
 
 import networkx as nx
@@ -21,7 +20,6 @@ from paraffin.db.models import (
     Stage,
     StageDependency,
     Worker,
-    WorkerStatus,
 )
 from paraffin.dvc import StageDC, StageStatus
 
@@ -251,38 +249,6 @@ def _all_parents_completed(stage: Stage) -> bool:
         parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED]
         for parent in stage.parents
     )
-
-
-def register_worker(
-    name: str,
-    machine: str,
-    engine: Engine,
-    cwd: str,
-    pid: int,
-    requires_dvc_lock: bool = False,
-) -> Worker:
-    with Session(engine) as session:
-        worker = Worker(
-            name=name,
-            machine=machine,
-            cwd=cwd,
-            pid=pid,
-            requires_dvc_lock=requires_dvc_lock,
-        )
-        session.add(worker)
-        session.commit()
-        session.refresh(worker)
-        return worker
-
-
-def close_worker(worker: Worker, engine: Engine) -> None:
-    with Session(engine) as session:
-        worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
-        worker.status = WorkerStatus.OFFLINE
-        worker.last_seen = datetime.datetime.now()
-        worker.finished_at = datetime.datetime.now()
-        session.add(worker)
-        session.commit()
 
 
 def get_stage_status(

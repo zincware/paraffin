@@ -14,11 +14,10 @@ from paraffin.db.app import (
     Stage,
     StageStatus,
     Worker,
-    close_worker,
     get_job,
-    register_worker,
     update_job,
 )
+from paraffin.db.models import Worker
 
 
 def run_job(
@@ -84,7 +83,7 @@ def run_worker(
 ):
     active_job: Optional[Job] = None
 
-    worker = register_worker(
+    worker = Worker.register(
         name=name,
         machine=socket.gethostname(),
         engine=engine,
@@ -136,5 +135,5 @@ def run_worker(
                 stage_id=active_job.stage_id,
                 status=StageStatus.UNFINISHED,
             )
-        close_worker(worker=worker, engine=engine)
+        worker.close(engine=engine)
         print(f"({worker.id}) Worker closed.")

@@ -1,7 +1,16 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlmodel import Field, Relationship, SQLModel, String, UniqueConstraint
+from sqlalchemy import Engine
+from sqlmodel import (
+    Field,
+    Relationship,
+    Session,
+    SQLModel,
+    String,
+    UniqueConstraint,
+    select,
+)
 
 from paraffin.backports import StrEnum
 from paraffin.dvc import StageStatus
@@ -36,14 +45,44 @@ class Worker(SQLModel, table=True):
     machine: str = Field(max_length=100)
     status: WorkerStatus = Field(sa_type=String, default=WorkerStatus.IDLE, index=True)
     last_seen: datetime = Field(default_factory=datetime.now)
-    cwd: str = Field(default="", max_length=255)  # Current working directory
-    pid: int = Field(default=0)  # Process ID
+    cwd: str = Field(default="", max_length=255)
+    pid: int = Field(default=0)
     started_at: datetime = Field(default_factory=datetime.now)
     finished_at: Optional[datetime] = None
     requires_dvc_lock: bool = Field(default=False)
-
-    # Relationships
     jobs: List["Job"] = Relationship(back_populates="worker")
+
+    @classmethod
+    def register(
+        cls,
+        name: str,
+        machine: str,
+        engine: Engine,
+        cwd: str,
+        pid: int,
+        requires_dvc_lock: bool = False,
+    ) -> "Worker":
+        with Session(engine) as session:
+            worker = cls(
+                name=name,
+                machine=machine,
+                cwd=cwd,
+                pid=pid,
+                requires_dvc_lock=requires_dvc_lock,
+            )
+            session.add(worker)
+            session.commit()
+            session.refresh(worker)
+            return worker
+
+    def close(self, engine: Engine) -> None:
+        with Session(engine) as session:
+            worker = session.exec(select(Worker).where(Worker.id == self.id)).one()
+            worker.status = WorkerStatus.OFFLINE
+            worker.last_seen = datetime.now()
+            worker.finished_at = datetime.now()
+            session.add(worker)
+            session.commit()
 
 
 class StageDependency(SQLModel, table=True):

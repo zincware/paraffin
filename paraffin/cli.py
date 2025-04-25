@@ -6,11 +6,10 @@ import typing as t
 import typer
 
 from paraffin.db.app import (
-    close_worker,
     get_job,
-    register_worker,
     update_job,
 )
+from paraffin.db.models import Worker
 
 app = typer.Typer()
 
@@ -50,7 +49,7 @@ def commit():
     db = "sqlite:///paraffin.db"
 
     engine = create_engine(db)
-    worker = register_worker(
+    worker = Worker.register(
         name=name,
         machine=socket.gethostname(),
         engine=engine,
@@ -106,7 +105,7 @@ def commit():
                 active_job = None
 
     print("No job found.")
-    close_worker(worker=worker, engine=engine)
+    worker.close(engine=engine)
 
 
 @app.command()
