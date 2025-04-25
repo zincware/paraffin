@@ -16,7 +16,50 @@ from paraffin.db.app import (
     get_job,
     register_worker,
     update_job,
+    Stage
 )
+
+def run_job(stage: Stage, job: Job, shutdown_event: threading.Event, worker_id: int, engine: Engine) -> bool:
+    cmd = json.loads(stage.cmd)
+    print(f"({worker_id}) Running command: {cmd}")
+    try:
+        # subprocess.check_call(cmd, shell=True)
+        proc = subprocess.Popen(
+            cmd,
+            shell=True,
+            preexec_fn=os.setsid,
+            universal_newlines=True,
+            cwd=stage.path,
+            env={"PARAFFIN_WORKER_ID": str(worker_id), **os.environ},
+        )
+        # Wait for the process to finish but also check for shutdown
+        while proc.poll() is None and not shutdown_event.is_set():
+            time.sleep(0.1)
+        # If the shutdown event is set, terminate the process
+        if shutdown_event.is_set():
+            proc.terminate()
+            proc.wait()
+            return False
+        # Check the return code
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, cmd)
+        # TODO: only set to finished if the all jobs are finished
+        # TODO: set the job to finished
+        update_job(
+            engine=engine,
+            stage_id=job.stage_id,
+            status=StageStatus.FINISHED,
+        )
+    except subprocess.CalledProcessError:
+        print(f"({worker_id}) Command failed: {cmd}")
+        update_job(
+            engine=engine,
+            stage_id=job.stage_id,
+            status=StageStatus.FAILED,
+        )
+    
+    return True
+    
 
 
 def run_worker(
@@ -58,44 +101,16 @@ def run_worker(
                 stage, job = res
                 active_job = job
 
-                cmd = json.loads(stage.cmd)
-                print(f"({worker_id}) Running command: {cmd}")
-                try:
-                    # subprocess.check_call(cmd, shell=True)
-                    proc = subprocess.Popen(
-                        cmd,
-                        shell=True,
-                        preexec_fn=os.setsid,
-                        universal_newlines=True,
-                        cwd=stage.path,
-                        env={"PARAFFIN_WORKER_ID": str(worker_id), **os.environ},
-                    )
-                    # Wait for the process to finish but also check for shutdown
-                    while proc.poll() is None and not shutdown_event.is_set():
-                        time.sleep(0.1)
-                    # If the shutdown event is set, terminate the process
-                    if shutdown_event.is_set():
-                        proc.terminate()
-                        proc.wait()
-                        break
-                    # Check the return code
-                    if proc.returncode != 0:
-                        raise subprocess.CalledProcessError(proc.returncode, cmd)
-                    # TODO: only set to finished if the all jobs are finished
-                    # TODO: set the job to finished
-                    update_job(
-                        engine=engine,
-                        stage_id=job.stage_id,
-                        status=StageStatus.FINISHED,
-                    )
-                except subprocess.CalledProcessError:
-                    print(f"({worker_id}) Command failed: {cmd}")
-                    update_job(
-                        engine=engine,
-                        stage_id=job.stage_id,
-                        status=StageStatus.FAILED,
-                    )
+                result = run_job(
+                    stage=stage,
+                    job=job,
+                    shutdown_event=shutdown_event,
+                    worker_id=worker_id,
+                    engine=engine,
+                )
                 active_job = None
+                if not result:
+                    break
     finally:
         if active_job is not None:
             print(f"({worker_id}) Job {active_job.id} was interrupted.")
