@@ -4,9 +4,9 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlmodel import create_engine
 
 from paraffin.db.app import get_stage_by_id, list_experiments, list_stages
-from sqlmodel import create_engine
 
 FILE = Path(__file__)
 
