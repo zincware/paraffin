@@ -9,8 +9,8 @@
 
 1. Stage queued
 2. Worker picks up queued Stage, assigns a Job. Stage state changes to `running`
-3. 
-    - Job finishes succesfully, Stage is set to `finished` 
+3.
+    - Job finishes succesfully, Stage is set to `finished`
     - Job failed with exit code 1, Stage is set to `failed`
     - Job failed with exit code 25, Stage is set to `unfinished` and the stage can be resumed by another worker
 4. Alternate scenario
