@@ -131,27 +131,31 @@ class Job(SQLModel, table=True):
 
     def _update_status(self, engine: Engine, new_status: StageStatus) -> None:
         with Session(engine) as session:
+            # Get the current job
             job = session.exec(select(Job).where(Job.id == self.id)).one()
             job.finished_at = datetime.now()
             job.status = new_status
             session.add(job)
+
+            # Get the associated stage (if any)
             stage = job.stage
             if stage is None:
                 session.commit()
                 return
-            if stage.status != StageStatus.RUNNING:
-                raise ValueError("stage is not running")
-            all_jobs_finished = True
-            for job_in_stage in stage.jobs:
-                if job_in_stage.finished_at is None:
-                    all_jobs_finished = False
-                    break
-            if all_jobs_finished:
-                stage.status = new_status  # Use the job's new status for the stage
+
+            # If job failed, the whole stage fails
+            if new_status == StageStatus.FAILED:
+                stage.status = StageStatus.FAILED
                 session.add(stage)
+
+            if stage.status != StageStatus.FAILED:
+                # Check if all jobs in the stage are finished
+                all_jobs_finished = all(j.finished_at is not None for j in stage.jobs)
+                if all_jobs_finished:
+                    stage.status = new_status
+                    session.add(stage)
+
             session.commit()
-            session.refresh(stage)
-            session.refresh(job)
 
     def set_unfinished(self, engine: Engine) -> None:
         self._update_status(engine, StageStatus.UNFINISHED)
