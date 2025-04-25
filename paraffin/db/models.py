@@ -416,22 +416,29 @@ class Stage(SQLModel, table=True):
             """)
         )
         row = result.first()
+        # The issue is, here a new worker will pickup the stage if max_workers has not been reached, but finished can only be set by the last worker.
         if row is None:
             # Let's try to claim a stage that can be run in parallel
+            # If one of the assigend jobs is finished, we assume that the stage is finished
+            #  this can only change if one job ends with failed.
+            # TODO: what if one job ends with unfinished, e.g. something went wrong but allowed to continue?
             result = session.exec(
                 text(f"""
-                        UPDATE stage
-                        SET assigned_workers = assigned_workers + 1
-                        WHERE stage.id = (
-                            SELECT stage.id
-                            FROM stage
+                    UPDATE stage
+                    SET assigned_workers = assigned_workers + 1
+                    WHERE stage.id = (
+                        SELECT stage.id
+                        FROM stage
                         JOIN experiment ON stage.experiment_id = experiment.id
+                        LEFT JOIN job ON stage.id = job.stage_id
                         WHERE stage.status = '{StageStatus.RUNNING}'
                         AND experiment.status = '{ExperimentStatus.ACTIVE}'
                         AND experiment.base = '{commit}'
                         AND experiment.machine = '{machine}'
                         AND experiment.origin = '{origin}'
                         AND stage.assigned_workers < stage.max_workers
+                        GROUP BY stage.id  -- Group by stage.id to use HAVING
+                        HAVING COUNT(CASE WHEN job.status = '{StageStatus.FINISHED}' THEN 1 ELSE NULL END) == 0
                         LIMIT 1
                     )
                     RETURNING id;
