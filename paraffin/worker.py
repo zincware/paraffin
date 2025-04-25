@@ -7,6 +7,8 @@ import time
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import Engine
+
 from paraffin.db.app import (
     Job,
     StageStatus,
@@ -17,13 +19,15 @@ from paraffin.db.app import (
 )
 
 
-def run_worker(name: str, db: str, shutdown_event: threading.Event, timeout: int):
+def run_worker(
+    name: str, engine: Engine, shutdown_event: threading.Event, timeout: int
+):
     active_job: Optional[Job] = None
 
     worker_id = register_worker(
         name=name,
         machine=socket.gethostname(),
-        db_url=db,
+        engine=engine,
         cwd=os.getcwd(),
         pid=os.getpid(),
     )
@@ -33,7 +37,7 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event, timeout: int
     try:
         while not shutdown_event.is_set():
             res = get_job(
-                db_url=db,
+                engine=engine,
                 queues=None,
                 worker_id=worker_id,
                 experiment=None,
@@ -80,14 +84,14 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event, timeout: int
                     # TODO: only set to finished if the all jobs are finished
                     # TODO: set the job to finished
                     update_job(
-                        db_url=db,
+                        engine=engine,
                         stage_id=job.stage_id,
                         status=StageStatus.FINISHED,
                     )
                 except subprocess.CalledProcessError:
                     print(f"({worker_id}) Command failed: {cmd}")
                     update_job(
-                        db_url=db,
+                        engine=engine,
                         stage_id=job.stage_id,
                         status=StageStatus.FAILED,
                     )
@@ -96,9 +100,9 @@ def run_worker(name: str, db: str, shutdown_event: threading.Event, timeout: int
         if active_job is not None:
             print(f"({worker_id}) Job {active_job.id} was interrupted.")
             update_job(
-                db_url=db,
+                engine=engine,
                 stage_id=active_job.stage_id,
                 status=StageStatus.UNFINISHED,
             )
-        close_worker(id=worker_id, db_url=db)
+        close_worker(id=worker_id, engine=engine)
         print(f"({worker_id}) Worker closed.")

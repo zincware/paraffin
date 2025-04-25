@@ -1,4 +1,5 @@
 import zntrack
+from sqlmodel import create_engine
 from typer.testing import CliRunner
 
 from paraffin.cli import app
@@ -26,7 +27,7 @@ def test_run_fails(proj_path):
     result = runner.invoke(app, ["worker"])
     assert result.exit_code == 0
 
-    status = get_stage_status(
-        db_url="sqlite:///paraffin.db", stage_name=failing_node.name
-    )
+    engine = create_engine("sqlite:///paraffin.db")
+
+    status = get_stage_status(engine=engine, stage_name=failing_node.name)
     assert status == StageStatus.FAILED

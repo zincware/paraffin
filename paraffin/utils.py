@@ -1,6 +1,7 @@
 import dataclasses
 
 import networkx as nx
+from sqlalchemy import Engine
 
 from paraffin.db.app import StageStatus, query_existing_experiments
 from paraffin.dvc import get_stage_from_graph
@@ -15,10 +16,10 @@ def prompt_transfer(stage_name: str, current_status: StageStatus) -> bool:
     return answer in ["", "y", "yes", "ja"]
 
 
-def handle_existing_stages(graph, db):
+def handle_existing_stages(graph, engine: Engine):
     # Handle finished and unfinished stages
     for status in [StageStatus.FINISHED, StageStatus.UNFINISHED]:
-        stages = query_existing_experiments(db_url=db, status=status, graph=graph)
+        stages = query_existing_experiments(engine=engine, status=status, graph=graph)
         if not stages:
             continue
 
@@ -32,7 +33,7 @@ def handle_existing_stages(graph, db):
 
     # Handle running stages
     running_stages = query_existing_experiments(
-        db_url=db, status=StageStatus.RUNNING, graph=graph
+        engine=engine, status=StageStatus.RUNNING, graph=graph
     )
     if running_stages:
         print(

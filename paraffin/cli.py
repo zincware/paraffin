@@ -42,16 +42,18 @@ def commit():
 
     import dvc.api
     from dvc.stage.serialize import to_single_stage_lockfile
+    from sqlmodel import create_engine
 
     from paraffin.dvc import StageStatus
 
     name = "paraffin"
     db = "sqlite:///paraffin.db"
 
+    engine = create_engine(db)
     worker_id = register_worker(
         name=name,
         machine=socket.gethostname(),
-        db_url=db,
+        engine=engine,
         cwd=os.getcwd(),
         pid=os.getpid(),
         requires_dvc_lock=True,
@@ -62,7 +64,7 @@ def commit():
     while True:
         try:
             res = get_job(
-                db_url=db,
+                engine=engine,
                 queues=None,
                 worker_id=worker_id,
                 experiment=None,
@@ -86,7 +88,7 @@ def commit():
                 pipelinestage[0].dump(update_pipeline=True, update_lock=True)
 
             update_job(
-                db_url=db,
+                engine=engine,
                 stage_id=job.stage_id,
                 status=StageStatus.COMPLETED,
                 lockfile=json.dumps(
@@ -97,14 +99,14 @@ def commit():
         finally:
             if active_job:
                 update_job(
-                    db_url=db,
+                    engine=engine,
                     stage_id=active_job.stage_id,
                     status=StageStatus.FINISHED,
                 )
                 active_job = None
 
     print("No job found.")
-    close_worker(id=worker_id, db_url=db)
+    close_worker(id=worker_id, engine=engine)
 
 
 @app.command()
@@ -138,6 +140,8 @@ def worker(
     """Start a paraffin worker to process the queued DVC stages."""
     import signal
 
+    from sqlmodel import create_engine
+
     from paraffin.worker import run_worker
 
     shutdown_event = threading.Event()
@@ -148,11 +152,14 @@ def worker(
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
 
+    engine = create_engine(db)
+    # TODO: check!!
+
     threads = []
     for _ in range(jobs):
         t = threading.Thread(
             target=run_worker,
-            args=(name, db, shutdown_event, timeout),
+            args=(name, engine, shutdown_event, timeout),
             daemon=True,
         )
         threads.append(t)
@@ -197,6 +204,11 @@ def submit(
 ):
     """Run DVC stages in parallel."""
     # imports here for better performance
+    from sqlmodel import (
+        SQLModel,
+        create_engine,
+    )
+
     from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
     from paraffin.dvc import cleanup_stages, get_status, print_graph_description
     from paraffin.io import update_max_workers
@@ -205,13 +217,17 @@ def submit(
     # TODO: if there is an experiment, set the stages to outdated
 
     graph = get_status()
-    handle_existing_stages(graph=graph, db=db)
-    update_existing_experiment_stages(db_url=db)
+
+    engine = create_engine(db)
+    SQLModel.metadata.create_all(engine)
+
+    handle_existing_stages(graph=graph, engine=engine)
+    update_existing_experiment_stages(engine=engine)
     cleanup_stages(graph=graph)
     # cleanup all stages that are `queued`
     update_max_workers(graph=graph)
     print_graph_description(graph)
-    save_graph_to_db(graph=graph, db_url=db)
+    save_graph_to_db(graph=graph, engine=engine)
 
 
 @app.command()

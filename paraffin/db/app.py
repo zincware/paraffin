@@ -4,13 +4,12 @@ import datetime
 import typing as t
 
 import networkx as nx
+from sqlalchemy import Engine
 
 # import networkx as nx
 # from dvc.stage.cache import _get_cache_hash
 from sqlmodel import (
     Session,
-    SQLModel,
-    create_engine,
     select,
     text,
 )
@@ -32,15 +31,12 @@ from paraffin.dvc import StageDC, StageStatus
 
 
 def query_existing_experiments(
-    db_url: str, status: StageStatus, graph: nx.DiGraph
+    engine: Engine, status: StageStatus, graph: nx.DiGraph
 ) -> list[Stage]:
     # TODO
     commit = "test"
     origin = "test"
     machine = "test"
-
-    engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
 
     stages = []
 
@@ -65,14 +61,11 @@ def query_existing_experiments(
     return stages
 
 
-def update_existing_experiment_stages(db_url: str) -> None:
+def update_existing_experiment_stages(engine: Engine) -> None:
     # TODO: instead of updating the stages we can keep that information and update the experiment!
     commit = "test"
     origin = "test"
     machine = "test"
-
-    engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
         statement = select(Experiment).where(
@@ -89,10 +82,7 @@ def update_existing_experiment_stages(db_url: str) -> None:
         session.commit()
 
 
-def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
-    engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
-
+def save_graph_to_db(graph: nx.DiGraph, engine: Engine) -> None:
     # TODO
     commit = "test"
     origin = "test"
@@ -136,7 +126,7 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
 
 
 def update_job(
-    db_url: str,
+    engine: Engine,
     stage_id: int,
     status: StageStatus,
     **kwargs: t.Any,
@@ -144,7 +134,6 @@ def update_job(
     """
     Update the status of a job in the database.
     """
-    engine = create_engine(db_url)
     with Session(engine) as session:
         statement = select(Stage).where(Stage.id == stage_id)
         results = session.exec(statement)
@@ -220,14 +209,13 @@ def claim_stage_parallel(
 
 
 def get_job(
-    db_url: str,
+    engine: Engine,
     worker_id: int,
     status: list[StageStatus],
     queues: list | None = None,
     experiment: int | None = None,
     stage_name: str | None = None,
 ) -> tuple[Stage, Job] | None:
-    engine = create_engine(db_url)
     with Session(bind=engine) as session:
         worker = session.exec(select(Worker).where(Worker.id == worker_id)).one()
         stage = claim_stage(session, status=status)
@@ -268,12 +256,11 @@ def _all_parents_completed(stage: Stage) -> bool:
 def register_worker(
     name: str,
     machine: str,
-    db_url: str,
+    engine: Engine,
     cwd: str,
     pid: int,
     requires_dvc_lock: bool = False,
 ) -> int:
-    engine = create_engine(db_url)
     with Session(engine) as session:
         worker = Worker(
             name=name,
@@ -287,8 +274,7 @@ def register_worker(
         return worker.id
 
 
-def close_worker(id: int, db_url: str) -> None:
-    engine = create_engine(db_url)
+def close_worker(id: int, engine: Engine) -> None:
     with Session(engine) as session:
         worker = session.exec(select(Worker).where(Worker.id == id)).one()
         worker.status = WorkerStatus.OFFLINE
@@ -299,13 +285,12 @@ def close_worker(id: int, db_url: str) -> None:
 
 
 def get_stage_status(
-    db_url: str,
+    engine: Engine,
     stage_name: str | None = None,
 ) -> StageStatus:
     """
     Get the status of a stage in the database.
     """
-    engine = create_engine(db_url)
     with Session(engine) as session:
         statement = select(Stage).where(Stage.name == stage_name)
         results = session.exec(statement)
@@ -313,10 +298,7 @@ def get_stage_status(
         return stage.status
 
 
-def export_db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
-    engine = create_engine(db_url)
-    SQLModel.metadata.create_all(engine)
-
+def export_db_to_graph(engine: Engine, experiment_id: int = 1) -> nx.DiGraph:
     with Session(engine) as session:
         statement = select(Stage).where(Stage.experiment_id == experiment_id)
         results = session.exec(statement)
@@ -345,10 +327,8 @@ def export_db_to_graph(db_url: str, experiment_id: int = 1) -> nx.DiGraph:
     return graph
 
 
-def list_experiments(db_url: str) -> list[dict]:
+def list_experiments(engine: Engine) -> list[dict]:
     # return [{"created_at": 1234567890, "base": "test", "origin": "test", "id": "1", "machine": "test"}]
-    engine = create_engine(db_url)
-
     with Session(engine) as session:
         statement = select(Experiment)
         results = session.exec(statement)
@@ -366,9 +346,7 @@ def list_experiments(db_url: str) -> list[dict]:
         ]
 
 
-def list_stages(db_url: str, experiment_id: int) -> list[dict]:
-    engine = create_engine(db_url)
-
+def list_stages(engine: Engine, experiment_id: int) -> list[dict]:
     with Session(engine) as session:
         statement = select(Stage).where(Stage.experiment_id == experiment_id)
         results = session.exec(statement)
@@ -383,9 +361,7 @@ def list_stages(db_url: str, experiment_id: int) -> list[dict]:
         ]
 
 
-def get_stage_by_id(db_url: str, stage_id: int) -> StageDC:
-    engine = create_engine(db_url)
-
+def get_stage_by_id(engine: Engine, stage_id: int) -> StageDC:
     with Session(engine) as session:
         statement = select(Stage).where(Stage.id == stage_id)
         results = session.exec(statement)
