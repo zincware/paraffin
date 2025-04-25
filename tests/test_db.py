@@ -7,7 +7,7 @@ import zntrack.examples
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from paraffin.db.app import claim_stage, save_graph_to_db
+from paraffin.db.app import save_graph_to_db
 from paraffin.db.models import Stage, Worker
 from paraffin.dvc import StageStatus, get_status
 from paraffin.worker import run_job
@@ -47,7 +47,7 @@ def test_db_graph_conversion(db_engine):
     # claim a stage
     with Session(db_engine) as session:
         # select all stages
-        stage = claim_stage(
+        stage = Stage.claim(
             session=session,
             status=[StageStatus.PENDING],
         )
@@ -73,7 +73,7 @@ def test_db_graph_conversion(db_engine):
 
     with Session(db_engine) as session:
         # select all stages
-        stage_2 = claim_stage(
+        stage_2 = Stage.claim(
             session=session,
             status=[StageStatus.PENDING],
         )

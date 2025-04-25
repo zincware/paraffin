@@ -6,10 +6,9 @@ import typing as t
 import typer
 
 from paraffin.db.app import (
-    get_job,
     update_job,
 )
-from paraffin.db.models import Worker
+from paraffin.db.models import Worker, Job
 
 app = typer.Typer()
 
@@ -62,7 +61,7 @@ def commit():
     fs = dvc.api.DVCFileSystem()
     while True:
         try:
-            res = get_job(
+            res = Job.create(
                 engine=engine,
                 queues=None,
                 worker=worker,

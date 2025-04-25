@@ -14,10 +14,9 @@ from paraffin.db.app import (
     Stage,
     StageStatus,
     Worker,
-    get_job,
     update_job,
 )
-from paraffin.db.models import Worker
+from paraffin.db.models import Worker, Job
 
 
 def run_job(
@@ -95,7 +94,7 @@ def run_worker(
 
     try:
         while not shutdown_event.is_set():
-            res = get_job(
+            res = Job.create(
                 engine=engine,
                 queues=None,
                 worker=worker,

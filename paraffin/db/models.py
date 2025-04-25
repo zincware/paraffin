@@ -10,6 +10,7 @@ from sqlmodel import (
     String,
     UniqueConstraint,
     select,
+    text,
 )
 
 from paraffin.backports import StrEnum
@@ -122,6 +123,41 @@ class Job(SQLModel, table=True):
     stage: Optional["Stage"] = Relationship(back_populates="jobs")
     worker: Optional[Worker] = Relationship(back_populates="jobs")
 
+    @staticmethod
+    def create(
+        engine: Engine,
+        worker: Worker,
+        status: list[StageStatus],
+        queues: list | None = None,
+        experiment: int | None = None,
+        stage_name: str | None = None,
+    ) -> tuple["Stage", "Job"] | None:
+        with Session(bind=engine) as session:
+            worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
+            stage = Stage.claim(session, status=status)
+            # TODO: don't we need to rollback the SET status = '{StageStatus.RUNNING}' if _all_parents_completed is false?
+            if stage and stage.check_completed_parents():
+                job = stage.attach_job(worker)
+                session.add(job)
+                session.add(stage)
+                session.commit()
+                session.refresh(stage)
+                session.refresh(job)
+                return stage, job
+            else:
+                parallel_stage = Stage.claim_parallel(session)
+                if parallel_stage and parallel_stage.check_completed_parents():
+                    print(f"Claimed stage {parallel_stage.name} for parallel execution")
+                    job = parallel_stage.attach_job(worker)
+                    session.add(job)
+                    session.add(parallel_stage)
+                    session.commit()
+                    session.refresh(parallel_stage)
+                    session.refresh(job)
+                    return parallel_stage, job
+
+        return None
+
 
 class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -175,3 +211,75 @@ class Stage(SQLModel, table=True):
         job = Job(stage_id=self.id, worker_id=worker.id)
         self.jobs.append(job)
         return job
+
+    def check_completed_parents(self) -> bool:
+        """
+        Check if all parents of a job are completed.
+        """
+        return all(
+            parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED]
+            for parent in self.parents
+        )
+
+    @staticmethod
+    def claim(
+        session: Session,
+        status: list[StageStatus],
+        commit: str = "test",
+        origin: str = "test",
+        machine: str = "test",
+    ) -> Optional["Stage"]:
+        result = session.exec(
+            text(f"""
+            UPDATE stage
+            SET status = '{StageStatus.RUNNING}'
+            WHERE id = (
+                SELECT s.id FROM stage s
+                JOIN experiment e ON s.experiment_id = e.id
+                WHERE s.status IN ({",".join(f"'{s}'" for s in status)})
+                AND e.status = '{ExperimentStatus.ACTIVE}'
+                AND e.base = '{commit}'
+                AND e.machine = '{machine}'
+                AND e.origin = '{origin}'
+                LIMIT 1
+            )
+            RETURNING id
+        """),
+        )
+        row = result.first()
+        if row:
+            return session.exec(select(Stage).where(Stage.id == row[0])).one()
+        return None
+
+    @staticmethod
+    def claim_parallel(
+        session: Session,
+    ) -> Optional["Stage"]:
+        """Claim a stage for parallel execution."""
+        commit = "test"
+        origin = "test"
+        machine = "test"
+
+        result = session.exec(
+            text(f"""
+                UPDATE stage
+                SET assigned_workers = assigned_workers + 1
+                WHERE stage.id = (
+                    SELECT stage.id
+                    FROM stage
+                JOIN experiment ON stage.experiment_id = experiment.id
+                WHERE stage.status = '{StageStatus.RUNNING}'
+                AND experiment.status = '{ExperimentStatus.ACTIVE}'
+                AND experiment.base = '{commit}'
+                AND experiment.machine = '{machine}'
+                AND experiment.origin = '{origin}'
+                AND stage.assigned_workers < stage.max_workers
+                LIMIT 1
+            )
+            RETURNING id;
+        """),
+        )
+        row = result.first()
+        if row:
+            return session.exec(select(Stage).where(Stage.id == row[0])).one()
+        return None
