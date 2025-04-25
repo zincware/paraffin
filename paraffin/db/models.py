@@ -130,6 +130,9 @@ class Job(SQLModel, table=True):
     worker: Optional["Worker"] = Relationship(back_populates="jobs")
 
     def _update_status(self, engine: Engine, new_status: StageStatus) -> None:
+        if self.finished_at is not None:
+            raise ValueError("Job has already finished.")
+        # This always closes the job
         with Session(engine) as session:
             # Get the current job
             job = session.exec(select(Job).where(Job.id == self.id)).one()
@@ -142,6 +145,12 @@ class Job(SQLModel, table=True):
             if stage is None:
                 session.commit()
                 return
+            
+            stage.assigned_workers -= 1
+            if stage.assigned_workers < 0:
+                raise ValueError(
+                    f"Assigned workers for stage {stage.id} cannot be negative."
+                )
 
             # If job failed, the whole stage fails
             if new_status == StageStatus.FAILED:
@@ -257,13 +266,11 @@ class Stage(SQLModel, table=True):
     cache: bool = Field(default=False)  # Use the paraffin cache for this job
     force: bool = Field(default=False)  # Rerun the job even if cached
     max_workers: int = Field(default=1)  # Maximum number of workers for this job
-    assigned_workers: int = Field(default=1)
+    assigned_workers: int = Field(default=0)
     # Number of workers assigned to this job
     # we can infer this from the jobs table
     # but we need an atomic operation for assigning workers
     # and thus we need a table for this!
-    # the default value is 1, because the first worker will be assigned
-    # seperately and this field is not requried for that!
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     path: str = Field(default=".")  # Path to the dvc.yaml file
@@ -369,11 +376,11 @@ class Stage(SQLModel, table=True):
         origin: str = "test",
         machine: str = "test",
     ) -> Optional["Job"]:
-        status = [StageStatus.PENDING, StageStatus.UNKNOWN]
+        status = [StageStatus.PENDING, StageStatus.UNKNOWN, StageStatus.UNFINISHED]
         result = session.exec(
             text(f"""
                 UPDATE stage
-                SET status = '{StageStatus.RUNNING}'
+                SET status = '{StageStatus.RUNNING}', assigned_workers = assigned_workers + 1
                 WHERE id = (
                     SELECT s.id FROM stage s
                     JOIN experiment e ON s.experiment_id = e.id

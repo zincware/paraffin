@@ -311,3 +311,117 @@ def test_db_parallel_last_failed(db_engine_parallel: Engine):
         assert len(stage_1.jobs) == 2
         assert stage_1.jobs[0].status == StageStatus.FINISHED
         assert stage_1.jobs[1].status == StageStatus.FAILED
+
+
+def test_db_unfinished_continue(db_engine: Engine):
+    w1 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine,
+        cwd="test_cwd",
+        pid=1234,
+    )
+
+    with Session(db_engine) as session:
+        # select all stages
+        job_1 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+
+        session.commit()
+        session.refresh(job_1)
+
+    assert job_1 is not None
+
+    job_1.set_unfinished(engine=db_engine)
+
+    with Session(db_engine) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.UNFINISHED
+        assert stage_1.assigned_workers == 0
+
+    # claim again and finish this time
+
+    with Session(db_engine) as session:
+        # select all stages
+        job_2 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        assert job_2 is not None
+        assert job_2.stage is not None
+        assert job_2.stage.assigned_workers == 1
+    
+        session.commit()
+        session.refresh(job_2)
+    
+    assert job_2.id != job_1.id
+
+    job_2.set_finished(engine=db_engine)
+
+    with Session(db_engine) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.FINISHED
+        assert stage_1.finished_at is not None
+        assert stage_1.started_at is not None
+        assert len(stage_1.jobs) == 2
+        assert stage_1.jobs[0].status == StageStatus.UNFINISHED
+        assert stage_1.jobs[1].status == StageStatus.FINISHED
+        assert stage_1.assigned_workers == 0
+
+def test_db_unfinished_failed(db_engine: Engine):
+    w1 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine,
+        cwd="test_cwd",
+        pid=1234,
+    )
+
+    with Session(db_engine) as session:
+        # select all stages
+        job_1 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+
+        session.commit()
+        session.refresh(job_1)
+
+    assert job_1 is not None
+
+    job_1.set_unfinished(engine=db_engine)
+
+    with Session(db_engine) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.UNFINISHED
+        assert stage_1.assigned_workers == 0
+
+    # claim again and finish this time
+
+    with Session(db_engine) as session:
+        # select all stages
+        job_2 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        assert job_2 is not None
+        assert job_2.stage is not None
+        assert job_2.stage.assigned_workers == 1
+    
+        session.commit()
+        session.refresh(job_2)
+    
+    assert job_2.id != job_1.id
+
+    job_2.set_failed(engine=db_engine)
+
+    with Session(db_engine) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.FAILED
+        assert stage_1.finished_at is not None
+        assert stage_1.started_at is not None
+        assert len(stage_1.jobs) == 2
+        assert stage_1.jobs[0].status == StageStatus.UNFINISHED
+        assert stage_1.jobs[1].status == StageStatus.FAILED
