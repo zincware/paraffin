@@ -5,9 +5,6 @@ import typing as t
 
 import typer
 
-from paraffin.db.app import (
-    update_job,
-)
 from paraffin.db.models import Worker, Job
 
 app = typer.Typer()
@@ -85,9 +82,8 @@ def commit():
                 pipelinestage[0].commit()
                 pipelinestage[0].dump(update_pipeline=True, update_lock=True)
 
-            update_job(
+            stage.update(
                 engine=engine,
-                stage_id=job.stage_id,
                 status=StageStatus.COMPLETED,
                 lockfile=json.dumps(
                     to_single_stage_lockfile(pipelinestage[0], with_files=True)
@@ -96,9 +92,8 @@ def commit():
             active_job = None
         finally:
             if active_job:
-                update_job(
+                stage.update(
                     engine=engine,
-                    stage_id=active_job.stage_id,
                     status=StageStatus.FINISHED,
                 )
                 active_job = None

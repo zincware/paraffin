@@ -123,27 +123,6 @@ def save_graph_to_db(graph: nx.DiGraph, engine: Engine) -> None:
         session.commit()
 
 
-def update_job(
-    engine: Engine,
-    stage_id: int,
-    status: StageStatus,
-    **kwargs: t.Any,
-) -> None:
-    """
-    Update the status of a job in the database.
-    """
-    with Session(engine) as session:
-        statement = select(Stage).where(Stage.id == stage_id)
-        results = session.exec(statement)
-        stage = results.one()
-        stage.status = status
-        for key, value in kwargs.items():
-            if hasattr(stage, key):
-                setattr(stage, key, value)
-        session.add(stage)
-        session.commit()
-
-
 def get_stage_status(
     engine: Engine,
     stage_name: str | None = None,

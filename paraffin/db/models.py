@@ -158,7 +158,6 @@ class Job(SQLModel, table=True):
 
         return None
 
-
 class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
@@ -211,6 +210,24 @@ class Stage(SQLModel, table=True):
         job = Job(stage_id=self.id, worker_id=worker.id)
         self.jobs.append(job)
         return job
+    
+    def update(
+        self,
+        engine: Engine,
+        status: StageStatus,
+        **kwargs: dict
+    ) -> None:
+        """
+        Update the status of a job in the database.
+        """
+        with Session(engine) as session:
+            self.status = status
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+            session.add(self)
+            session.commit()
+            session.refresh(self)
 
     def check_completed_parents(self) -> bool:
         """

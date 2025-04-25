@@ -11,12 +11,10 @@ from sqlalchemy import Engine
 
 from paraffin.db.app import (
     Job,
-    Stage,
     StageStatus,
     Worker,
-    update_job,
 )
-from paraffin.db.models import Worker, Job
+from paraffin.db.models import Worker, Job, Stage
 
 
 def run_job(
@@ -51,9 +49,8 @@ def run_job(
             # The job was interrupted on purpose
             #  and should be marked as unfinished
             print(f"({worker.id}) Job was interrupted: {cmd}")
-            update_job(
+            stage.update(
                 engine=engine,
-                stage_id=job.stage_id,
                 status=StageStatus.UNFINISHED,
             )
             return False
@@ -61,16 +58,14 @@ def run_job(
             raise subprocess.CalledProcessError(proc.returncode, cmd)
         # TODO: only set to finished if the all jobs are finished
         # TODO: set the job to finished
-        update_job(
+        stage.update(
             engine=engine,
-            stage_id=job.stage_id,
             status=StageStatus.FINISHED,
         )
     except subprocess.CalledProcessError:
         print(f"({worker.id}) Command failed: {cmd}")
-        update_job(
+        stage.update(
             engine=engine,
-            stage_id=job.stage_id,
             status=StageStatus.FAILED,
         )
 
@@ -129,9 +124,8 @@ def run_worker(
     finally:
         if active_job is not None:
             print(f"({worker.id}) Job {active_job.id} was interrupted.")
-            update_job(
+            stage.update(
                 engine=engine,
-                stage_id=active_job.stage_id,
                 status=StageStatus.UNFINISHED,
             )
         worker.close(engine=engine)
