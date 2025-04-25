@@ -59,6 +59,7 @@ class StageDC:
     cmd: str | None
     path: str
     lockfile: str | None
+    max_workers: int = 1
 
 
 def get_stage_from_graph(graph: nx.DiGraph, stage: str) -> StageDC:

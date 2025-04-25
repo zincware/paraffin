@@ -117,6 +117,7 @@ def save_graph_to_db(graph: nx.DiGraph, db_url: str) -> None:
                 force=False,
                 path=node.path,
                 lockfile_content=node.lockfile,
+                max_workers=node.max_workers,
             )
             session.add(job)
 
@@ -185,6 +186,37 @@ def claim_stage(session: Session, status: list[StageStatus]) -> t.Optional[Stage
     return None
 
 
+def claim_stage_parallel(session: Session,) -> t.Optional[Stage]:
+    """Claim a stage for parallel execution."""
+    commit = "test"
+    origin = "test"
+    machine = "test"
+
+    result = session.exec(
+        text(f"""
+            UPDATE stage
+            SET assigned_workers = assigned_workers + 1
+            WHERE stage.id = (
+                SELECT stage.id
+                FROM stage
+            JOIN experiment ON stage.experiment_id = experiment.id
+            WHERE stage.status = '{StageStatus.RUNNING}'
+            AND experiment.status = '{ExperimentStatus.ACTIVE}'
+            AND experiment.base = '{commit}'
+            AND experiment.machine = '{machine}'
+            AND experiment.origin = '{origin}'
+            AND stage.assigned_workers < stage.max_workers
+            LIMIT 1
+        )
+        RETURNING id;
+    """),
+    )
+    row = result.first()
+    if row:
+        return session.exec(select(Stage).where(Stage.id == row[0])).one()
+    return None
+
+
 def get_job(
     db_url: str,
     worker_id: int,
@@ -197,7 +229,7 @@ def get_job(
     with Session(bind=engine) as session:
         worker = session.exec(select(Worker).where(Worker.id == worker_id)).one()
         stage = claim_stage(session, status=status)
-
+        # TODO: don't we need to rollback the SET status = '{StageStatus.RUNNING}' if _all_parents_completed is false?
         if stage and _all_parents_completed(stage):
             job = stage.attach_job(worker)
             session.add(job)
@@ -206,6 +238,17 @@ def get_job(
             session.refresh(stage)
             session.refresh(job)
             return stage, job
+        else:
+            parallel_stage =  claim_stage_parallel(session)
+            if parallel_stage and _all_parents_completed(parallel_stage):
+                print(f"Claimed stage {parallel_stage.name} for parallel execution")
+                job = parallel_stage.attach_job(worker)
+                session.add(job)
+                session.add(parallel_stage)
+                session.commit()
+                session.refresh(parallel_stage)
+                session.refresh(job)
+                return parallel_stage, job
 
     return None
 

@@ -152,7 +152,7 @@ def worker(
     for _ in range(jobs):
         t = threading.Thread(
             target=run_worker,
-            args=(name, db, shutdown_event),
+            args=(name, db, shutdown_event, timeout),
             daemon=True,
         )
         threads.append(t)
@@ -200,6 +200,7 @@ def submit(
     from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
     from paraffin.dvc import cleanup_stages, get_status, print_graph_description
     from paraffin.utils import handle_existing_stages
+    from paraffin.io import update_max_workers
 
     # TODO: if there is an experiment, set the stages to outdated
 
@@ -208,6 +209,7 @@ def submit(
     update_existing_experiment_stages(db_url=db)
     cleanup_stages(graph=graph)
     # cleanup all stages that are `queued`
+    update_max_workers(graph=graph)
     print_graph_description(graph)
     save_graph_to_db(graph=graph, db_url=db)
 
