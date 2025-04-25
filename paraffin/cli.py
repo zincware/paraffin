@@ -199,8 +199,8 @@ def submit(
     # imports here for better performance
     from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
     from paraffin.dvc import cleanup_stages, get_status, print_graph_description
-    from paraffin.utils import handle_existing_stages
     from paraffin.io import update_max_workers
+    from paraffin.utils import handle_existing_stages
 
     # TODO: if there is an experiment, set the stages to outdated
 

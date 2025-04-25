@@ -186,7 +186,9 @@ def claim_stage(session: Session, status: list[StageStatus]) -> t.Optional[Stage
     return None
 
 
-def claim_stage_parallel(session: Session,) -> t.Optional[Stage]:
+def claim_stage_parallel(
+    session: Session,
+) -> t.Optional[Stage]:
     """Claim a stage for parallel execution."""
     commit = "test"
     origin = "test"
@@ -239,7 +241,7 @@ def get_job(
             session.refresh(job)
             return stage, job
         else:
-            parallel_stage =  claim_stage_parallel(session)
+            parallel_stage = claim_stage_parallel(session)
             if parallel_stage and _all_parents_completed(parallel_stage):
                 print(f"Claimed stage {parallel_stage.name} for parallel execution")
                 job = parallel_stage.attach_job(worker)

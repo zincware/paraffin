@@ -4,8 +4,8 @@ import socket
 import subprocess
 import threading
 import time
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from paraffin.db.app import (
     Job,
