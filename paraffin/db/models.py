@@ -145,7 +145,7 @@ class Job(SQLModel, table=True):
             if stage is None:
                 session.commit()
                 return
-            
+
             stage.assigned_workers -= 1
             if stage.assigned_workers < 0:
                 raise ValueError(

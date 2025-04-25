@@ -8,10 +8,6 @@ from typing import Optional
 from sqlalchemy import Engine
 from sqlmodel import Session
 
-from paraffin.db.app import (
-    Job,
-    Worker,
-)
 from paraffin.db.models import Job, Stage, Worker
 
 
