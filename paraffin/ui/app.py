@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from paraffin.db.app import get_stage_by_id, list_experiments, list_stages
+from sqlmodel import create_engine
 
 FILE = Path(__file__)
 
@@ -25,19 +26,22 @@ api_router = APIRouter(prefix="/api/v1")
 @api_router.get("/experiments")
 def read_experiments():
     db_url = os.environ["PARAFFIN_DB"]
-    return list_experiments(db_url=db_url)
+    engine = create_engine(db_url)
+    return list_experiments(engine=engine)
 
 
 @api_router.get("/stages")
 def read_stages(experiment: str):
     db_url = os.environ["PARAFFIN_DB"]
-    return list_stages(experiment_id=int(experiment), db_url=db_url)
+    engine = create_engine(db_url)
+    return list_stages(experiment_id=int(experiment), engine=engine)
 
 
 @api_router.get("/stage")
 def read_stage(id: int):
     db_url = os.environ["PARAFFIN_DB"]
-    return get_stage_by_id(stage_id=id, db_url=db_url)
+    engine = create_engine(db_url)
+    return get_stage_by_id(stage_id=id, engine=engine)
 
 
 app.include_router(api_router)
