@@ -191,19 +191,41 @@ class Job(SQLModel, table=True):
             session.refresh(stage)
             session.refresh(job)
 
+    @staticmethod
+    def create_for_commit(
+        engine: Engine,
+        worker: Worker,
+        queues: list | None = None,
+        experiment: int | None = None,
+        stage_name: str | None = None,
+    ) -> tuple["Stage", "Job"] | None:
+        """
+        Create a job for a stage in the database.
+        """
+        with Session(bind=engine) as session:
+            stage = Stage.claim_finished(session)
+            if stage and stage.check_completed_parents():
+                job = stage.attach_job(worker)
+                session.add(job)
+                session.add(stage)
+                session.commit()
+                session.refresh(stage)
+                session.refresh(job)
+                return stage, job
+            else:
+                return None
 
     @staticmethod
     def create(
         engine: Engine,
         worker: Worker,
-        status: list[StageStatus],
         queues: list | None = None,
         experiment: int | None = None,
         stage_name: str | None = None,
     ) -> tuple["Stage", "Job"] | None:
         with Session(bind=engine) as session:
             worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
-            stage = Stage.claim(session, status=status)
+            stage = Stage.claim(session)
             # TODO: don't we need to rollback the SET status = '{StageStatus.RUNNING}' if _all_parents_completed is false?
             if stage and stage.check_completed_parents():
                 job = stage.attach_job(worker)
@@ -214,7 +236,7 @@ class Job(SQLModel, table=True):
                 session.refresh(job)
                 return stage, job
             else:
-                parallel_stage = Stage.claim_parallel(session)
+                parallel_stage = Stage.claim(session)
                 if parallel_stage and parallel_stage.check_completed_parents():
                     print(f"Claimed stage {parallel_stage.name} for parallel execution")
                     job = parallel_stage.attach_job(worker)
@@ -317,15 +339,45 @@ class Stage(SQLModel, table=True):
             parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED]
             for parent in self.parents
         )
+    
 
     @staticmethod
-    def claim(
+    def claim_finished(
         session: Session,
-        status: list[StageStatus],
         commit: str = "test",
         origin: str = "test",
         machine: str = "test",
     ) -> Optional["Stage"]:
+        result = session.exec(
+            text(f"""
+            UPDATE stage
+            SET status = '{StageStatus.RUNNING}'
+            WHERE id = (
+                SELECT s.id FROM stage s
+                JOIN experiment e ON s.experiment_id = e.id
+                WHERE s.status = '{StageStatus.FINISHED}'
+                AND e.status = '{ExperimentStatus.ACTIVE}'
+                AND e.base = '{commit}'
+                AND e.machine = '{machine}'
+                AND e.origin = '{origin}'
+                LIMIT 1
+            )
+            RETURNING id
+        """),
+        )
+        row = result.first()
+        if row:
+            return session.exec(select(Stage).where(Stage.id == row[0])).one()
+        return None
+
+    @staticmethod
+    def claim(
+        session: Session,
+        commit: str = "test",
+        origin: str = "test",
+        machine: str = "test",
+    ) -> Optional["Stage"]:
+        status=[StageStatus.PENDING, StageStatus.UNKNOWN]
         result = session.exec(
             text(f"""
             UPDATE stage
@@ -346,17 +398,7 @@ class Stage(SQLModel, table=True):
         row = result.first()
         if row:
             return session.exec(select(Stage).where(Stage.id == row[0])).one()
-        return None
-
-    @staticmethod
-    def claim_parallel(
-        session: Session,
-    ) -> Optional["Stage"]:
-        """Claim a stage for parallel execution."""
-        commit = "test"
-        origin = "test"
-        machine = "test"
-
+        
         result = session.exec(
             text(f"""
                 UPDATE stage

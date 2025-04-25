@@ -90,7 +90,6 @@ def run_worker(
                 worker=worker,
                 experiment=None,
                 stage_name=None,
-                status=[StageStatus.PENDING, StageStatus.UNKNOWN],
             )
             if res is None and timer is None:
                 timer = datetime.now()

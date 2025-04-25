@@ -11,6 +11,7 @@ from paraffin.db.app import save_graph_to_db
 from paraffin.db.models import Stage, Worker
 from paraffin.dvc import StageStatus, get_status
 from paraffin.worker import run_job
+import dataclasses
 
 
 @pytest.fixture
@@ -35,7 +36,35 @@ def db_engine(proj_path) -> Engine:
     return engine
 
 
-def test_db_graph_conversion(db_engine):
+@pytest.fixture
+def db_engine_parallel(proj_path) -> Engine:
+    project = zntrack.Project()
+
+    with project:
+        _ = zntrack.examples.ParamsToOuts(params=1)
+    project.build()
+
+    db_path = "sqlite:///:memory:"
+    status_graph: nx.DiGraph = get_status()
+    mapping = {}
+    for node in status_graph:
+        mapping[node] = dataclasses.replace(
+            node,
+            max_workers=2,
+        )
+    status_graph = nx.relabel_nodes(status_graph, mapping)
+
+    engine = create_engine(db_path)
+    SQLModel.metadata.create_all(engine)
+
+    save_graph_to_db(
+        engine=engine,
+        graph=status_graph,
+    )
+
+    return engine
+
+def test_db(db_engine: Engine):
     worker = Worker.register(
         name="test_worker",
         machine="test_machine",
@@ -49,7 +78,6 @@ def test_db_graph_conversion(db_engine):
         # select all stages
         stage = Stage.claim(
             session=session,
-            status=[StageStatus.PENDING],
         )
         assert stage is not None
         assert stage.finished_at is None
@@ -66,6 +94,9 @@ def test_db_graph_conversion(db_engine):
         assert stage.started_at == job.started_at
         assert stage.finished_at is None
 
+        finished_stage = Stage.claim_finished(session=session)
+        assert finished_stage is None
+
     # now assert that the stage is running
 
     with Session(db_engine) as session:
@@ -80,7 +111,6 @@ def test_db_graph_conversion(db_engine):
         # select all stages
         stage_2 = Stage.claim(
             session=session,
-            status=[StageStatus.PENDING],
         )
         assert stage_2 is None  # all stages are running, max_workers = 1
 
@@ -118,3 +148,48 @@ def test_db_graph_conversion(db_engine):
         assert stage.jobs[0].worker_id == worker.id
         assert stage.finished_at is not None
         assert stage.started_at is not None
+
+        finished_stage = Stage.claim_finished(session=session)
+        assert finished_stage is not None
+        assert finished_stage.id == stage.id
+
+
+def test_db_parallel(db_engine_parallel: Engine):
+    worker = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine_parallel,
+        cwd="test_cwd",
+        pid=1234,
+    )
+
+    # claim a stage
+    with Session(db_engine_parallel) as session:
+        # select all stages
+        stage_1 = Stage.claim(
+            session=session,
+        )
+        assert stage_1 is not None
+        stage_2 = Stage.claim(
+            session=session,
+        )
+        assert stage_2 is not None
+
+        stage_3 = Stage.claim(
+            session=session,
+        )
+        assert stage_3 is None
+
+        # assert stage.finished_at is None
+        # assert stage.started_at is None
+        # # get a worker
+        # worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
+        # job = stage.attach_job(worker=worker)
+        # session.add(job)
+        # session.commit()
+        # session.refresh(job)
+        # session.refresh(stage)
+        # session.refresh(worker)
+        # assert stage.started_at is not None
+        # assert stage.started_at == job.started_at
+        # assert stage.finished_at is None

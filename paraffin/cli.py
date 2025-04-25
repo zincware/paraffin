@@ -58,13 +58,12 @@ def commit():
     fs = dvc.api.DVCFileSystem()
     while True:
         try:
-            res = Job.create(
+            res = Job.create_for_commit(
                 engine=engine,
                 queues=None,
                 worker=worker,
                 experiment=None,
                 stage_name=None,
-                status=[StageStatus.FINISHED],
             )
             if res is None:
                 break
