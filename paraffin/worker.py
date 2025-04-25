@@ -49,24 +49,19 @@ def run_job(
             # The job was interrupted on purpose
             #  and should be marked as unfinished
             print(f"({worker.id}) Job was interrupted: {cmd}")
-            stage.update(
+            job.set_unfinished(
                 engine=engine,
-                status=StageStatus.UNFINISHED,
             )
             return False
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
-        # TODO: only set to finished if the all jobs are finished
-        # TODO: set the job to finished
-        stage.update(
+        job.set_finished(
             engine=engine,
-            status=StageStatus.FINISHED,
         )
     except subprocess.CalledProcessError:
         print(f"({worker.id}) Command failed: {cmd}")
-        stage.update(
+        job.set_failed(
             engine=engine,
-            status=StageStatus.FAILED,
         )
 
     return True

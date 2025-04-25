@@ -118,10 +118,79 @@ class Job(SQLModel, table=True):
     stdout: str = Field(default="")
     started_at: datetime = Field(default_factory=datetime.now)
     finished_at: Optional[datetime] = None
+    status: StageStatus = Field(sa_type=String, default=StageStatus.RUNNING)
 
     # Relationships
     stage: Optional["Stage"] = Relationship(back_populates="jobs")
     worker: Optional[Worker] = Relationship(back_populates="jobs")
+
+    def set_unfinished(self, engine: Engine) -> None:
+        with Session(engine) as session:
+            job = session.exec(select(Job).where(Job.id == self.id)).one()
+            job.finished_at = datetime.now()
+            job.status = StageStatus.UNFINISHED
+            session.add(job)
+            stage = job.stage
+            if stage is None:
+                return
+            if stage.status != StageStatus.RUNNING:
+                raise ValueError("stage is not running")
+            for job in stage.jobs: # we only change the state if this is the last job
+                if job.finished_at is None:
+                    session.commit()
+                    return
+            stage.status = StageStatus.UNFINISHED
+            session.add(stage)
+            session.commit()
+            session.refresh(stage)
+            session.refresh(job)
+
+    def set_failed(self, engine: Engine) -> None:
+        with Session(engine) as session:
+            job = session.exec(select(Job).where(Job.id == self.id)).one()
+            job.finished_at = datetime.now()
+            job.status = StageStatus.FAILED
+            session.add(job)
+            stage = job.stage
+            if stage is None:
+                return
+            if stage.status != StageStatus.RUNNING:
+                raise ValueError("stage is not running")
+            for job in stage.jobs:
+                # if a job fails, should we set the stage to failed for all?
+                if job.finished_at is None:
+                    session.commit()
+                    return
+            stage.status = StageStatus.FAILED
+            session.add(stage)
+            session.commit()
+            session.refresh(stage)
+            session.refresh(job)
+
+    def set_finished(self, engine: Engine) -> None:
+        with Session(engine) as session:
+            job = session.exec(select(Job).where(Job.id == self.id)).one()
+            job.finished_at = datetime.now()
+            job.status = StageStatus.FINISHED
+            session.add(job)
+            stage = job.stage
+            if stage is None:
+                return
+            # check if all jobs of the stage are finished, then set the stage to finished
+            # TODO: do we want to look for worker heartbeats here?
+            # TODO: should we check the status of the stage is running?
+            if stage.status != StageStatus.RUNNING:
+                raise ValueError("stage is not running")
+            for job in stage.jobs:
+                if job.finished_at is None:
+                    session.commit()
+                    return
+            stage.status = StageStatus.FINISHED
+            session.add(stage)
+            session.commit()
+            session.refresh(stage)
+            session.refresh(job)
+
 
     @staticmethod
     def create(
@@ -162,15 +231,15 @@ class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     cmd: str = Field(max_length=255)  # Command to execute
-    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)
+    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)  # TODO: infer from the jobs? 
     queue: str = Field(default="default", max_length=100)
     lockfile_content: str = Field(default="")  # JSON string of lockfile
     dependency_hash: str = Field(default="")  # Hash of the dependencies
     experiment_id: int = Field(foreign_key="experiment.id")
     capture_stderr: bool = Field(default=True)
     capture_stdout: bool = Field(default=True)
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    # started_at: Optional[datetime] = None # infer from the jobs
+    # finished_at: Optional[datetime] = None  # infer from the jobs
     cache: bool = Field(default=False)  # Use the paraffin cache for this job
     force: bool = Field(default=False)  # Rerun the job even if cached
     max_workers: int = Field(default=1)  # Maximum number of workers for this job

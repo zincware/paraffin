@@ -111,3 +111,5 @@ def test_db_graph_conversion(db_engine):
         stage = session.exec(select(Stage).where(Stage.id == stage.id)).one()
         assert stage.status == StageStatus.FINISHED
         assert stage.jobs[0].worker_id == worker.id
+        for job in stage.jobs:
+            assert job.finished_at is not None
