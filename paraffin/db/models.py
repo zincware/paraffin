@@ -146,22 +146,32 @@ class Job(SQLModel, table=True):
                 session.commit()
                 return
 
-            stage.assigned_workers -= 1
-            if stage.assigned_workers < 0:
-                raise ValueError(
-                    f"Assigned workers for stage {stage.id} cannot be negative."
-                )
-
             # If job failed, the whole stage fails
             if new_status == StageStatus.FAILED:
-                stage.status = StageStatus.FAILED
-                session.add(stage)
+                # should be atomic!
+                session.exec(
+                    text(f"""
+                        UPDATE stage
+                        SET status = '{StageStatus.FAILED}', assigned_workers = assigned_workers - 1
+                        WHERE id = {stage.id}
+                    """)
+                )
 
             if stage.status != StageStatus.FAILED:
-                # Check if all jobs in the stage are finished
-                all_jobs_finished = all(j.finished_at is not None for j in stage.jobs)
-                if all_jobs_finished:
-                    stage.status = new_status
+                # needs to be atomic!
+                # the check for assigned_workers = 1 means that this is the last job active
+                result = session.exec(
+                    text(f"""
+                        UPDATE stage
+                        SET status = '{new_status}', assigned_workers = assigned_workers - 1
+                        WHERE id = {stage.id} AND assigned_workers = 1
+                        RETURNING id
+                    """)
+                )
+                row = result.first()
+                if row is None:
+                    # need to decrement the assigned workers
+                    stage.assigned_workers -= 1
                     session.add(stage)
 
             session.commit()

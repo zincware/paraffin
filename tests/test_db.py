@@ -217,6 +217,15 @@ def test_db_parallel_finished(db_engine_parallel: Engine):
         assert stage_1.status == StageStatus.FINISHED
         assert stage_1.finished_at is not None
 
+    # try to claim a stage again
+    with Session(db_engine_parallel) as session:
+        # select all stages
+        job_3 = Stage.claim(
+            session=session,
+            worker_id=w1.id,
+        )
+        assert job_3 is None
+
 
 def test_db_parallel_first_failed(db_engine_parallel: Engine):
     w1 = Worker.register(
