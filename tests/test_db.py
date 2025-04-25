@@ -64,6 +64,7 @@ def db_engine_parallel(proj_path) -> Engine:
 
     return engine
 
+
 def test_db(db_engine: Engine):
     worker = Worker.register(
         name="test_worker",

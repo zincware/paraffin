@@ -122,79 +122,45 @@ class Job(SQLModel, table=True):
 
     # Relationships
     stage: Optional["Stage"] = Relationship(back_populates="jobs")
-    worker: Optional[Worker] = Relationship(back_populates="jobs")
+    worker: Optional["Worker"] = Relationship(back_populates="jobs")
+
+    def _update_status(self, engine: Engine, new_status: StageStatus) -> None:
+        with Session(engine) as session:
+            job = session.exec(select(Job).where(Job.id == self.id)).one()
+            job.finished_at = datetime.now()
+            job.status = new_status
+            session.add(job)
+            stage = job.stage
+            if stage is None:
+                session.commit()
+                return
+            if stage.status != StageStatus.RUNNING:
+                raise ValueError("stage is not running")
+            all_jobs_finished = True
+            for job_in_stage in stage.jobs:
+                if job_in_stage.finished_at is None:
+                    all_jobs_finished = False
+                    break
+            if all_jobs_finished:
+                stage.status = new_status  # Use the job's new status for the stage
+                session.add(stage)
+            session.commit()
+            session.refresh(stage)
+            session.refresh(job)
 
     def set_unfinished(self, engine: Engine) -> None:
-        with Session(engine) as session:
-            job = session.exec(select(Job).where(Job.id == self.id)).one()
-            job.finished_at = datetime.now()
-            job.status = StageStatus.UNFINISHED
-            session.add(job)
-            stage = job.stage
-            if stage is None:
-                return
-            if stage.status != StageStatus.RUNNING:
-                raise ValueError("stage is not running")
-            for job in stage.jobs: # we only change the state if this is the last job
-                if job.finished_at is None:
-                    session.commit()
-                    return
-            stage.status = StageStatus.UNFINISHED
-            session.add(stage)
-            session.commit()
-            session.refresh(stage)
-            session.refresh(job)
+        self._update_status(engine, StageStatus.UNFINISHED)
 
     def set_failed(self, engine: Engine) -> None:
-        with Session(engine) as session:
-            job = session.exec(select(Job).where(Job.id == self.id)).one()
-            job.finished_at = datetime.now()
-            job.status = StageStatus.FAILED
-            session.add(job)
-            stage = job.stage
-            if stage is None:
-                return
-            if stage.status != StageStatus.RUNNING:
-                raise ValueError("stage is not running")
-            for job in stage.jobs:
-                # if a job fails, should we set the stage to failed for all?
-                if job.finished_at is None:
-                    session.commit()
-                    return
-            stage.status = StageStatus.FAILED
-            session.add(stage)
-            session.commit()
-            session.refresh(stage)
-            session.refresh(job)
+        self._update_status(engine, StageStatus.FAILED)
 
     def set_finished(self, engine: Engine) -> None:
-        with Session(engine) as session:
-            job = session.exec(select(Job).where(Job.id == self.id)).one()
-            job.finished_at = datetime.now()
-            job.status = StageStatus.FINISHED
-            session.add(job)
-            stage = job.stage
-            if stage is None:
-                return
-            # check if all jobs of the stage are finished, then set the stage to finished
-            # TODO: do we want to look for worker heartbeats here?
-            # TODO: should we check the status of the stage is running?
-            if stage.status != StageStatus.RUNNING:
-                raise ValueError("stage is not running")
-            for job in stage.jobs:
-                if job.finished_at is None:
-                    session.commit()
-                    return
-            stage.status = StageStatus.FINISHED
-            session.add(stage)
-            session.commit()
-            session.refresh(stage)
-            session.refresh(job)
+        self._update_status(engine, StageStatus.FINISHED)
 
     @staticmethod
     def create_for_commit(
         engine: Engine,
-        worker: Worker,
+        worker: "Worker",
         queues: list | None = None,
         experiment: int | None = None,
         stage_name: str | None = None,
@@ -218,7 +184,7 @@ class Job(SQLModel, table=True):
     @staticmethod
     def create(
         engine: Engine,
-        worker: Worker,
+        worker: "Worker",
         queues: list | None = None,
         experiment: int | None = None,
         stage_name: str | None = None,
@@ -249,12 +215,13 @@ class Job(SQLModel, table=True):
 
         return None
 
+
 class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=100)
     cmd: str = Field(max_length=255)  # Command to execute
     # Can not infer from jobs, because all jobs can finish but the job did not finish yet.
-    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)  
+    status: StageStatus = Field(sa_type=String, default=StageStatus.PENDING)
     queue: str = Field(default="default", max_length=100)
     lockfile_content: str = Field(default="")  # JSON string of lockfile
     dependency_hash: str = Field(default="")  # Hash of the dependencies
@@ -276,7 +243,7 @@ class Stage(SQLModel, table=True):
     path: str = Field(default=".")  # Path to the dvc.yaml file
 
     # Relationships
-    experiment: Optional[Experiment] = Relationship(back_populates="stages")
+    experiment: Optional["Experiment"] = Relationship(back_populates="stages")
     jobs: List[Job] = Relationship(back_populates="stage")
     parents: List["Stage"] = Relationship(
         link_model=StageDependency,
@@ -302,23 +269,22 @@ class Stage(SQLModel, table=True):
 
     @property
     def finished_at(self) -> Optional[datetime]:
-        if self.status in {StageStatus.FAILED, StageStatus.COMPLETED, StageStatus.FINISHED}:
+        if self.status in {
+            StageStatus.FAILED,
+            StageStatus.COMPLETED,
+            StageStatus.FINISHED,
+        }:
             ends = [job.finished_at for job in self.jobs if job.finished_at]
             return max(ends) if ends else None
         return None
 
-    def attach_job(self, worker: Worker) -> Job:
+    def attach_job(self, worker: "Worker") -> Job:
         self.status = StageStatus.RUNNING
         job = Job(stage_id=self.id, worker_id=worker.id)
         self.jobs.append(job)
         return job
-    
-    def update(
-        self,
-        engine: Engine,
-        status: StageStatus,
-        **kwargs: dict
-    ) -> None:
+
+    def update(self, engine: Engine, status: StageStatus, **kwargs: dict) -> None:
         """
         Update the status of a job in the database.
         """
@@ -339,7 +305,6 @@ class Stage(SQLModel, table=True):
             parent.status in [StageStatus.COMPLETED, StageStatus.FINISHED]
             for parent in self.parents
         )
-    
 
     @staticmethod
     def claim_finished(
@@ -350,20 +315,20 @@ class Stage(SQLModel, table=True):
     ) -> Optional["Stage"]:
         result = session.exec(
             text(f"""
-            UPDATE stage
-            SET status = '{StageStatus.RUNNING}'
-            WHERE id = (
-                SELECT s.id FROM stage s
-                JOIN experiment e ON s.experiment_id = e.id
-                WHERE s.status = '{StageStatus.FINISHED}'
-                AND e.status = '{ExperimentStatus.ACTIVE}'
-                AND e.base = '{commit}'
-                AND e.machine = '{machine}'
-                AND e.origin = '{origin}'
-                LIMIT 1
-            )
-            RETURNING id
-        """),
+                UPDATE stage
+                SET status = '{StageStatus.RUNNING}'
+                WHERE id = (
+                    SELECT s.id FROM stage s
+                    JOIN experiment e ON s.experiment_id = e.id
+                    WHERE s.status = '{StageStatus.FINISHED}'
+                    AND e.status = '{ExperimentStatus.ACTIVE}'
+                    AND e.base = '{commit}'
+                    AND e.machine = '{machine}'
+                    AND e.origin = '{origin}'
+                    LIMIT 1
+                )
+                RETURNING id
+            """),
         )
         row = result.first()
         if row:
@@ -377,46 +342,46 @@ class Stage(SQLModel, table=True):
         origin: str = "test",
         machine: str = "test",
     ) -> Optional["Stage"]:
-        status=[StageStatus.PENDING, StageStatus.UNKNOWN]
+        status = [StageStatus.PENDING, StageStatus.UNKNOWN]
         result = session.exec(
             text(f"""
-            UPDATE stage
-            SET status = '{StageStatus.RUNNING}'
-            WHERE id = (
-                SELECT s.id FROM stage s
-                JOIN experiment e ON s.experiment_id = e.id
-                WHERE s.status IN ({",".join(f"'{s}'" for s in status)})
-                AND e.status = '{ExperimentStatus.ACTIVE}'
-                AND e.base = '{commit}'
-                AND e.machine = '{machine}'
-                AND e.origin = '{origin}'
-                LIMIT 1
-            )
-            RETURNING id
-        """),
+                UPDATE stage
+                SET status = '{StageStatus.RUNNING}'
+                WHERE id = (
+                    SELECT s.id FROM stage s
+                    JOIN experiment e ON s.experiment_id = e.id
+                    WHERE s.status IN ({",".join(f"'{s}'" for s in status)})
+                    AND e.status = '{ExperimentStatus.ACTIVE}'
+                    AND e.base = '{commit}'
+                    AND e.machine = '{machine}'
+                    AND e.origin = '{origin}'
+                    LIMIT 1
+                )
+                RETURNING id
+            """),
         )
         row = result.first()
         if row:
             return session.exec(select(Stage).where(Stage.id == row[0])).one()
-        
+
         result = session.exec(
             text(f"""
-                UPDATE stage
-                SET assigned_workers = assigned_workers + 1
-                WHERE stage.id = (
-                    SELECT stage.id
-                    FROM stage
-                JOIN experiment ON stage.experiment_id = experiment.id
-                WHERE stage.status = '{StageStatus.RUNNING}'
-                AND experiment.status = '{ExperimentStatus.ACTIVE}'
-                AND experiment.base = '{commit}'
-                AND experiment.machine = '{machine}'
-                AND experiment.origin = '{origin}'
-                AND stage.assigned_workers < stage.max_workers
-                LIMIT 1
-            )
-            RETURNING id;
-        """),
+                    UPDATE stage
+                    SET assigned_workers = assigned_workers + 1
+                    WHERE stage.id = (
+                        SELECT stage.id
+                        FROM stage
+                    JOIN experiment ON stage.experiment_id = experiment.id
+                    WHERE stage.status = '{StageStatus.RUNNING}'
+                    AND experiment.status = '{ExperimentStatus.ACTIVE}'
+                    AND experiment.base = '{commit}'
+                    AND experiment.machine = '{machine}'
+                    AND experiment.origin = '{origin}'
+                    AND stage.assigned_workers < stage.max_workers
+                    LIMIT 1
+                )
+                RETURNING id;
+            """),
         )
         row = result.first()
         if row:
