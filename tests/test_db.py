@@ -155,8 +155,15 @@ def test_db(db_engine: Engine):
         assert finished_stage.id == stage.id
 
 
-def test_db_parallel(db_engine_parallel: Engine):
-    worker = Worker.register(
+def test_db_parallel_finished(db_engine_parallel: Engine):
+    w1 = Worker.register(
+        name="test_worker",
+        machine="test_machine",
+        engine=db_engine_parallel,
+        cwd="test_cwd",
+        pid=1234,
+    )
+    w2 = Worker.register(
         name="test_worker",
         machine="test_machine",
         engine=db_engine_parallel,
@@ -169,28 +176,48 @@ def test_db_parallel(db_engine_parallel: Engine):
         # select all stages
         stage_1 = Stage.claim(
             session=session,
-        )
+        ) # TODO: this should probably return a job?
         assert stage_1 is not None
         stage_2 = Stage.claim(
             session=session,
         )
         assert stage_2 is not None
+        assert stage_2.id == stage_1.id
 
         stage_3 = Stage.claim(
             session=session,
         )
         assert stage_3 is None
 
-        # assert stage.finished_at is None
-        # assert stage.started_at is None
-        # # get a worker
-        # worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
-        # job = stage.attach_job(worker=worker)
-        # session.add(job)
-        # session.commit()
-        # session.refresh(job)
-        # session.refresh(stage)
-        # session.refresh(worker)
-        # assert stage.started_at is not None
-        # assert stage.started_at == job.started_at
-        # assert stage.finished_at is None
+        # assign workers to the jobs
+        worker_1 = session.exec(select(Worker).where(Worker.id == w1.id)).one()
+        job_1 = stage_1.attach_job(worker=worker_1)
+        session.add(job_1)
+        worker_2 = session.exec(select(Worker).where(Worker.id == w2.id)).one()
+        job_2 = stage_2.attach_job(worker=worker_2)
+        session.add(job_2)
+        assert job_1.worker_id != job_2.worker_id
+        assert job_1.worker_id == worker_1.id
+        assert job_2.worker_id == worker_2.id
+        assert job_1.id != job_2.id
+
+        session.commit()
+        session.refresh(job_1)
+        session.refresh(job_2)
+
+    with Session(db_engine_parallel) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.RUNNING
+        assert stage_1.started_at == job_1.started_at
+        assert stage_1.finished_at is None
+        assert stage_1.jobs[0].id == job_1.id
+        assert stage_1.jobs[1].id == job_2.id
+        assert len(stage_1.jobs) == 2
+
+    job_1.set_finished(engine=db_engine_parallel)
+    job_2.set_finished(engine=db_engine_parallel)
+
+    with Session(db_engine_parallel) as session:
+        stage_1 = session.exec(select(Stage).where(Stage.id == 1)).one()
+        assert stage_1.status == StageStatus.FINISHED
+        assert stage_1.finished_at is not None
