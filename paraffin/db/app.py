@@ -210,14 +210,14 @@ def claim_stage_parallel(
 
 def get_job(
     engine: Engine,
-    worker_id: int,
+    worker: Worker,
     status: list[StageStatus],
     queues: list | None = None,
     experiment: int | None = None,
     stage_name: str | None = None,
 ) -> tuple[Stage, Job] | None:
     with Session(bind=engine) as session:
-        worker = session.exec(select(Worker).where(Worker.id == worker_id)).one()
+        worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
         stage = claim_stage(session, status=status)
         # TODO: don't we need to rollback the SET status = '{StageStatus.RUNNING}' if _all_parents_completed is false?
         if stage and _all_parents_completed(stage):
@@ -260,7 +260,7 @@ def register_worker(
     cwd: str,
     pid: int,
     requires_dvc_lock: bool = False,
-) -> int:
+) -> Worker:
     with Session(engine) as session:
         worker = Worker(
             name=name,
@@ -271,12 +271,13 @@ def register_worker(
         )
         session.add(worker)
         session.commit()
-        return worker.id
+        session.refresh(worker)
+        return worker
 
 
-def close_worker(id: int, engine: Engine) -> None:
+def close_worker(worker: Worker, engine: Engine) -> None:
     with Session(engine) as session:
-        worker = session.exec(select(Worker).where(Worker.id == id)).one()
+        worker = session.exec(select(Worker).where(Worker.id == worker.id)).one()
         worker.status = WorkerStatus.OFFLINE
         worker.last_seen = datetime.datetime.now()
         worker.finished_at = datetime.datetime.now()

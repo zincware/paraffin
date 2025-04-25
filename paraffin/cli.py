@@ -50,7 +50,7 @@ def commit():
     db = "sqlite:///paraffin.db"
 
     engine = create_engine(db)
-    worker_id = register_worker(
+    worker = register_worker(
         name=name,
         machine=socket.gethostname(),
         engine=engine,
@@ -66,7 +66,7 @@ def commit():
             res = get_job(
                 engine=engine,
                 queues=None,
-                worker_id=worker_id,
+                worker=worker,
                 experiment=None,
                 stage_name=None,
                 status=[StageStatus.FINISHED],
@@ -106,7 +106,7 @@ def commit():
                 active_job = None
 
     print("No job found.")
-    close_worker(id=worker_id, engine=engine)
+    close_worker(worker=worker, engine=engine)
 
 
 @app.command()

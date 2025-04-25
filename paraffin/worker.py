@@ -11,17 +11,25 @@ from sqlalchemy import Engine
 
 from paraffin.db.app import (
     Job,
+    Stage,
     StageStatus,
+    Worker,
     close_worker,
     get_job,
     register_worker,
     update_job,
-    Stage
 )
 
-def run_job(stage: Stage, job: Job, shutdown_event: threading.Event, worker_id: int, engine: Engine) -> bool:
+
+def run_job(
+    stage: Stage,
+    job: Job,
+    shutdown_event: threading.Event,
+    worker: Worker,
+    engine: Engine,
+) -> bool:
     cmd = json.loads(stage.cmd)
-    print(f"({worker_id}) Running command: {cmd}")
+    print(f"({worker.id}) Running command: {cmd}")
     try:
         # subprocess.check_call(cmd, shell=True)
         proc = subprocess.Popen(
@@ -30,7 +38,7 @@ def run_job(stage: Stage, job: Job, shutdown_event: threading.Event, worker_id: 
             preexec_fn=os.setsid,
             universal_newlines=True,
             cwd=stage.path,
-            env={"PARAFFIN_WORKER_ID": str(worker_id), **os.environ},
+            env={"PARAFFIN_WORKER_ID": str(worker.id), **os.environ},
         )
         # Wait for the process to finish but also check for shutdown
         while proc.poll() is None and not shutdown_event.is_set():
@@ -41,6 +49,16 @@ def run_job(stage: Stage, job: Job, shutdown_event: threading.Event, worker_id: 
             proc.wait()
             return False
         # Check the return code
+        if proc.returncode == 25:
+            # The job was interrupted on purpose
+            #  and should be marked as unfinished
+            print(f"({worker.id}) Job was interrupted: {cmd}")
+            update_job(
+                engine=engine,
+                stage_id=job.stage_id,
+                status=StageStatus.UNFINISHED,
+            )
+            return False
         if proc.returncode != 0:
             raise subprocess.CalledProcessError(proc.returncode, cmd)
         # TODO: only set to finished if the all jobs are finished
@@ -51,15 +69,14 @@ def run_job(stage: Stage, job: Job, shutdown_event: threading.Event, worker_id: 
             status=StageStatus.FINISHED,
         )
     except subprocess.CalledProcessError:
-        print(f"({worker_id}) Command failed: {cmd}")
+        print(f"({worker.id}) Command failed: {cmd}")
         update_job(
             engine=engine,
             stage_id=job.stage_id,
             status=StageStatus.FAILED,
         )
-    
+
     return True
-    
 
 
 def run_worker(
@@ -67,7 +84,7 @@ def run_worker(
 ):
     active_job: Optional[Job] = None
 
-    worker_id = register_worker(
+    worker = register_worker(
         name=name,
         machine=socket.gethostname(),
         engine=engine,
@@ -82,7 +99,7 @@ def run_worker(
             res = get_job(
                 engine=engine,
                 queues=None,
-                worker_id=worker_id,
+                worker=worker,
                 experiment=None,
                 stage_name=None,
                 status=[StageStatus.PENDING, StageStatus.UNKNOWN],
@@ -91,9 +108,9 @@ def run_worker(
                 timer = datetime.now()
             elif res is None and timer is not None:
                 if (datetime.now() - timer).total_seconds() > timeout:
-                    print(f"({worker_id}) No job found, shutting down.")
+                    print(f"({worker.id}) No job found, shutting down.")
                     break
-                print(f"({worker_id}) No job found, waiting for {timeout} seconds.")
+                print(f"({worker.id}) No job found, waiting for {timeout} seconds.")
                 time.sleep(max([timeout / 5, 1]))
             elif res is not None:
                 timer = None
@@ -105,7 +122,7 @@ def run_worker(
                     stage=stage,
                     job=job,
                     shutdown_event=shutdown_event,
-                    worker_id=worker_id,
+                    worker=worker,
                     engine=engine,
                 )
                 active_job = None
@@ -113,11 +130,11 @@ def run_worker(
                     break
     finally:
         if active_job is not None:
-            print(f"({worker_id}) Job {active_job.id} was interrupted.")
+            print(f"({worker.id}) Job {active_job.id} was interrupted.")
             update_job(
                 engine=engine,
                 stage_id=active_job.stage_id,
                 status=StageStatus.UNFINISHED,
             )
-        close_worker(id=worker_id, engine=engine)
-        print(f"({worker_id}) Worker closed.")
+        close_worker(worker=worker, engine=engine)
+        print(f"({worker.id}) Worker closed.")
