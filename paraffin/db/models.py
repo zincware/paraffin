@@ -1,3 +1,8 @@
+import json
+import os
+import subprocess
+import threading
+import time
 from datetime import datetime
 from typing import List, Optional
 
@@ -181,6 +186,57 @@ class Job(SQLModel, table=True):
             else:
                 return None
 
+    def run(
+        self,
+        shutdown_event: threading.Event,
+        worker: Worker,
+        engine: Engine,
+    ) -> bool:
+        with Session(engine) as session:
+            stage = session.get(Job, self.id).stage
+            session.refresh(stage)
+        cmd = json.loads(stage.cmd)
+        print(f"({worker.id}) Running command: {cmd}")
+        try:
+            # subprocess.check_call(cmd, shell=True)
+            proc = subprocess.Popen(
+                cmd,
+                shell=True,
+                preexec_fn=os.setsid,
+                universal_newlines=True,
+                cwd=stage.path,
+                env={"PARAFFIN_WORKER_ID": str(worker.id), **os.environ},
+            )
+            # Wait for the process to finish but also check for shutdown
+            while proc.poll() is None and not shutdown_event.is_set():
+                time.sleep(0.1)
+            # If the shutdown event is set, terminate the process
+            if shutdown_event.is_set():
+                proc.terminate()
+                proc.wait()
+                return False
+            # Check the return code
+            if proc.returncode == 25:
+                # The job was interrupted on purpose
+                #  and should be marked as unfinished
+                print(f"({worker.id}) Job was interrupted: {cmd}")
+                self.set_unfinished(
+                    engine=engine,
+                )
+                return False
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(proc.returncode, cmd)
+            self.set_finished(
+                engine=engine,
+            )
+        except subprocess.CalledProcessError:
+            print(f"({worker.id}) Command failed: {cmd}")
+            self.set_failed(
+                engine=engine,
+            )
+
+        return True
+
 
 class Stage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -351,7 +407,7 @@ class Stage(SQLModel, table=True):
             )
             row = result.first()
         if row is None:
-            return None # no stage available
+            return None  # no stage available
         stage: "Stage" = session.exec(select(Stage).where(Stage.id == row[0])).one()
         worker: "Worker" = session.exec(
             select(Worker).where(Worker.id == worker_id)

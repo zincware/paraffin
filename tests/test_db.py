@@ -1,3 +1,4 @@
+import dataclasses
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -10,8 +11,6 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from paraffin.db.app import save_graph_to_db
 from paraffin.db.models import Stage, Worker
 from paraffin.dvc import StageStatus, get_status
-from paraffin.worker import run_job
-import dataclasses
 
 
 @pytest.fixture
@@ -122,11 +121,10 @@ def test_db(db_engine: Engine):
 
     with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
         # Call your function here that runs the subprocess
-        result = run_job(
+        result = job.run(
             engine=db_engine,
             shutdown_event=shutdown_event,
             worker=worker,
-            job=job,
         )
 
         # Assertions
@@ -177,7 +175,7 @@ def test_db_parallel_finished(db_engine_parallel: Engine):
         job_1 = Stage.claim(
             session=session,
             worker_id=w1.id,
-        ) # TODO: this should probably return a job?
+        )  # TODO: this should probably return a job?
         assert job_1 is not None
         job_2 = Stage.claim(
             session=session,

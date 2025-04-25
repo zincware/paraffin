@@ -5,7 +5,7 @@ import typing as t
 
 import typer
 
-from paraffin.db.models import Worker, Job
+from paraffin.db.models import Job, Worker
 
 app = typer.Typer()
 

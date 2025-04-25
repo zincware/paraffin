@@ -1,6 +1,5 @@
 # import datetime
 # import fnmatch
-import typing as t
 
 import networkx as nx
 from sqlalchemy import Engine
@@ -10,16 +9,13 @@ from sqlalchemy import Engine
 from sqlmodel import (
     Session,
     select,
-    text,
 )
 
 from paraffin.db.models import (
     Experiment,
     ExperimentStatus,
-    Job,
     Stage,
     StageDependency,
-    Worker,
 )
 from paraffin.dvc import StageDC, StageStatus
 
