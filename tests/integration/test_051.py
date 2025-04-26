@@ -51,7 +51,10 @@ def test_051(repo):
     subprocess.check_call(["dvc freeze 00a_syncdata"], shell=True)
 
     result = runner.invoke(app, "submit")
-    assert result.exit_code == 0
+    if result.exit_code != 0:
+        print(result.stdout)
+        assert result.exit_code == 0
 
     result = runner.invoke(app, "worker")
-    assert result.exit_code == 0
+    if result.exit_code != 0:
+        raise AssertionError(f"{result.exit_code} - {result.stdout}")

@@ -67,7 +67,6 @@ def repo(tmp_path):
 
 def test_053(repo):
     # subprocess.check_call(["dvc repro"], shell=True)
-
     result = runner.invoke(app, "submit")
     assert result.exit_code == 0
 
