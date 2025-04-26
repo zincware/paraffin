@@ -7,9 +7,7 @@ log.setLevel(logging.DEBUG)
 # attach a console handler that pritns the time
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    "%(asctime)s %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s %(message)s")
 ch.setFormatter(formatter)
 log.addHandler(ch)
 

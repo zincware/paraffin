@@ -1,4 +1,5 @@
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -8,7 +9,6 @@ from dvc.stage import PipelineStage
 from dvc.stage.cache import RunCacheNotFoundError
 from dvc.stage.serialize import to_single_stage_lockfile
 from tqdm import tqdm
-import logging
 
 from paraffin.backports import StrEnum
 
@@ -181,9 +181,7 @@ def cleanup_stages(graph: nx.DiGraph) -> None:
     ]
 
     graph = fs.repo.index.graph.reverse(copy=True)
-    stages = [
-        x for x in graph.nodes if x.addressing in stage_addressings
-    ]
+    stages = [x for x in graph.nodes if x.addressing in stage_addressings]
     # TODO: test cleanup!
     # TODO: share fs graph as well
     assert len(stages) == len(stage_addressings)

@@ -1,9 +1,8 @@
+import logging
 import os
 import socket
 import threading
-import typing as t
 from pathlib import Path
-import logging
 
 import typer
 
@@ -29,12 +28,11 @@ def ui(
     import uvicorn
 
     from paraffin.ui.app import app as webapp
+
     db_path = Path(db)
     if db_path.name.startswith("sqlite:/"):
         if not db_path.exists():
-            raise FileNotFoundError(
-                f"Database file '{db_path}' does not found."
-            )
+            raise FileNotFoundError(f"Database file '{db_path}' does not found.")
     if browser:
         webbrowser.open(f"http://localhost:{port}")
     os.environ["PARAFFIN_DB"] = db
@@ -206,7 +204,7 @@ def submit(
     # TODO: cleanup
     dvc_run_cache: bool = typer.Option(
         True,
-        help="(SLOW) For each stage, search and restore results from the DVC run cache if available."
+        help="(SLOW) For each stage, search and restore results from the DVC run cache if available.",
     ),
 ):
     """Run DVC stages in parallel."""
@@ -217,7 +215,7 @@ def submit(
     )
 
     from paraffin.db.app import save_graph_to_db, update_existing_experiment_stages
-    from paraffin.dvc import cleanup_stages, get_status, print_graph_description
+    from paraffin.dvc import cleanup_stages, get_status
     from paraffin.io import update_max_workers
     from paraffin.utils import handle_existing_stages
 
