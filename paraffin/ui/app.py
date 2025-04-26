@@ -4,9 +4,10 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import create_engine
+from sqlmodel import Session, create_engine, select
 
 from paraffin.db.app import get_stage_by_id, list_experiments, list_stages
+from paraffin.db.models import Stage, StageStatus
 
 FILE = Path(__file__)
 
@@ -42,6 +43,21 @@ def read_stage(id: int):
     db_url = os.environ["PARAFFIN_DB"]
     engine = create_engine(db_url)
     return get_stage_by_id(stage_id=id, engine=engine)
+
+
+@api_router.get("/stage/update")
+def update_stage(stage_id: int, status: str):
+    status = status.upper()
+    db_url = os.environ["PARAFFIN_DB"]
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        stage = session.exec(select(Stage).where(Stage.id == stage_id)).first()
+        if stage is None:
+            return {"error": "Stage not found"}
+        stage.status = StageStatus[status]
+        session.add(stage)
+        session.commit()
+    return {"status": "ok"}
 
 
 app.include_router(api_router)
@@ -136,16 +152,3 @@ async def serve_react_app(full_path: str):
 
 
 # # update_job_status
-# @app.get("/api/v1/job/update")
-# def update_job(name: str, experiment: int, status: str, force: bool = False):
-#     db_url = os.environ["PARAFFIN_DB"]
-#     print(
-#         f"Updating job {name} to {status} in experiment {experiment} with force={force}"
-#     )
-#     return update_job_status(
-#         job_name=name,
-#         experiment_id=int(experiment),
-#         status=status,
-#         db_url=db_url,
-#         force=force,
-#     )

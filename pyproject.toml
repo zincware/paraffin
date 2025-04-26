@@ -25,10 +25,11 @@ Releases = "https://github.com/zincware/paraffin/releases"
 [dependency-groups]
 dev = [
     "coverage>=7.6.10",
-    "filelock>=3.17.0",
+    "flufl-lock>=8.1.0",
     "pytest>=8.3.4",
     "pytest-xdist>=3.6.1",
     "rdkit2ase>=0.1.4",
+    "ruff>=0.11.7",
     "znh5md>=0.4.4",
     "zntrack>=0.8.5",
 ]
