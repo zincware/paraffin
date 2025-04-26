@@ -8,8 +8,11 @@ from dvc.stage import PipelineStage
 from dvc.stage.cache import RunCacheNotFoundError
 from dvc.stage.serialize import to_single_stage_lockfile
 from tqdm import tqdm
+import logging
 
 from paraffin.backports import StrEnum
+
+log = logging.getLogger(__name__)
 
 
 class StageStatus(StrEnum):
@@ -97,10 +100,16 @@ def _restore_and_classify(stage, run_cache: bool) -> StageDC:
 
 
 def get_status(run_cache: bool = True, **kwargs) -> nx.DiGraph:
+    log.debug("Collecting DVC file system")
     fs = dvc.api.DVCFileSystem(**kwargs)
     repo = fs.repo
-    graph = repo.index.graph.reverse(copy=True)
+    log.debug("Collecting DVC graph")
+    graph = repo.index.graph
+    log.debug("Reversing DVC graph")
+    graph = graph.reverse(copy=True)
+    log.debug("Collecting DVC status")
     status = repo.status()
+    log.debug("Iterating DVC stages")
 
     results = {}
     for stage in tqdm(
@@ -171,10 +180,12 @@ def cleanup_stages(graph: nx.DiGraph) -> None:
         if stage.status in [StageStatus.PENDING, StageStatus.UNKNOWN]
     ]
 
-    stages = sum(
-        (fs.repo.stage.collect(with_deps=False, target=ad) for ad in stage_addressings),
-        [],
-    )
+    graph = fs.repo.index.graph.reverse(copy=True)
+    stages = [
+        x for x in graph.nodes if x.addressing in stage_addressings
+    ]
+    # TODO: test cleanup!
+    # TODO: share fs graph as well
     assert len(stages) == len(stage_addressings)
     for stage in tqdm(
         stages,
@@ -182,5 +193,6 @@ def cleanup_stages(graph: nx.DiGraph) -> None:
         desc="Cleaning up stages",
         unit="stage",
     ):
+        stage: PipelineStage
         with stage.repo.lock:
             stage.remove_outs()

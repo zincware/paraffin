@@ -2,10 +2,14 @@ import os
 import socket
 import threading
 import typing as t
+from pathlib import Path
+import logging
 
 import typer
 
 from paraffin.db.models import Job, Worker
+
+log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -16,6 +20,7 @@ def ui(
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
+    browser: bool = True,
 ):
     """Start the Paraffin web UI."""
     import os
@@ -24,8 +29,14 @@ def ui(
     import uvicorn
 
     from paraffin.ui.app import app as webapp
-
-    webbrowser.open(f"http://localhost:{port}")
+    db_path = Path(db)
+    if db_path.name.startswith("sqlite:/"):
+        if not db_path.exists():
+            raise FileNotFoundError(
+                f"Database file '{db_path}' does not found."
+            )
+    if browser:
+        webbrowser.open(f"http://localhost:{port}")
     os.environ["PARAFFIN_DB"] = db
     uvicorn.run(webapp, host="0.0.0.0", port=port)
 
@@ -164,35 +175,39 @@ def worker(
 
 @app.command()
 def submit(
-    names: t.Optional[list[str]] = typer.Argument(
-        None, help="Stage names to run. If not specified, run all stages."
-    ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
-    cache: bool = typer.Option(
-        False,
-        help="Use the paraffin cache in addition to the DVC cache"
-        " to checkout cached jobs.",
-    ),
+    # names: t.Optional[list[str]] = typer.Argument(
+    #     None, help="Stage names to run. If not specified, run all stages."
+    # ),
+    # verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output."),
+    # cache: bool = typer.Option(
+    #     False,
+    #     help="Use the paraffin cache in addition to the DVC cache"
+    #     " to checkout cached jobs.",
+    # ),
     db: str = typer.Option(
         "sqlite:///paraffin.db", help="Database URL.", envvar="PARAFFIN_DB"
     ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="reproduce pipelines, regenerating its results, even if no changes"
-        " were found. See https://dvc.org/doc/command-reference/repro#-f"
-        " for more information.",
-    ),
-    single_item: bool = typer.Option(
-        False,
-        "--single-item",
-        "-s",
-        help="reproduce only a single stage by turning off the recursive search for"
-        " changed dependencies. See https://dvc.org/doc/command-reference/repro#-s"
-        " for more information.",
-    ),
+    # force: bool = typer.Option(
+    #     False,
+    #     "--force",
+    #     "-f",
+    #     help="reproduce pipelines, regenerating its results, even if no changes"
+    #     " were found. See https://dvc.org/doc/command-reference/repro#-f"
+    #     " for more information.",
+    # ),
+    # single_item: bool = typer.Option(
+    #     False,
+    #     "--single-item",
+    #     "-s",
+    #     help="reproduce only a single stage by turning off the recursive search for"
+    #     " changed dependencies. See https://dvc.org/doc/command-reference/repro#-s"
+    #     " for more information.",
+    # ),
     # TODO: cleanup
+    dvc_run_cache: bool = typer.Option(
+        True,
+        help="(SLOW) For each stage, search and restore results from the DVC run cache if available."
+    ),
 ):
     """Run DVC stages in parallel."""
     # imports here for better performance
@@ -207,19 +222,24 @@ def submit(
     from paraffin.utils import handle_existing_stages
 
     # TODO: if there is an experiment, set the stages to outdated
-
-    graph = get_status()
+    log.debug("Getting status of the pipeline.")
+    graph = get_status(run_cache=dvc_run_cache)
+    log.debug("Setup database .")
 
     engine = create_engine(db)
     SQLModel.metadata.create_all(engine)
-
+    log.debug("handle_existing_stages.")
     handle_existing_stages(graph=graph, engine=engine)
+    log.debug("update_existing_experiment_stages.")
     update_existing_experiment_stages(engine=engine)
+    log.debug("cleanup_stages.")
     cleanup_stages(graph=graph)
-    # cleanup all stages that are `queued`
+    log.debug("update_max_workers.")
     update_max_workers(graph=graph)
-    print_graph_description(graph)
+    # print_graph_description(graph)
+    log.debug("save_graph_to_db.")
     save_graph_to_db(graph=graph, engine=engine)
+    log.debug("done.")
 
 
 @app.command()
