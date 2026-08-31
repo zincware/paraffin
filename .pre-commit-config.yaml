@@ -2,7 +2,7 @@ default_language_version:
   python: python3
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -20,13 +20,13 @@ repos:
       - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.3
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.9.6
+    rev: v0.16.5
     hooks:
       # Run the linter.
       - id: ruff
@@ -34,7 +34,7 @@ repos:
       # Run the formatter.
       - id: ruff-format
   - repo: https://github.com/biomejs/pre-commit
-    rev: v0.6.1  # Use the sha / tag you want to point at
+    rev: v2.5.11  # Use the sha / tag you want to point at
     hooks:
     -   id: biome-format # not using check becasue there are lots of things that need fixed
         additional_dependencies: ["@biomejs/biome@1.9.4"]
